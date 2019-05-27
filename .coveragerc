@@ -1,0 +1,7 @@
+[run]
+omit = 
+    .venv/*
+    .tox/*
+    
+[report]
+show_missing = True
