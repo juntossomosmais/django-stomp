@@ -1,7 +1,6 @@
 import logging
 import uuid
 from time import sleep
-from typing import Optional
 
 from django.conf import settings
 from django.db import connection
@@ -13,7 +12,15 @@ from request_id_django_log import local_threading
 
 logger = logging.getLogger(__name__)
 
-listener_client_id = getattr(settings, "LISTENER_CLIENT_ID", uuid.uuid4().hex)
+listener_id = getattr(settings, "STOMP_LISTENER_CLIENT_ID", None)
+if not listener_id:
+    listener_id = getattr(settings, "LISTENER_CLIENT_ID", None)
+
+listener_id = listener_id if listener_id else ""
+
+listener_client_id = f"{listener_id}-{uuid.uuid4().hex}-listener"
+
+
 connection_params = {
     "use_ssl": getattr(settings, "STOMP_USE_SSL", None),
     "host": settings.STOMP_SERVER_HOST,

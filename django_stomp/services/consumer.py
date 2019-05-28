@@ -40,6 +40,7 @@ class _Listener(stomp.ConnectionListener):
         callback: Callable,
         subscription_configuration: Dict,
         connection_configuration: Dict,
+        is_testing: bool = False,
     ) -> None:
         self._subscription_configuration = subscription_configuration
         self._connection_configuration = connection_configuration
@@ -47,6 +48,14 @@ class _Listener(stomp.ConnectionListener):
         self._callback: Callable = callback
         self._subscription_id = str(uuid.uuid4())
         self._listener_id = str(uuid.uuid4())
+        self._is_testing = is_testing
+
+        if self._is_testing:
+            from stomp.listener import TestListener
+
+            self._test_listener = TestListener()
+        else:
+            self._test_listener = None
 
     def on_message(self, headers, message):
         message_id = headers["message-id"]
@@ -70,7 +79,13 @@ class _Listener(stomp.ConnectionListener):
         logger.info(f"Starting listener with name: {self._listener_id}")
         logger.info(f"Subscribe/Listener auto-generated ID: {self._subscription_id}")
 
-        self._connection.set_listener(self._listener_id, self)
+        if self._is_testing:
+            from stomp.listener import TestListener
+
+            self._connection.set_listener("TESTING", self._test_listener)
+        else:
+            self._connection.set_listener(self._listener_id, self)
+
         self._connection.start()
         self._connection.connect(**self._connection_configuration)
         self._connection.subscribe(id=self._subscription_id, **self._subscription_configuration)
