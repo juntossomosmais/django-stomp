@@ -15,11 +15,11 @@ logger = logging.getLogger(__name__)
 
 listener_client_id = getattr(settings, "LISTENER_CLIENT_ID", uuid.uuid4().hex)
 connection_params = {
-    "use_ssl": settings.STOMP_USE_SSL,
+    "use_ssl": getattr(settings, "STOMP_USE_SSL", None),
     "host": settings.STOMP_SERVER_HOST,
     "port": int(settings.STOMP_SERVER_PORT),
-    "username": settings.STOMP_SERVER_USER,
-    "password": settings.STOMP_SERVER_PASSWORD,
+    "username": getattr(settings, "STOMP_SERVER_USER", None),
+    "password": getattr(settings, "STOMP_SERVER_PASSWORD", None),
     "client_id": listener_client_id,
 }
 

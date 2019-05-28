@@ -10,7 +10,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name="django_stomp",
-    version="0.0.1",
+    version="0.0.5",
     description="A simple implementation of Stomp with Django",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -20,7 +20,7 @@ setup(
     license="MIT",
     url="https://github.com/juntossomosmais/django-stomp",
     packages=find_packages(),
-    install_requires=["request-id-django-log", "stomp-py", "tenacity"],
+    install_requires=["request-id-django-log", "stomp.py", "tenacity"],
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.7",
