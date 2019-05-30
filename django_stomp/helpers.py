@@ -5,8 +5,8 @@ import time
 def slow_down(_func=None, *args, **kwargs):
     """Sleep given amount of seconds before calling the function"""
 
-    before = kwargs.get("before", 0.2)
-    after = kwargs.get("after", 0.2)
+    before = kwargs.get("before", 0.5)
+    after = kwargs.get("after", 0.5)
 
     def decorator_slow_down(func):
         @functools.wraps(func)

@@ -36,6 +36,11 @@ class Publisher:
         self.connection.disconnect()
         logger.info("Disconnected")
 
+    def start_if_not_open(self):
+        if not self.is_open():
+            logger.info("It is not open. Starting...")
+            self.start()
+
     def send(self, body: dict, queue: str, headers=None, attempt=10):
 
         correlation_id = {"correlation-id": current_request_id()}
@@ -52,10 +57,7 @@ class Publisher:
         send_params = {k: v for k, v in send_params.items() if v is not None}
 
         def _internal_send_logic():
-            if not self.is_open():
-                logger.info("It is not open. Starting...")
-                self.start()
-
+            self.start_if_not_open()
             self.connection.send(**send_params)
 
         self._retry_send(_internal_send_logic, attempt=attempt)
@@ -110,9 +112,11 @@ def auto_open_close_connection(publisher: Publisher):
 
 
 @contextmanager
-def do_inside_transaction(publisher: Publisher,):
-    with auto_open_close_connection(publisher):
+def do_inside_transaction(publisher: Publisher, auto_open_close=True):
+    def _transaction_logic():
         try:
+            if not auto_open_close:
+                publisher.start_if_not_open()
             transaction_id = publisher.connection.begin()
             setattr(publisher, "_tmp_transaction_id", transaction_id)
             yield
@@ -124,3 +128,9 @@ def do_inside_transaction(publisher: Publisher,):
         finally:
             if hasattr(publisher, "_tmp_transaction_id"):
                 delattr(publisher, "_tmp_transaction_id")
+
+    if not auto_open_close:
+        _transaction_logic()
+    else:
+        with auto_open_close_connection(publisher):
+            _transaction_logic()
