@@ -130,7 +130,7 @@ def do_inside_transaction(publisher: Publisher, auto_open_close=True):
                 delattr(publisher, "_tmp_transaction_id")
 
     if not auto_open_close:
-        _transaction_logic()
+        return _transaction_logic()
     else:
         with auto_open_close_connection(publisher):
-            _transaction_logic()
+            return _transaction_logic()
