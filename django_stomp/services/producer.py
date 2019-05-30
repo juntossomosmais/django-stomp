@@ -12,7 +12,9 @@ from request_id_django_log.request_id import current_request_id
 from stomp import Connection
 from stomp.connect import StompConnection11
 
-logger = logging.getLogger(__name__)
+from django_stomp.helpers import slow_down
+
+logger = logging.getLogger("django_stomp")
 
 
 class Publisher:
@@ -24,6 +26,7 @@ class Publisher:
     def is_open(self):
         return self.connection.is_connected()
 
+    @slow_down
     def start(self):
         self.connection.start()
         self.connection.connect(**self._connection_configuration)

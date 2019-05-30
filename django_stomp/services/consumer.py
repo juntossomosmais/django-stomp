@@ -10,7 +10,7 @@ from typing import Dict
 
 import stomp
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("django_stomp")
 
 
 class Acknowledgements(Enum):

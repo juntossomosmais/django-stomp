@@ -6,11 +6,12 @@ from django.conf import settings
 from django.db import connection
 from django.db import connections
 from django.utils.module_loading import import_string
-from django_stomp.services import consumer
-from django_stomp.services.consumer import Payload
 from request_id_django_log import local_threading
 
-logger = logging.getLogger(__name__)
+from django_stomp.services import consumer
+from django_stomp.services.consumer import Payload
+
+logger = logging.getLogger("django_stomp")
 
 listener_id = getattr(settings, "STOMP_LISTENER_CLIENT_ID", None)
 if not listener_id:
@@ -57,18 +58,18 @@ def start_processing(queue: str, callback_str: str):
         finally:
             local_threading.request_id = None
 
-    pentagon_listener = consumer.build_listener(queue, _callback, **connection_params)
-
+    listener = consumer.build_listener(queue, _callback, **connection_params)
     standard_wait_seconds = 10
+
     while True:
         try:
             logger.info("Starting listener...")
-            pentagon_listener.start()
+            listener.start()
         except BaseException as e:
             logger.exception(f"A exception of type {type(e)} was captured during listener logic")
         finally:
             logger.info(f"Trying to close listener...")
-            if pentagon_listener.is_open():
-                pentagon_listener.close()
+            if listener.is_open():
+                listener.close()
             logger.info(f"Waiting {standard_wait_seconds} seconds before trying to connect again...")
             sleep(standard_wait_seconds)
