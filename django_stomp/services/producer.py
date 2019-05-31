@@ -74,7 +74,7 @@ class Publisher:
 
     @staticmethod
     def _add_persistent_messaging_header(headers: Dict) -> Dict:
-        value = {"persistent": True}
+        value = {"persistent": "true"}
 
         if headers:
             headers.update(value)
