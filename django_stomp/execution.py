@@ -49,22 +49,22 @@ def make_sure_database_is_usable() -> None:
 
 def start_processing(queue: str, callback_str: str):
 
-    callback = import_string(callback_str)
+    callback_function = import_string(callback_str)
 
-    def _callback(payload: Payload) -> None:
-        local_threading.request_id = payload.headers["correlation-id"]
-
-        try:
-            callback(payload)
-        finally:
-            local_threading.request_id = None
-
-    listener = consumer.build_listener(queue, _callback, **connection_params)
+    listener = consumer.build_listener(queue, **connection_params)
 
     while True:
         try:
             logger.info("Starting listener...")
-            listener.start()
+
+            def _callback(payload: Payload) -> None:
+                local_threading.request_id = payload.headers["correlation-id"]
+                try:
+                    callback_function(payload)
+                finally:
+                    local_threading.request_id = None
+
+            listener.start(_callback)
         except BaseException as e:
             logger.exception(f"A exception of type {type(e)} was captured during listener logic")
         finally:

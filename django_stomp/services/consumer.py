@@ -45,7 +45,7 @@ class _Listener(stomp.ConnectionListener):
         self._subscription_configuration = subscription_configuration
         self._connection_configuration = connection_configuration
         self._connection = connection
-        self._callback: Callable = callback
+        self._callback = callback
         self._subscription_id = str(uuid.uuid4())
         self._listener_id = str(uuid.uuid4())
         self._is_testing = is_testing
@@ -75,7 +75,7 @@ class _Listener(stomp.ConnectionListener):
     def is_open(self):
         return self._connection.is_connected()
 
-    def start(self, wait_forever=True):
+    def start(self, callback: Callable = None, wait_forever=True):
         logger.info(f"Starting listener with name: {self._listener_id}")
         logger.info(f"Subscribe/Listener auto-generated ID: {self._subscription_id}")
 
@@ -86,6 +86,7 @@ class _Listener(stomp.ConnectionListener):
         else:
             self._connection.set_listener(self._listener_id, self)
 
+        self._callback = callback if callback else self._callback
         self._connection.start()
         self._connection.connect(**self._connection_configuration)
         self._connection.subscribe(id=self._subscription_id, **self._subscription_configuration)
@@ -94,7 +95,7 @@ class _Listener(stomp.ConnectionListener):
             while True:
                 if not self.is_open():
                     logger.info("It is not open. Starting...")
-                    self.start(wait_forever=False)
+                    self.start(self._callback, wait_forever=False)
                 time.sleep(1)
 
     def close(self):
@@ -102,7 +103,7 @@ class _Listener(stomp.ConnectionListener):
         logger.info("Disconnected")
 
 
-def build_listener(destination_name, callback, ack_type=Acknowledgements.CLIENT, **connection_params) -> _Listener:
+def build_listener(destination_name, callback=None, ack_type=Acknowledgements.CLIENT, **connection_params) -> _Listener:
     logger.info("Building listener...")
     hosts = [(connection_params.get("host"), connection_params.get("port"))]
     use_ssl = connection_params.get("use_ssl", False)
