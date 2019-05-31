@@ -13,6 +13,7 @@ from django_stomp.services.consumer import Payload
 
 logger = logging.getLogger("django_stomp")
 
+wait_to_connect = int(getattr(settings, "STOMP_WAIT_TO_CONNECT", 10))
 listener_id = getattr(settings, "STOMP_LISTENER_CLIENT_ID", None)
 if not listener_id:
     listener_id = getattr(settings, "LISTENER_CLIENT_ID", None)
@@ -59,7 +60,6 @@ def start_processing(queue: str, callback_str: str):
             local_threading.request_id = None
 
     listener = consumer.build_listener(queue, _callback, **connection_params)
-    standard_wait_seconds = 10
 
     while True:
         try:
@@ -71,5 +71,5 @@ def start_processing(queue: str, callback_str: str):
             logger.info(f"Trying to close listener...")
             if listener.is_open():
                 listener.close()
-            logger.info(f"Waiting {standard_wait_seconds} seconds before trying to connect again...")
-            sleep(standard_wait_seconds)
+            logger.info(f"Waiting {wait_to_connect} seconds before trying to connect again...")
+            sleep(wait_to_connect)
