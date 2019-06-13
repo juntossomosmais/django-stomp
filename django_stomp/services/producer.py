@@ -8,11 +8,10 @@ from typing import Dict
 
 import tenacity
 from django.core.serializers.json import DjangoJSONEncoder
+from django_stomp.helpers import slow_down
 from request_id_django_log.request_id import current_request_id
 from stomp import Connection
 from stomp.connect import StompConnection11
-
-from django_stomp.helpers import slow_down
 
 logger = logging.getLogger("django_stomp")
 
@@ -118,12 +117,14 @@ def do_inside_transaction(publisher: Publisher, auto_open_close=True):
             if not auto_open_close:
                 publisher.start_if_not_open()
             transaction_id = publisher.connection.begin()
+            logger.debug("Created transaction ID: %s", transaction_id)
             setattr(publisher, "_tmp_transaction_id", transaction_id)
             yield
             publisher.connection.commit(transaction_id)
         except BaseException as e:
             logger.exception("Error inside transaction")
-            publisher.connection.abort(getattr(publisher, "_tmp_transaction_id"))
+            if hasattr(publisher, "_tmp_transaction_id"):
+                publisher.connection.abort(getattr(publisher, "_tmp_transaction_id"))
             raise e
         finally:
             if hasattr(publisher, "_tmp_transaction_id"):
