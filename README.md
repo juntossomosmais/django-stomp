@@ -1,25 +1,15 @@
 # Django Stomp
 
-A simple implementation of Stomp with Django
+[![Build Status](https://dev.azure.com/juntos-somos-mais-loyalty/python/_apis/build/status/django-stomp?branchName=master)](https://dev.azure.com/juntos-somos-mais-loyalty/python/_build/latest?definitionId=23&branchName=master)
 
-## Install
+A simple implementation of STOMP with Django.
+
+## Installation
 
 `pip install django_stomp`
 
-Add `django_stomp` in your `INSTALLED_APPS`
+Add `django_stomp` in your `INSTALLED_APPS` and so be it.
 
-## Configure
+## Configuration process
 
-```
-STOMP_SERVER_HOST = os.getenv("STOMP_SERVER_HOST")
-STOMP_SERVER_PORT = os.getenv("STOMP_SERVER_PORT")
-```
-
-Optionals
-
-```
-STOMP_SERVER_USER = os.getenv("STOMP_SERVER_USER")
-STOMP_SERVER_PASSWORD = os.getenv("STOMP_SERVER_PASSWORD")
-STOMP_USE_SSL = str(os.getenv("STOMP_USE_SSL", True)).lower() in ("true",)
-LISTENER_CLIENT_ID = os.getenv("LISTENER_CLIENT_ID")
-```
+Not yet available, but feel free to see our tests to get insights.
