@@ -1,5 +1,5 @@
 from django.apps import AppConfig
 
 
-class PubSubConfig(AppConfig):
+class DjangoStompConfig(AppConfig):
     name = "django_stomp"
