@@ -349,3 +349,4 @@ Dockerfile
 docker-compose.yml
 start.sh
 wait-for-it.sh
+test*xml
