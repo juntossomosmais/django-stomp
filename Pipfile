@@ -6,6 +6,13 @@ verify_ssl = true
 [dev-packages]
 twine = "*"
 wheel = "*"
+tox = "*"
+pytest = "*"
+pytest-mock = "*"
+pytest-cov = "*"
+pytest-env = "*"
+pytest-django = "*"
+parsel = "*"
 
 [packages]
 django = "*"
