@@ -10,13 +10,13 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name="django_stomp",
-    version="0.0.11",
+    version="0.0.12",
     description="A simple implementation of Stomp with Django",
     long_description=README,
     long_description_content_type="text/markdown",
     include_package_data=True,
-    author="Ricardo Baltazar Chaves",
-    author_email="ricardobchaves6@gmail.com",
+    author="Ricardo Baltazar Chaves, Willian Antunes",
+    author_email="Ricardo Baltazar <ricardobchaves6@gmail.com>, Willian Antunes <willian.lima.antunes@gmail.com>",
     license="MIT",
     url="https://github.com/juntossomosmais/django-stomp",
     packages=find_packages(),
