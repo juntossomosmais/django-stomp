@@ -111,27 +111,19 @@ def auto_open_close_connection(publisher: Publisher):
 
 
 @contextmanager
-def do_inside_transaction(publisher: Publisher, auto_open_close=True):
-    def _transaction_logic():
-        try:
-            if not auto_open_close:
-                publisher.start_if_not_open()
-            transaction_id = publisher.connection.begin()
-            logger.debug("Created transaction ID: %s", transaction_id)
-            setattr(publisher, "_tmp_transaction_id", transaction_id)
-            yield
-            publisher.connection.commit(transaction_id)
-        except BaseException as e:
-            logger.exception("Error inside transaction")
-            if hasattr(publisher, "_tmp_transaction_id"):
-                publisher.connection.abort(getattr(publisher, "_tmp_transaction_id"))
-            raise e
-        finally:
-            if hasattr(publisher, "_tmp_transaction_id"):
-                delattr(publisher, "_tmp_transaction_id")
-
-    if not auto_open_close:
-        return _transaction_logic()
-    else:
-        with auto_open_close_connection(publisher):
-            return _transaction_logic()
+def do_inside_transaction(publisher: Publisher):
+    try:
+        publisher.start_if_not_open()
+        transaction_id = publisher.connection.begin()
+        logger.debug("Created transaction ID: %s", transaction_id)
+        setattr(publisher, "_tmp_transaction_id", transaction_id)
+        yield
+        publisher.connection.commit(transaction_id)
+    except BaseException as e:
+        logger.exception("Error inside transaction")
+        if hasattr(publisher, "_tmp_transaction_id"):
+            publisher.connection.abort(getattr(publisher, "_tmp_transaction_id"))
+        raise e
+    finally:
+        if hasattr(publisher, "_tmp_transaction_id"):
+            delattr(publisher, "_tmp_transaction_id")
