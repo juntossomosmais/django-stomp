@@ -8,6 +8,7 @@ from typing import Dict
 
 import tenacity
 from django.core.serializers.json import DjangoJSONEncoder
+from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
 from django_stomp.helpers import slow_down
 from request_id_django_log.request_id import current_request_id
 from stomp import Connection
@@ -54,7 +55,7 @@ class Publisher:
             "content_type": self._default_content_type,
             "transaction": getattr(self, "_tmp_transaction_id", None),
         }
-        send_params = {k: v for k, v in send_params.items() if v is not None}
+        send_params = clean_dict_with_falsy_or_strange_values(send_params)
 
         def _internal_send_logic():
             self.start_if_not_open()
