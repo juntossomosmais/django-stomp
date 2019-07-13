@@ -11,7 +11,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 setup(
     name="django_stomp",
     version="0.0.12",
-    description="A simple implementation of Stomp with Django",
+    description="A simple implementation of STOMP with Django",
     long_description=README,
     long_description_content_type="text/markdown",
     include_package_data=True,

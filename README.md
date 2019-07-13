@@ -14,3 +14,14 @@ Add `django_stomp` in your `INSTALLED_APPS` and so be it.
 ## Configuration process
 
 Not yet available, but feel free to see our tests to get insights.
+
+
+## Tests
+
+In order to execute tests, first do the following:
+
+    docker-compose up -d
+    
+Then:
+
+    pipenv run tox
