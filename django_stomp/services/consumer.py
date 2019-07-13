@@ -33,7 +33,7 @@ class Payload:
     body: Dict
 
 
-class _Listener(stomp.ConnectionListener):
+class Listener(stomp.ConnectionListener):
     def __init__(
         self,
         connection: stomp.StompConnection11,
@@ -103,7 +103,7 @@ class _Listener(stomp.ConnectionListener):
         logger.info("Disconnected")
 
 
-def build_listener(destination_name, callback=None, ack_type=Acknowledgements.CLIENT, **connection_params) -> _Listener:
+def build_listener(destination_name, callback=None, ack_type=Acknowledgements.CLIENT, **connection_params) -> Listener:
     logger.info("Building listener...")
     hosts = [(connection_params.get("host"), connection_params.get("port"))]
     use_ssl = connection_params.get("use_ssl", False)
@@ -119,5 +119,5 @@ def build_listener(destination_name, callback=None, ack_type=Acknowledgements.CL
         "wait": True,
         "headers": {"client-id": f"{client_id}-listener", "activemq.prefetchSize": 1},
     }
-    listener = _Listener(conn, callback, subscription_configuration, connection_configuration)
+    listener = Listener(conn, callback, subscription_configuration, connection_configuration)
     return listener
