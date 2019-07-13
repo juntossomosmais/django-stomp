@@ -6,21 +6,18 @@ from django.conf import settings
 from django.db import connection
 from django.db import connections
 from django.utils.module_loading import import_string
-from request_id_django_log import local_threading
-
+from django_stomp.helpers import eval_str_as_boolean
 from django_stomp.services import consumer
 from django_stomp.services.consumer import Payload
+from request_id_django_log import local_threading
 
 logger = logging.getLogger("django_stomp")
 
 wait_to_connect = int(getattr(settings, "STOMP_WAIT_TO_CONNECT", 10))
-listener_id = getattr(settings, "STOMP_LISTENER_CLIENT_ID", None)
-if not listener_id:
-    listener_id = getattr(settings, "LISTENER_CLIENT_ID", None)
-
-listener_id = listener_id if listener_id else ""
-
-listener_client_id = f"{listener_id}-{uuid.uuid4().hex}-listener"
+durable_topic_subscription = eval_str_as_boolean(getattr(settings, "STOMP_DURABLE_TOPIC_SUBSCRIPTION", False))
+listener_client_id = getattr(settings, "STOMP_LISTENER_CLIENT_ID", None)
+if not durable_topic_subscription:
+    listener_client_id = f"{listener_client_id}-{uuid.uuid4().hex}"
 
 
 connection_params = {

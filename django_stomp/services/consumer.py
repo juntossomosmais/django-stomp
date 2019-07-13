@@ -103,7 +103,13 @@ class Listener(stomp.ConnectionListener):
         logger.info("Disconnected")
 
 
-def build_listener(destination_name, callback=None, ack_type=Acknowledgements.CLIENT, **connection_params) -> Listener:
+def build_listener(
+    destination_name,
+    callback=None,
+    ack_type=Acknowledgements.CLIENT,
+    durable_topic_subscription=False,
+    **connection_params,
+) -> Listener:
     logger.info("Building listener...")
     hosts = [(connection_params.get("host"), connection_params.get("port"))]
     use_ssl = connection_params.get("use_ssl", False)
@@ -113,11 +119,15 @@ def build_listener(destination_name, callback=None, ack_type=Acknowledgements.CL
     conn = stomp.Connection(hosts, ssl_version=ssl_version, use_ssl=use_ssl)
     client_id = connection_params.get("client_id", uuid.uuid4())
     subscription_configuration = {"destination": destination_name, "ack": ack_type.value}
+    header_setup = {"client-id": f"{client_id}-listener", "activemq.prefetchSize": 1}
+    if durable_topic_subscription:
+        durable_subs_header = {"activemq.subscriptionName": header_setup["client-id"]}
+        header_setup.update(durable_subs_header)
     connection_configuration = {
         "username": connection_params.get("username"),
         "passcode": connection_params.get("password"),
         "wait": True,
-        "headers": {"client-id": f"{client_id}-listener", "activemq.prefetchSize": 1},
+        "headers": header_setup,
     }
     listener = Listener(conn, callback, subscription_configuration, connection_configuration)
     return listener
