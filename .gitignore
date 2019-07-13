@@ -346,7 +346,6 @@ app_test
 django_project
 manage.py
 Dockerfile
-docker-compose.yml
 start.sh
 wait-for-it.sh
 test*xml

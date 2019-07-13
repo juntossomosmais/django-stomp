@@ -1,0 +1,7 @@
+version: "2.4"
+services:
+  broker:
+    image: rmohr/activemq:latest
+    ports:
+      - 8161:8161
+      - 61613:61613
