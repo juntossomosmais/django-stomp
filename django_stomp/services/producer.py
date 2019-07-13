@@ -41,9 +41,9 @@ class Publisher:
             self.start()
 
     def send(self, body: dict, queue: str, headers=None, attempt=10):
-
-        correlation_id = {"correlation-id": current_request_id()}
-        headers = {**headers, **correlation_id} if headers else correlation_id
+        standard_header = {"correlation-id": current_request_id()}
+        if headers:
+            standard_header.update(headers)
         headers = self._add_persistent_messaging_header(headers)
 
         send_params = {
