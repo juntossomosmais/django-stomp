@@ -1,4 +1,5 @@
 import functools
+import os
 import time
 
 
@@ -22,3 +23,7 @@ def slow_down(_func=None, *args, **kwargs):
         return decorator_slow_down
     else:
         return decorator_slow_down(_func)
+
+
+def eval_str_as_boolean(value: str):
+    return str(value).lower() in ("true", "1", "t", "y")

@@ -1,6 +1,7 @@
 from typing import Optional
 
 from django.conf import settings
+from django_stomp.helpers import eval_str_as_boolean
 from django_stomp.services import producer
 from django_stomp.services.producer import Publisher
 
@@ -13,7 +14,7 @@ def build_publisher(client_id: Optional[str] = None) -> Publisher:
         "password": settings.STOMP_SERVER_PASSWORD,
     }
 
-    extra_params = {"use_ssl": settings.STOMP_USE_SSL, "client_id": client_id}
+    extra_params = {"use_ssl": eval_str_as_boolean(settings.STOMP_USE_SSL), "client_id": client_id}
 
     connection_params = {k: v for k, v in {**required_params, **extra_params}.items() if v}
 
