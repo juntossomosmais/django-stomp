@@ -40,16 +40,17 @@ class Publisher:
             logger.info("It is not open. Starting...")
             self.start()
 
-    def send(self, body: dict, queue: str, headers=None, attempt=10):
+    def send(self, body: dict, queue: str, headers=None, persistent=True, attempt=10):
         standard_header = {"correlation-id": current_request_id()}
         if headers:
             standard_header.update(headers)
-        headers = self._add_persistent_messaging_header(headers)
+        if persistent:
+            standard_header = self._add_persistent_messaging_header(standard_header)
 
         send_params = {
             "destination": queue,
             "body": json.dumps(body, cls=DjangoJSONEncoder),
-            "headers": headers,
+            "headers": standard_header,
             "content_type": self._default_content_type,
             "transaction": getattr(self, "_tmp_transaction_id", None),
         }
