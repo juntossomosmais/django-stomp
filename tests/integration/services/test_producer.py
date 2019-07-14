@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 
 import pytest
-from django_stomp.publisher import build_publisher
+from django_stomp.builder import build_publisher
 from django_stomp.services.consumer import Acknowledgements
 from stomp.listener import TestListener
 

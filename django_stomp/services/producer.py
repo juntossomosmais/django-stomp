@@ -11,6 +11,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
 from django_stomp.helpers import slow_down
 from request_id_django_log.request_id import current_request_id
+from request_id_django_log.settings import NO_REQUEST_ID
 from stomp import Connection
 from stomp.connect import StompConnection11
 
@@ -42,7 +43,8 @@ class Publisher:
             self.start()
 
     def send(self, body: dict, queue: str, headers=None, persistent=True, attempt=10):
-        standard_header = {"correlation-id": current_request_id()}
+        correlation_id = current_request_id() if current_request_id() != NO_REQUEST_ID else uuid.uuid4()
+        standard_header = {"correlation-id": correlation_id}
         if headers:
             standard_header.update(headers)
         if persistent:

@@ -80,8 +80,6 @@ class Listener(stomp.ConnectionListener):
         logger.info(f"Subscribe/Listener auto-generated ID: {self._subscription_id}")
 
         if self._is_testing:
-            from stomp.listener import TestListener
-
             self._connection.set_listener("TESTING", self._test_listener)
         else:
             self._connection.set_listener(self._listener_id, self)
@@ -108,6 +106,7 @@ def build_listener(
     callback=None,
     ack_type=Acknowledgements.CLIENT,
     durable_topic_subscription=False,
+    is_testing=False,
     **connection_params,
 ) -> Listener:
     logger.info("Building listener...")
@@ -129,5 +128,5 @@ def build_listener(
         "wait": True,
         "headers": header_setup,
     }
-    listener = Listener(conn, callback, subscription_configuration, connection_configuration)
+    listener = Listener(conn, callback, subscription_configuration, connection_configuration, is_testing=is_testing)
     return listener
