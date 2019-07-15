@@ -13,6 +13,7 @@ pytest-cov = "*"
 pytest-env = "*"
 pytest-django = "*"
 parsel = "*"
+requests = "*"
 
 [packages]
 django = "*"
