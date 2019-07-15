@@ -1,11 +1,13 @@
 import logging
 import uuid
 from time import sleep
+from typing import Optional
 
 from django.conf import settings
 from django.utils.module_loading import import_string
 from django_stomp.builder import build_listener
 from django_stomp.helpers import eval_str_as_boolean
+from django_stomp.services.consumer import Listener
 from django_stomp.services.consumer import Payload
 from request_id_django_log import local_threading
 
@@ -25,7 +27,7 @@ def start_processing(destination_name: str, callback_str: str, is_testing=False)
 
     listener = build_listener(destination_name, listener_client_id, durable_topic_subscription)
 
-    def main_logic():
+    def main_logic() -> Optional[Listener]:
         try:
             logger.info("Starting listener...")
 
@@ -37,6 +39,9 @@ def start_processing(destination_name: str, callback_str: str, is_testing=False)
                     local_threading.request_id = None
 
             listener.start(_callback, wait_forever=is_testing is False)
+
+            if is_testing is True:
+                return listener
         except BaseException as e:
             logger.exception(f"A exception of type {type(e)} was captured during listener logic")
         finally:
@@ -53,11 +58,13 @@ def start_processing(destination_name: str, callback_str: str, is_testing=False)
     else:
         max_tries = 3
         tries = 0
+        testing_listener = None
         while True:
             if tries == 0:
-                main_logic()
+                testing_listener = main_logic()
                 tries += 1
             elif tries >= max_tries:
+                testing_listener.close()
                 break
             else:
                 sleep(0.2)

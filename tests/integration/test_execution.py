@@ -100,7 +100,7 @@ def test_should_consume_message_and_dequeue_it_using_ack():
     selector = Selector(text=str(result.content))
 
     *_, queue_name = test_destination_consumer_one.split("/")
-    all_queues = selector.xpath('//*[@id="queues"]/tbody').getall()
+    all_queues = selector.xpath('//*[@id="queues"]/tbody/tr').getall()
 
     assert len(all_queues) > 0
     for index, queue_details in enumerate(all_queues):
@@ -116,5 +116,74 @@ def test_should_consume_message_and_dequeue_it_using_ack():
 
 
 def _test_callback_function_three(payload: Payload):
+    # Should dequeue the message
+    payload.ack()
+
+
+test_destination_durable_consumer_one = "/topic/my-test-destination-durable-consumer-one"
+myself_with_test_callback_four = "tests.integration.test_execution._test_callback_function_four"
+
+
+def test_should_create_durable_subscriber_and_receive_standby_messages(mocker: MockFixture):
+    temp_uuid_listener = str(uuid.uuid4())
+    mocker.patch("django_stomp.execution.listener_client_id", temp_uuid_listener)
+    mocker.patch("django_stomp.execution.durable_topic_subscription", True)
+    # Just to create a durable subscription
+    start_processing(test_destination_durable_consumer_one, myself_with_test_callback_four, is_testing=True)
+
+    # In order to publish sample data
+    publisher = build_publisher()
+    some_body = {"keyOne": 1, "keyTwo": 2}
+    publisher.send(some_body, test_destination_durable_consumer_one, attempt=1)
+    publisher.send(some_body, test_destination_durable_consumer_one, attempt=1)
+    publisher.send(some_body, test_destination_durable_consumer_one, attempt=1)
+
+    # To recreate a durable subscription
+    start_processing(test_destination_durable_consumer_one, myself_with_test_callback_four, is_testing=True)
+
+    # Logic to assert if everything is OK
+    result = requests.get("http://localhost:8161/admin/topics.jsp", auth=("admin", "admin"))
+    selector = Selector(text=str(result.content))
+
+    *_, destination_name = test_destination_durable_consumer_one.split("/")
+    all_topics = selector.xpath('//*[@id="topics"]/tbody/tr').getall()
+
+    assert len(all_topics) > 0
+    for index, destination_details in enumerate(all_topics):
+        destination_details_as_selector = Selector(text=destination_details)
+        if destination_name in destination_details_as_selector.css("td a::text").get():
+            number_of_consumers = int(destination_details_as_selector.css("td + td::text").get())
+            messages_enqueued = int(destination_details_as_selector.css("td + td + td::text").get())
+            messages_dequeued = int(destination_details_as_selector.css("td + td + td + td::text").get())
+            assert number_of_consumers == 1
+            assert messages_enqueued == 3
+            assert messages_dequeued == 3
+            break
+        assert all_topics[index] != all_topics[-1]
+
+    result = requests.get("http://localhost:8161/admin/subscribers.jsp", auth=("admin", "admin"))
+    selector = Selector(text=str(result.content))
+
+    all_offline_subscribers = (
+        selector.xpath("//h2[contains(text(),'Offline Durable Topic Subscribers')]/following-sibling::table")[0]
+        .css("table tbody tr")
+        .getall()
+    )
+
+    assert len(all_offline_subscribers) > 0
+    for index, column_details in enumerate(all_offline_subscribers):
+        column_details_as_selector = Selector(text=column_details)
+        if f"{temp_uuid_listener}-listener" in column_details_as_selector.css("td a[href]").get():
+            dispatched_counter = int(column_details_as_selector.css("td:nth-child(8)::text").get())
+            enqueue_counter = int(column_details_as_selector.css("td:nth-child(9)::text").get())
+            dequeue_counter = int(column_details_as_selector.css("td:nth-child(10)::text").get())
+            assert dispatched_counter == 3
+            assert enqueue_counter == 3
+            assert dequeue_counter == 3
+            break
+        assert all_topics[index] != all_topics[-1]
+
+
+def _test_callback_function_four(payload: Payload):
     # Should dequeue the message
     payload.ack()

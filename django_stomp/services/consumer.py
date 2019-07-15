@@ -87,7 +87,11 @@ class Listener(stomp.ConnectionListener):
         self._callback = callback if callback else self._callback
         self._connection.start()
         self._connection.connect(**self._connection_configuration)
-        self._connection.subscribe(id=self._subscription_id, **self._subscription_configuration)
+        self._connection.subscribe(
+            id=self._subscription_id,
+            headers=self._connection_configuration["headers"],
+            **self._subscription_configuration,
+        )
         logger.info("Connected")
         if wait_forever:
             while True:
@@ -120,9 +124,12 @@ def build_listener(
     conn = stomp.Connection(hosts, ssl_version=ssl_version, use_ssl=use_ssl)
     client_id = connection_params.get("client_id", uuid.uuid4())
     subscription_configuration = {"destination": destination_name, "ack": ack_type.value}
-    header_setup = {"client-id": f"{client_id}-listener", "activemq.prefetchSize": 1}
+    header_setup = {"client-id": f"{client_id}-listener", "activemq.prefetchSize": "1"}
     if durable_topic_subscription is True:
-        durable_subs_header = {"activemq.subscriptionName": header_setup["client-id"]}
+        durable_subs_header = {
+            "activemq.subscriptionName": header_setup["client-id"],
+            "activemq.subcriptionName": header_setup["client-id"],
+        }
         header_setup.update(durable_subs_header)
     connection_configuration = {
         "username": connection_params.get("username"),
