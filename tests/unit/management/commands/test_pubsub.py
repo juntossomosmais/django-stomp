@@ -13,4 +13,4 @@ def test_should_call_start_processing(mocker: MockFixture):
     call_command("pubsub", fake_queue, fake_function, stdout=out)
 
     assert not out.getvalue()
-    mock_start_processing.assert_called_with(queue=fake_queue, callback_str=fake_function)
+    mock_start_processing.assert_called_with(fake_queue, fake_function)

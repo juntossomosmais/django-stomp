@@ -10,4 +10,4 @@ class Command(BaseCommand):
         parser.add_argument("callback", type=str)
 
     def handle(self, *args, **options):
-        start_processing(queue=options.get("consume_queue"), callback_str=options.get("callback"))
+        start_processing(options.get("consume_queue"), options.get("callback"))
