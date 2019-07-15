@@ -187,3 +187,42 @@ def test_should_create_durable_subscriber_and_receive_standby_messages(mocker: M
 def _test_callback_function_four(payload: Payload):
     # Should dequeue the message
     payload.ack()
+
+
+test_destination_prefetch_consumer_one = "/queue/my-destination-prefetch-consumer-one"
+myself_with_test_callback_five = "tests.integration.test_execution._test_callback_function_five"
+
+
+def test_should_configure_prefetch_size_as_one_following_apache_suggestions(mocker: MockFixture):
+    """
+    See more details here: https://activemq.apache.org/stomp.html
+
+    Specifies the maximum number of pending messages that will be dispatched to the client.
+    Once this maximum is reached no more messages are dispatched until the client acknowledges a
+    message. Set to a low value > 1 for fair distribution of messages across consumers
+    when processing messages can be slow. Note: if your STOMP client is implemented using a dynamic
+    scripting language like Ruby, say, then this parameter must be set to 1 as there is no notion of a
+    client-side message size to be sized. STOMP does not support a value of 0.
+    """
+    temp_uuid_listener = str(uuid.uuid4())
+    mocker.patch("django_stomp.execution.listener_client_id", temp_uuid_listener)
+
+    start_processing(
+        test_destination_prefetch_consumer_one,
+        myself_with_test_callback_five,
+        is_testing=True,
+        testing_disconnect=False,
+    )
+
+    params = {"connectionID": f"{temp_uuid_listener}-listener"}
+    result = requests.get("http://localhost:8161/admin/connection.jsp", params=params, auth=("admin", "admin"))
+    selector = Selector(text=str(result.content))
+
+    dirty_prefetch_size_value = selector.css("table#messages")[0].css("tbody td::text")[7].get()
+    prefetch_size_value = int(dirty_prefetch_size_value.replace("\\", "").replace("n", "").replace("t", ""))
+    assert prefetch_size_value == 1
+
+
+def _test_callback_function_five(payload: Payload):
+    # Should dequeue the message
+    payload.ack()

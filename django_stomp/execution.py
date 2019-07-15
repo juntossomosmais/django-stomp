@@ -21,7 +21,7 @@ if not durable_topic_subscription:
         listener_client_id = f"{listener_client_id}-{uuid.uuid4().hex}"
 
 
-def start_processing(destination_name: str, callback_str: str, is_testing=False):
+def start_processing(destination_name: str, callback_str: str, is_testing=False, testing_disconnect=True):
 
     callback_function = import_string(callback_str)
 
@@ -64,7 +64,8 @@ def start_processing(destination_name: str, callback_str: str, is_testing=False)
                 testing_listener = main_logic()
                 tries += 1
             elif tries >= max_tries:
-                testing_listener.close()
+                if testing_disconnect is True:
+                    testing_listener.close()
                 break
             else:
                 sleep(0.2)
