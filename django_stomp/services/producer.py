@@ -89,6 +89,8 @@ class Publisher:
 def build_publisher(**connection_params) -> Publisher:
     logger.info("Building publisher...")
     hosts = [(connection_params.get("host"), connection_params.get("port"))]
+    if connection_params.get("hostStandby") and connection_params.get("portStandby"):
+        hosts.append((connection_params.get("hostStandby"), connection_params.get("portStandby")))
     use_ssl = connection_params.get("use_ssl", False)
     ssl_version = connection_params.get("ssl_version", ssl.PROTOCOL_TLS)
     logger.info(f"Use SSL? {use_ssl}. Version: {ssl_version}")

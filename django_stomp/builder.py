@@ -30,11 +30,18 @@ def build_listener(
 
 
 def _build_connection_parameter(client_id: Optional[str] = None) -> Dict:
+    stomp_server_port = getattr(settings, "STOMP_SERVER_PORT", None)
+    stomp_server_port = int(stomp_server_port) if stomp_server_port else None
+    stomp_server_standby_port = getattr(settings, "STOMP_SERVER_STANDBY_PORT", None)
+    stomp_server_standby_port = int(stomp_server_standby_port) if stomp_server_standby_port else None
+
     required_params = {
-        "host": settings.STOMP_SERVER_HOST,
-        "port": int(settings.STOMP_SERVER_PORT),
-        "username": settings.STOMP_SERVER_USER,
-        "password": settings.STOMP_SERVER_PASSWORD,
+        "host": getattr(settings, "STOMP_SERVER_HOST", None),
+        "port": stomp_server_port,
+        "hostStandby": getattr(settings, "STOMP_SERVER_STANDBY_HOST", None),
+        "portStandby": stomp_server_standby_port,
+        "username": getattr(settings, "STOMP_SERVER_USER", None),
+        "password": getattr(settings, "STOMP_SERVER_PASSWORD", None),
     }
 
     extra_params = {"use_ssl": eval_str_as_boolean(settings.STOMP_USE_SSL), "client_id": client_id}
