@@ -119,7 +119,7 @@ def build_listener(
     client_id = connection_params.get("client_id", uuid.uuid4())
     subscription_configuration = {"destination": destination_name, "ack": ack_type.value}
     header_setup = {"client-id": f"{client_id}-listener", "activemq.prefetchSize": 1}
-    if durable_topic_subscription:
+    if durable_topic_subscription is True:
         durable_subs_header = {"activemq.subscriptionName": header_setup["client-id"]}
         header_setup.update(durable_subs_header)
     connection_configuration = {

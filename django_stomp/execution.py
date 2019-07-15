@@ -35,7 +35,7 @@ def start_processing(destination_name: str, callback_str: str, is_testing=False)
                 finally:
                     local_threading.request_id = None
 
-            listener.start(_callback, wait_forever=not is_testing)
+            listener.start(_callback, wait_forever=is_testing is False)
         except BaseException as e:
             logger.exception(f"A exception of type {type(e)} was captured during listener logic")
         finally:
@@ -46,8 +46,18 @@ def start_processing(destination_name: str, callback_str: str, is_testing=False)
                 logger.info(f"Waiting {wait_to_connect} seconds before trying to connect again...")
                 sleep(wait_to_connect)
 
-    if not is_testing:
+    if is_testing is False:
         while True:
             main_logic()
     else:
-        main_logic()
+        max_tries = 3
+        tries = 0
+        while True:
+            if tries == 0:
+                main_logic()
+                tries += 1
+            elif tries >= max_tries:
+                break
+            else:
+                sleep(0.2)
+                tries += 1
