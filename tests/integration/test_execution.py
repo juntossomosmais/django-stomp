@@ -1,11 +1,13 @@
 import json
-import time
 import uuid
+
+import requests
 
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
 from django_stomp.execution import start_processing
 from django_stomp.services.consumer import Payload
+from parsel import Selector
 from pytest_mock import MockFixture
 
 test_destination_one = "/queue/my-test-destination-one"
@@ -79,4 +81,40 @@ def test_should_consume_message_and_publish_to_another_queue_using_creating_corr
 def _test_callback_function_two(payload: Payload):
     publisher = build_publisher()
     publisher.send(payload.body, test_destination_four, attempt=1)
+    payload.ack()
+
+
+test_destination_consumer_one = "/queue/my-test-destination-consumer-one"
+myself_with_test_callback_three = "tests.integration.test_execution._test_callback_function_three"
+
+
+def test_should_consume_message_and_dequeue_it_using_ack():
+    # In order to publish sample data
+    publisher = build_publisher()
+    some_body = {"keyOne": 1, "keyTwo": 2}
+    publisher.send(some_body, test_destination_consumer_one, attempt=1)
+
+    start_processing(test_destination_consumer_one, myself_with_test_callback_three, is_testing=True)
+
+    result = requests.get("http://localhost:8161/admin/queues.jsp", auth=("admin", "admin"))
+    selector = Selector(text=str(result.content))
+
+    *_, queue_name = test_destination_consumer_one.split("/")
+    all_queues = selector.xpath('//*[@id="queues"]/tbody').getall()
+
+    assert len(all_queues) > 0
+    for index, queue_details in enumerate(all_queues):
+        queue_details_as_selector = Selector(text=queue_details)
+        if queue_name in queue_details_as_selector.css("td a::text").get():
+            number_of_pending_messages = int(queue_details_as_selector.css("td + td::text").get())
+            messages_dequeued = int(queue_details_as_selector.css("td + td + td + td + td::text").get())
+            assert number_of_pending_messages == 0
+            assert messages_dequeued == 1
+            break
+        if all_queues[index] == all_queues[-1]:
+            raise Exception
+
+
+def _test_callback_function_three(payload: Payload):
+    # Should dequeue the message
     payload.ack()
