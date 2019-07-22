@@ -1,14 +1,17 @@
 import json
 import uuid
 
-import requests
-
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
 from django_stomp.execution import start_processing
 from django_stomp.services.consumer import Payload
-from parsel import Selector
 from pytest_mock import MockFixture
+from tests.support.connections_details import consumers_details
+from tests.support.queue_details import current_queue_configuration
+from tests.support.subscribers_details import offline_durable_subscribers
+from tests.support.topic_details import current_topic_configuration
+
+myself_with_test_callback_standard = "tests.integration.test_execution._test_callback_function_standard"
 
 test_destination_one = "/queue/my-test-destination-one"
 test_destination_two = "/queue/my-test-destination-two"
@@ -96,23 +99,13 @@ def test_should_consume_message_and_dequeue_it_using_ack():
 
     start_processing(test_destination_consumer_one, myself_with_test_callback_three, is_testing=True)
 
-    result = requests.get("http://localhost:8161/admin/queues.jsp", auth=("admin", "admin"))
-    selector = Selector(text=str(result.content))
-
     *_, queue_name = test_destination_consumer_one.split("/")
-    all_queues = selector.xpath('//*[@id="queues"]/tbody/tr').getall()
+    queue_status = current_queue_configuration("localhost", queue_name)
 
-    assert len(all_queues) > 0
-    for index, queue_details in enumerate(all_queues):
-        queue_details_as_selector = Selector(text=queue_details)
-        if queue_name in queue_details_as_selector.css("td a::text").get():
-            number_of_pending_messages = int(queue_details_as_selector.css("td + td::text").get())
-            messages_dequeued = int(queue_details_as_selector.css("td + td + td + td + td::text").get())
-            assert number_of_pending_messages == 0
-            assert messages_dequeued == 1
-            break
-        if all_queues[index] == all_queues[-1]:
-            raise Exception
+    assert queue_status.number_of_pending_messages == 0
+    assert queue_status.number_of_consumers == 0
+    assert queue_status.messages_enqueued == 1
+    assert queue_status.messages_dequeued == 1
 
 
 def _test_callback_function_three(payload: Payload):
@@ -121,7 +114,6 @@ def _test_callback_function_three(payload: Payload):
 
 
 test_destination_durable_consumer_one = "/topic/my-test-destination-durable-consumer-one"
-myself_with_test_callback_four = "tests.integration.test_execution._test_callback_function_four"
 
 
 def test_should_create_durable_subscriber_and_receive_standby_messages(mocker: MockFixture):
@@ -129,7 +121,7 @@ def test_should_create_durable_subscriber_and_receive_standby_messages(mocker: M
     mocker.patch("django_stomp.execution.listener_client_id", temp_uuid_listener)
     mocker.patch("django_stomp.execution.durable_topic_subscription", True)
     # Just to create a durable subscription
-    start_processing(test_destination_durable_consumer_one, myself_with_test_callback_four, is_testing=True)
+    start_processing(test_destination_durable_consumer_one, myself_with_test_callback_standard, is_testing=True)
 
     # In order to publish sample data
     publisher = build_publisher()
@@ -139,58 +131,25 @@ def test_should_create_durable_subscriber_and_receive_standby_messages(mocker: M
     publisher.send(some_body, test_destination_durable_consumer_one, attempt=1)
 
     # To recreate a durable subscription
-    start_processing(test_destination_durable_consumer_one, myself_with_test_callback_four, is_testing=True)
+    start_processing(test_destination_durable_consumer_one, myself_with_test_callback_standard, is_testing=True)
 
-    # Logic to assert if everything is OK
-    result = requests.get("http://localhost:8161/admin/topics.jsp", auth=("admin", "admin"))
-    selector = Selector(text=str(result.content))
+    *_, topic_name = test_destination_durable_consumer_one.split("/")
+    queue_status = current_topic_configuration("localhost", topic_name)
+    assert queue_status.number_of_consumers == 1
+    assert queue_status.messages_enqueued == 3
+    assert queue_status.messages_dequeued == 3
 
-    *_, destination_name = test_destination_durable_consumer_one.split("/")
-    all_topics = selector.xpath('//*[@id="topics"]/tbody/tr').getall()
-
-    assert len(all_topics) > 0
-    for index, destination_details in enumerate(all_topics):
-        destination_details_as_selector = Selector(text=destination_details)
-        if destination_name in destination_details_as_selector.css("td a::text").get():
-            number_of_consumers = int(destination_details_as_selector.css("td + td::text").get())
-            messages_enqueued = int(destination_details_as_selector.css("td + td + td::text").get())
-            messages_dequeued = int(destination_details_as_selector.css("td + td + td + td::text").get())
-            assert number_of_consumers == 1
-            assert messages_enqueued == 3
-            assert messages_dequeued == 3
+    all_offline_subscribers = list(offline_durable_subscribers("localhost"))
+    for index, subscriber_setup in enumerate(all_offline_subscribers):
+        if subscriber_setup.subscriber_id == f"{temp_uuid_listener}-listener":
+            assert subscriber_setup.dispatched_counter == 3
+            assert subscriber_setup.enqueue_counter == 3
+            assert subscriber_setup.dequeue_counter == 3
             break
-        assert all_topics[index] != all_topics[-1]
-
-    result = requests.get("http://localhost:8161/admin/subscribers.jsp", auth=("admin", "admin"))
-    selector = Selector(text=str(result.content))
-
-    all_offline_subscribers = (
-        selector.xpath("//h2[contains(text(),'Offline Durable Topic Subscribers')]/following-sibling::table")[0]
-        .css("table tbody tr")
-        .getall()
-    )
-
-    assert len(all_offline_subscribers) > 0
-    for index, column_details in enumerate(all_offline_subscribers):
-        column_details_as_selector = Selector(text=column_details)
-        if f"{temp_uuid_listener}-listener" in column_details_as_selector.css("td a[href]").get():
-            dispatched_counter = int(column_details_as_selector.css("td:nth-child(8)::text").get())
-            enqueue_counter = int(column_details_as_selector.css("td:nth-child(9)::text").get())
-            dequeue_counter = int(column_details_as_selector.css("td:nth-child(10)::text").get())
-            assert dispatched_counter == 3
-            assert enqueue_counter == 3
-            assert dequeue_counter == 3
-            break
-        assert all_topics[index] != all_topics[-1]
-
-
-def _test_callback_function_four(payload: Payload):
-    # Should dequeue the message
-    payload.ack()
+        assert all_offline_subscribers[index] != all_offline_subscribers[-1]
 
 
 test_destination_prefetch_consumer_one = "/queue/my-destination-prefetch-consumer-one"
-myself_with_test_callback_five = "tests.integration.test_execution._test_callback_function_five"
 
 
 def test_should_configure_prefetch_size_as_one_following_apache_suggestions(mocker: MockFixture):
@@ -209,20 +168,21 @@ def test_should_configure_prefetch_size_as_one_following_apache_suggestions(mock
 
     start_processing(
         test_destination_prefetch_consumer_one,
-        myself_with_test_callback_five,
+        myself_with_test_callback_standard,
         is_testing=True,
         testing_disconnect=False,
     )
 
-    params = {"connectionID": f"{temp_uuid_listener}-listener"}
-    result = requests.get("http://localhost:8161/admin/connection.jsp", params=params, auth=("admin", "admin"))
-    selector = Selector(text=str(result.content))
+    consumers = list(consumers_details("localhost", f"{temp_uuid_listener}-listener"))
 
-    dirty_prefetch_size_value = selector.css("table#messages")[0].css("tbody td::text")[7].get()
-    prefetch_size_value = int(dirty_prefetch_size_value.replace("\\", "").replace("n", "").replace("t", ""))
-    assert prefetch_size_value == 1
+    for index, consumer_status in enumerate(consumers):
+        if consumer_status.destination_name in test_destination_prefetch_consumer_one:
+            assert consumer_status.prefetch == 1
+            assert consumer_status.max_pending == 0
+            break
+        assert consumers[index] != consumers[-1]
 
 
-def _test_callback_function_five(payload: Payload):
+def _test_callback_function_standard(payload: Payload):
     # Should dequeue the message
     payload.ack()
