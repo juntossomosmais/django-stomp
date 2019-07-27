@@ -55,6 +55,15 @@
                             <constantPendingMessageLimitStrategy limit="1000"/>
                         </pendingMessageLimitStrategy>
                     </policyEntry>
+                    <policyEntry queue="&gt;">
+                        <deadLetterStrategy>
+                            <!--
+                              Use the prefix 'DLQ.' for the destination name, and make
+                              the DLQ a queue rather than a topic
+                            -->
+                            <individualDeadLetterStrategy queuePrefix="DLQ." useQueueForQueueMessages="true"/>
+                        </deadLetterStrategy>
+                    </policyEntry>
                 </policyEntries>
             </policyMap>
         </destinationPolicy>
