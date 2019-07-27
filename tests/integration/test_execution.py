@@ -1,6 +1,7 @@
 import json
 import uuid
 
+import pytest
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
 from django_stomp.execution import start_processing
@@ -12,6 +13,8 @@ from tests.support.subscribers_details import offline_durable_subscribers
 from tests.support.topic_details import current_topic_configuration
 
 myself_with_test_callback_standard = "tests.integration.test_execution._test_callback_function_standard"
+myself_with_test_callback_nack = "tests.integration.test_execution._test_callback_function_with_nack"
+myself_with_test_callback_exception = "tests.integration.test_execution._test_callback_function_with_exception"
 
 test_destination_one = "/queue/my-test-destination-one"
 test_destination_two = "/queue/my-test-destination-two"
@@ -88,7 +91,6 @@ def _test_callback_function_two(payload: Payload):
 
 
 test_destination_consumer_one = "/queue/my-test-destination-consumer-one"
-myself_with_test_callback_three = "tests.integration.test_execution._test_callback_function_three"
 
 
 def test_should_consume_message_and_dequeue_it_using_ack():
@@ -97,7 +99,7 @@ def test_should_consume_message_and_dequeue_it_using_ack():
     some_body = {"keyOne": 1, "keyTwo": 2}
     publisher.send(some_body, test_destination_consumer_one, attempt=1)
 
-    start_processing(test_destination_consumer_one, myself_with_test_callback_three, is_testing=True)
+    start_processing(test_destination_consumer_one, myself_with_test_callback_standard, is_testing=True)
 
     *_, queue_name = test_destination_consumer_one.split("/")
     queue_status = current_queue_configuration("localhost", queue_name)
@@ -106,11 +108,6 @@ def test_should_consume_message_and_dequeue_it_using_ack():
     assert queue_status.number_of_consumers == 0
     assert queue_status.messages_enqueued == 1
     assert queue_status.messages_dequeued == 1
-
-
-def _test_callback_function_three(payload: Payload):
-    # Should dequeue the message
-    payload.ack()
 
 
 test_destination_durable_consumer_one = "/topic/my-test-destination-durable-consumer-one"
@@ -183,6 +180,57 @@ def test_should_configure_prefetch_size_as_one_following_apache_suggestions(mock
         assert consumers[index] != consumers[-1]
 
 
+test_destination_dlq_one = f"/queue/my-destination-dql-one-{uuid.uuid4()}"
+
+
+def test_should_publish_to_dql_due_to_explicit_nack():
+    # In order to publish sample data
+    publisher = build_publisher()
+    some_body = {"keyOne": 1, "keyTwo": 2}
+    publisher.send(some_body, test_destination_dlq_one, attempt=1)
+
+    start_processing(test_destination_dlq_one, myself_with_test_callback_nack, is_testing=True)
+
+    *_, queue_name = test_destination_dlq_one.split("/")
+    dlq_queue_name = f"DLQ.{queue_name}"
+    queue_status = current_queue_configuration("localhost", dlq_queue_name)
+
+    assert queue_status.number_of_pending_messages == 1
+    assert queue_status.number_of_consumers == 0
+    assert queue_status.messages_enqueued == 1
+    assert queue_status.messages_dequeued == 0
+
+
+test_destination_dlq_two = f"/queue/my-destination-dql-two-{uuid.uuid4()}"
+
+
+def test_should_publish_to_dql_due_to_implicit_nack_given_internal_callback_exception():
+    # In order to publish sample data
+    publisher = build_publisher()
+    some_body = {"keyOne": 1, "keyTwo": 2}
+    publisher.send(some_body, test_destination_dlq_two, attempt=1)
+
+    with pytest.raises(Exception) as e:
+        start_processing(test_destination_dlq_two, myself_with_test_callback_exception, is_testing=True)
+
+    *_, queue_name = test_destination_dlq_two.split("/")
+    dlq_queue_name = f"DLQ.{queue_name}"
+    queue_status = current_queue_configuration("localhost", dlq_queue_name)
+
+    assert queue_status.number_of_pending_messages == 1
+    assert queue_status.number_of_consumers == 0
+    assert queue_status.messages_enqueued == 1
+    assert queue_status.messages_dequeued == 0
+
+
 def _test_callback_function_standard(payload: Payload):
     # Should dequeue the message
     payload.ack()
+
+
+def _test_callback_function_with_nack(payload: Payload):
+    payload.nack()
+
+
+def _test_callback_function_with_exception(payload: Payload):
+    raise Exception("Lambe Sal")

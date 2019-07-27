@@ -35,6 +35,13 @@ def start_processing(destination_name: str, callback_str: str, is_testing=False,
                 local_threading.request_id = payload.headers["correlation-id"]
                 try:
                     callback_function(payload)
+                except BaseException as e:
+                    logger.exception(f"A exception of type {type(e)} was captured during callback logic")
+                    logger.warning("Trying to do NACK explicitly sending the message to DLQ...")
+                    if listener.is_open():
+                        payload.nack()
+                        logger.warning("Done!")
+                    raise e
                 finally:
                     local_threading.request_id = None
 
