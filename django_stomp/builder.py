@@ -1,3 +1,4 @@
+import logging
 from typing import Dict
 from typing import Optional
 
@@ -8,6 +9,8 @@ from django_stomp.services import consumer
 from django_stomp.services import producer
 from django_stomp.services.consumer import Listener
 from django_stomp.services.producer import Publisher
+
+logger = logging.getLogger("django_stomp")
 
 
 def build_publisher(client_id: Optional[str] = None) -> Publisher:
@@ -40,10 +43,17 @@ def _build_connection_parameter(client_id: Optional[str] = None) -> Dict:
         "port": stomp_server_port,
         "hostStandby": getattr(settings, "STOMP_SERVER_STANDBY_HOST", None),
         "portStandby": stomp_server_standby_port,
+    }
+
+    logger.debug("Server details connection: %s", required_params)
+
+    credentials = {
         "username": getattr(settings, "STOMP_SERVER_USER", None),
         "password": getattr(settings, "STOMP_SERVER_PASSWORD", None),
     }
 
     extra_params = {"use_ssl": eval_str_as_boolean(settings.STOMP_USE_SSL), "client_id": client_id}
 
-    return clean_dict_with_falsy_or_strange_values({**required_params, **extra_params})
+    logger.debug("Extra params: %s", extra_params)
+
+    return clean_dict_with_falsy_or_strange_values({**required_params, **extra_params, **credentials})
