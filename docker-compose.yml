@@ -5,3 +5,5 @@ services:
     ports:
       - 8161:8161
       - 61613:61613
+    volumes:
+      - ./tests/resources/custom-activemq-conf:/opt/apache-activemq-5.15.6/conf
