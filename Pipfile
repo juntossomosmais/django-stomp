@@ -16,7 +16,7 @@ parsel = "*"
 requests = "*"
 
 [packages]
-django = "*"
+django = ">=2.2.4"
 stomp-py = "*"
 request-id-django-log = "*"
 tenacity = "*"
