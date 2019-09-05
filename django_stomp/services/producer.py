@@ -44,7 +44,7 @@ class Publisher:
 
     def send(self, body: dict, queue: str, headers=None, persistent=True, attempt=10):
         correlation_id = current_request_id() if current_request_id() != NO_REQUEST_ID else uuid.uuid4()
-        standard_header = {"correlation-id": correlation_id}
+        standard_header = {"correlation-id": correlation_id, "tshoot-destination": queue}
         if headers:
             standard_header.update(headers)
         if persistent:

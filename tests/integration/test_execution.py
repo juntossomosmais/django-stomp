@@ -8,6 +8,7 @@ from django_stomp.execution import start_processing
 from django_stomp.services.consumer import Payload
 from pytest_mock import MockFixture
 from tests.support.connections_details import consumers_details
+from tests.support.message_details import retrieve_message_published
 from tests.support.queue_details import current_queue_configuration
 from tests.support.subscribers_details import offline_durable_subscribers
 from tests.support.topic_details import current_topic_configuration
@@ -221,6 +222,20 @@ def test_should_publish_to_dql_due_to_implicit_nack_given_internal_callback_exce
     assert queue_status.number_of_consumers == 0
     assert queue_status.messages_enqueued == 1
     assert queue_status.messages_dequeued == 0
+
+
+def test_should_save_tshoot_properties_on_header():
+    some_destination = f"tshoot-header-{uuid.uuid4()}"
+
+    # In order to publish sample data
+    publisher = build_publisher()
+    some_body = {"keyOne": 1, "keyTwo": 2}
+    publisher.send(some_body, some_destination, attempt=1)
+
+    message_status = retrieve_message_published(some_destination)
+
+    assert message_status.properties.get("tshoot-destination")
+    assert message_status.properties["tshoot-destination"] == some_destination
 
 
 def _test_callback_function_standard(payload: Payload):

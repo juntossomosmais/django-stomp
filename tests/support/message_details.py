@@ -2,6 +2,7 @@ import json
 from dataclasses import dataclass
 from time import sleep
 from typing import Dict
+from typing import Optional
 
 import requests
 
@@ -14,9 +15,10 @@ class MessageStatus:
     details: Dict
     persistent: bool
     correlation_id: str
+    properties: Optional[Dict]
 
 
-def retrieve_message_published(host, destination_name) -> MessageStatus:
+def retrieve_message_published(destination_name, host="localhost") -> MessageStatus:
     sleep(1)
     address = f"http://{host}:8161/admin/browse.jsp?JMSDestination={destination_name}"
     result = requests.get(address, auth=("admin", "admin"))
@@ -42,4 +44,13 @@ def _process_message_details(selector_message_details) -> MessageStatus:
     persistent = "persistent" in selector_message_details.css(css_persistent_location).get().lower()
     correlation_id = selector_message_details.css("table#header tr + tr + tr td + td::text").get()
 
-    return MessageStatus(message_id, details, persistent, correlation_id)
+    properties = {}
+    all_configured_properties = selector_message_details.css("table#properties td").getall()
+    for index, configured_property in enumerate(all_configured_properties):
+        configured_property_as_selector = Selector(text=configured_property)
+        key = configured_property_as_selector.css("td[class='label']::text").get()
+        if key:
+            value = Selector(text=all_configured_properties[index + 1]).css("td::text").get()
+            properties.update({key: value})
+
+    return MessageStatus(message_id, details, persistent, correlation_id, properties)
