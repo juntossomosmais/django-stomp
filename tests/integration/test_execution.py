@@ -4,6 +4,7 @@ import uuid
 import pytest
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
+from django_stomp.execution import send_message_from_one_destination_to_another
 from django_stomp.execution import start_processing
 from django_stomp.services.consumer import Payload
 from pytest_mock import MockFixture
@@ -236,6 +237,41 @@ def test_should_save_tshoot_properties_on_header():
 
     assert message_status.properties.get("tshoot-destination")
     assert message_status.properties["tshoot-destination"] == some_destination
+
+
+def test_should_send_to_another_destination():
+    some_source_destination = f"/queue/source-{uuid.uuid4()}"
+    some_target_destination = f"/queue/target-{uuid.uuid4()}"
+
+    # In order to publish sample data
+    with build_publisher().auto_open_close_connection() as publisher:
+        some_body = {"keyOne": 1, "keyTwo": 2}
+        some_headers = {"some-header-1": 1, "some-header-2": 2}
+        publisher.send(some_body, some_source_destination, some_headers, attempt=1)
+
+    send_message_from_one_destination_to_another(some_source_destination, some_target_destination, is_testing=True)
+
+    *_, queue_name = some_source_destination.split("/")
+    queue_status = current_queue_configuration("localhost", queue_name)
+    assert queue_status.number_of_pending_messages == 0
+    assert queue_status.number_of_consumers == 0
+    assert queue_status.messages_enqueued == 1
+    assert queue_status.messages_dequeued == 1
+
+    *_, queue_name = some_target_destination.split("/")
+    queue_status = current_queue_configuration("localhost", queue_name)
+    assert queue_status.number_of_pending_messages == 1
+    assert queue_status.number_of_consumers == 0
+    assert queue_status.messages_enqueued == 1
+    assert queue_status.messages_dequeued == 0
+
+    message_status = retrieve_message_published(queue_name)
+
+    keys = list(some_headers.keys())
+    assert len(keys) == 2
+    assert int(message_status.properties[keys[0]]) == some_headers[keys[0]]
+    assert int(message_status.properties[keys[1]]) == some_headers[keys[1]]
+    assert message_status.details == some_body
 
 
 def _test_callback_function_standard(payload: Payload):
