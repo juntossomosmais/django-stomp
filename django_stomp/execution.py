@@ -22,8 +22,9 @@ if not durable_topic_subscription and listener_client_id:
     listener_client_id = f"{listener_client_id}-{uuid.uuid4().hex}"
 
 
-def start_processing(destination_name: str, callback_str: str, is_testing=False, testing_disconnect=True, **kwargs):
-    param_to_callback = kwargs.get("param_to_callback")
+def start_processing(
+    destination_name: str, callback_str: str, is_testing=False, testing_disconnect=True, param_to_callback=None
+):
     callback_function = import_string(callback_str)
 
     listener = build_listener(destination_name, listener_client_id, durable_topic_subscription)
