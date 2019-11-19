@@ -14,7 +14,7 @@ class CurrentQueueStatus:
     messages_dequeued: int
 
 
-def current_queue_configuration(host, queue_name) -> CurrentQueueStatus:
+def current_queue_configuration(queue_name, host="localhost") -> CurrentQueueStatus:
     sleep(1)
     result = requests.get(f"http://{host}:8161/admin/queues.jsp", auth=("admin", "admin"))
     selector = Selector(text=str(result.content))

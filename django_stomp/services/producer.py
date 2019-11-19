@@ -85,6 +85,33 @@ class Publisher:
 
         return value
 
+    @contextmanager
+    def auto_open_close_connection(self):
+        try:
+            self.start_if_not_open()
+            yield self
+        finally:
+            if self.is_open():
+                self.close()
+
+    @contextmanager
+    def do_inside_transaction(self):
+        try:
+            self.start_if_not_open()
+            transaction_id = self.connection.begin()
+            logger.debug("Created transaction ID: %s", transaction_id)
+            setattr(self, "_tmp_transaction_id", transaction_id)
+            yield self
+            self.connection.commit(transaction_id)
+        except BaseException as e:
+            logger.exception("Error inside transaction")
+            if hasattr(self, "_tmp_transaction_id"):
+                self.connection.abort(getattr(self, "_tmp_transaction_id"))
+            raise e
+        finally:
+            if hasattr(self, "_tmp_transaction_id"):
+                delattr(self, "_tmp_transaction_id")
+
 
 def build_publisher(**connection_params) -> Publisher:
     logger.info("Building publisher...")

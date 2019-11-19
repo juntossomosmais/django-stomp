@@ -23,7 +23,7 @@ class ConsumerStatus:
     retroactive: bool
 
 
-def consumers_details(host, connection_id) -> Generator[ConsumerStatus, None, None]:
+def consumers_details(connection_id, host="localhost") -> Generator[ConsumerStatus, None, None]:
     sleep(1)
 
     params = {"connectionID": connection_id}

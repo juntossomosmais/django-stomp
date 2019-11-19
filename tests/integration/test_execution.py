@@ -4,6 +4,7 @@ import uuid
 import pytest
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
+from django_stomp.execution import send_message_from_one_destination_to_another
 from django_stomp.execution import start_processing
 from django_stomp.services.consumer import Payload
 from pytest_mock import MockFixture
@@ -103,7 +104,7 @@ def test_should_consume_message_and_dequeue_it_using_ack():
     start_processing(test_destination_consumer_one, myself_with_test_callback_standard, is_testing=True)
 
     *_, queue_name = test_destination_consumer_one.split("/")
-    queue_status = current_queue_configuration("localhost", queue_name)
+    queue_status = current_queue_configuration(queue_name)
 
     assert queue_status.number_of_pending_messages == 0
     assert queue_status.number_of_consumers == 0
@@ -132,7 +133,7 @@ def test_should_create_durable_subscriber_and_receive_standby_messages(mocker: M
     start_processing(test_destination_durable_consumer_one, myself_with_test_callback_standard, is_testing=True)
 
     *_, topic_name = test_destination_durable_consumer_one.split("/")
-    queue_status = current_topic_configuration("localhost", topic_name)
+    queue_status = current_topic_configuration(topic_name)
     assert queue_status.number_of_consumers == 1
     assert queue_status.messages_enqueued == 3
     assert queue_status.messages_dequeued == 3
@@ -171,7 +172,7 @@ def test_should_configure_prefetch_size_as_one_following_apache_suggestions(mock
         testing_disconnect=False,
     )
 
-    consumers = list(consumers_details("localhost", f"{temp_uuid_listener}-listener"))
+    consumers = list(consumers_details(f"{temp_uuid_listener}-listener"))
 
     for index, consumer_status in enumerate(consumers):
         if consumer_status.destination_name in test_destination_prefetch_consumer_one:
@@ -194,7 +195,7 @@ def test_should_publish_to_dql_due_to_explicit_nack():
 
     *_, queue_name = test_destination_dlq_one.split("/")
     dlq_queue_name = f"DLQ.{queue_name}"
-    queue_status = current_queue_configuration("localhost", dlq_queue_name)
+    queue_status = current_queue_configuration(dlq_queue_name)
 
     assert queue_status.number_of_pending_messages == 1
     assert queue_status.number_of_consumers == 0
@@ -216,7 +217,7 @@ def test_should_publish_to_dql_due_to_implicit_nack_given_internal_callback_exce
 
     *_, queue_name = test_destination_dlq_two.split("/")
     dlq_queue_name = f"DLQ.{queue_name}"
-    queue_status = current_queue_configuration("localhost", dlq_queue_name)
+    queue_status = current_queue_configuration(dlq_queue_name)
 
     assert queue_status.number_of_pending_messages == 1
     assert queue_status.number_of_consumers == 0
@@ -236,6 +237,42 @@ def test_should_save_tshoot_properties_on_header():
 
     assert message_status.properties.get("tshoot-destination")
     assert message_status.properties["tshoot-destination"] == some_destination
+
+
+@pytest.mark.skip(reason="This behaves not as expected, but when used as Django command, it does")
+def test_should_send_to_another_destination():
+    some_source_destination = f"/queue/source-{uuid.uuid4()}"
+    some_target_destination = f"/queue/target-{uuid.uuid4()}"
+
+    # In order to publish sample data
+    with build_publisher().auto_open_close_connection() as publisher:
+        some_body = {"keyOne": 1, "keyTwo": 2}
+        some_headers = {"some-header-1": 1, "some-header-2": 2}
+        publisher.send(some_body, some_source_destination, some_headers, attempt=1)
+
+    send_message_from_one_destination_to_another(some_source_destination, some_target_destination, is_testing=True)
+
+    *_, queue_name = some_source_destination.split("/")
+    queue_status = current_queue_configuration(queue_name)
+    assert queue_status.number_of_pending_messages == 0
+    assert queue_status.number_of_consumers == 0
+    assert queue_status.messages_enqueued == 1
+    assert queue_status.messages_dequeued == 1
+
+    *_, queue_name = some_target_destination.split("/")
+    queue_status = current_queue_configuration(queue_name)
+    assert queue_status.number_of_pending_messages == 1
+    assert queue_status.number_of_consumers == 0
+    assert queue_status.messages_enqueued == 1
+    assert queue_status.messages_dequeued == 0
+
+    message_status = retrieve_message_published(queue_name)
+
+    keys = list(some_headers.keys())
+    assert len(keys) == 2
+    assert int(message_status.properties[keys[0]]) == some_headers[keys[0]]
+    assert int(message_status.properties[keys[1]]) == some_headers[keys[1]]
+    assert message_status.details == some_body
 
 
 def _test_callback_function_standard(payload: Payload):

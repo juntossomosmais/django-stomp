@@ -13,7 +13,7 @@ class CurrentTopicStatus:
     messages_dequeued: int
 
 
-def current_topic_configuration(host, topic_name) -> CurrentTopicStatus:
+def current_topic_configuration(topic_name, host="localhost") -> CurrentTopicStatus:
     sleep(1)
     result = requests.get(f"http://{host}:8161/admin/topics.jsp", auth=("admin", "admin"))
     selector = Selector(text=str(result.content))
