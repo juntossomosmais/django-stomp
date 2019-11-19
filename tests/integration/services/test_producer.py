@@ -34,6 +34,7 @@ def test_should_publish_message_on_destination(setup_publisher_and_test_listener
     some_body = {"keyOne": 1, "keyTwo": 2}
 
     publisher.send(some_body, test_destination, headers=some_header, attempt=1)
+    publisher.close()
 
     listener.wait_for_message()
     received_message = listener.get_latest_message()
