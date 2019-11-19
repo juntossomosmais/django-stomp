@@ -17,9 +17,9 @@ logger = logging.getLogger("django_stomp")
 wait_to_connect = int(getattr(settings, "STOMP_WAIT_TO_CONNECT", 10))
 durable_topic_subscription = eval_str_as_boolean(getattr(settings, "STOMP_DURABLE_TOPIC_SUBSCRIPTION", False))
 listener_client_id = getattr(settings, "STOMP_LISTENER_CLIENT_ID", None)
-if not durable_topic_subscription:
-    if listener_client_id:
-        listener_client_id = f"{listener_client_id}-{uuid.uuid4().hex}"
+publisher_name = "django-stomp-another-target"
+if not durable_topic_subscription and listener_client_id:
+    listener_client_id = f"{listener_client_id}-{uuid.uuid4().hex}"
 
 
 def start_processing(destination_name: str, callback_str: str, is_testing=False, testing_disconnect=True, **kwargs):
@@ -99,17 +99,17 @@ def send_message_from_one_destination_to_another(
 def _callback_send_to_another_destination(payload: Payload, target_destination):
     logger.info(f"Message received!")
 
-    publisher = build_publisher("django-stomp-another-target")
     headers = payload.headers
     body = payload.body
 
     logger.info(f"Configured headers: {headers}")
     logger.info(f"Configured body: {body}")
-
-    # If the line below is moved further, then IT won't work
-    payload.ack()
-
     logger.info("Sending to target destination...")
-    publisher.send(body, target_destination, headers)
+    publisher_name_to_move = f"{publisher_name}-{uuid.uuid4()}"
 
-    logger.info("Done")
+    with build_publisher(publisher_name_to_move).auto_open_close_connection() as publisher:
+        with publisher.do_inside_transaction():
+            publisher.send(body, target_destination, headers)
+            payload.ack()
+
+    logger.info("The messages has been moved!")
