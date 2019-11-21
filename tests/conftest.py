@@ -23,38 +23,4 @@ def pytest_configure():
         STOMP_SERVER_PASSWORD=os.getenv("STOMP_SERVER_PASSWORD"),
         STOMP_USE_SSL=os.getenv("STOMP_USE_SSL"),
         STOMP_LISTENER_CLIENT_ID=os.getenv("STOMP_LISTENER_CLIENT_ID"),
-        LOGGING={
-            "version": 1,
-            "disable_existing_loggers": False,
-            "formatters": {
-                "standard": {"()": Formatter, "format": "%(asctime)s - level=%(levelname)s - %(name)s - %(message)s"}
-            },
-            "handlers": {
-                "console": {"class": "logging.StreamHandler", "formatter": os.getenv("LOG_FORMATTER", "standard")}
-            },
-            "loggers": {
-                "": {"level": os.getenv("ROOT_LOG_LEVEL", "INFO"), "handlers": ["console"]},
-                "django": {"level": os.getenv("DJANGO_LOG_LEVEL", "INFO"), "propagate": False, "handlers": ["console"]},
-                "django.request": {
-                    "level": os.getenv("DJANGO_REQUEST_LOG_LEVEL", "INFO"),
-                    "handlers": ["console"],
-                    "propagate": False,
-                },
-                "django.db.backends": {
-                    "level": os.getenv("DJANGO_DB_BACKENDS_LOG_LEVEL", "INFO"),
-                    "propagate": False,
-                    "handlers": ["console"],
-                },
-                "stomp.py": {
-                    "level": os.getenv("STOMP_LOG_LEVEL", "DEBUG"),
-                    "handlers": ["console"],
-                    "propagate": False,
-                },
-                "django_stomp": {
-                    "level": os.getenv("DJANGO_STOMP_LEVEL", "DEBUG"),
-                    "handlers": ["console"],
-                    "propagate": False,
-                },
-            },
-        },
     )
