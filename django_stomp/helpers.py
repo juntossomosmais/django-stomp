@@ -37,3 +37,7 @@ def return_none_if_provided_value_is_falsy_or_strange(value):
 
 def clean_dict_with_falsy_or_strange_values(value: Dict) -> Dict:
     return {k: v for k, v in value.items() if return_none_if_provided_value_is_falsy_or_strange(v)}
+
+
+def eval_as_int_otherwise_none(value):
+    return int(value) if value else None

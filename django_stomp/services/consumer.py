@@ -120,8 +120,13 @@ def build_listener(
     use_ssl = connection_params.get("use_ssl", False)
     ssl_version = connection_params.get("ssl_version", ssl.PROTOCOL_TLS)
     logger.info(f"Use SSL? {use_ssl}. Version: {ssl_version}")
+    outgoing_heartbeat = int(connection_params.get("outgoingHeartbeat", 60000))
+    incoming_heartbeat = int(connection_params.get("incomingHeartbeat", 60000))
     # http://stomp.github.io/stomp-specification-1.2.html#Heart-beating
-    conn = stomp.Connection(hosts, ssl_version=ssl_version, use_ssl=use_ssl)
+    # http://jasonrbriggs.github.io/stomp.py/api.html
+    conn = stomp.Connection(
+        hosts, ssl_version=ssl_version, use_ssl=use_ssl, heartbeats=(outgoing_heartbeat, incoming_heartbeat)
+    )
     client_id = connection_params.get("client_id", uuid.uuid4())
     subscription_configuration = {"destination": destination_name, "ack": ack_type.value}
     header_setup = {"client-id": f"{client_id}-listener", "activemq.prefetchSize": "1"}
