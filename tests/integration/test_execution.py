@@ -287,6 +287,10 @@ def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_
     _test_callback_function_with_sleep_three_seconds function) which takes longer to process than the
     heartbeat time of 1 second (1000); resulting in a heartbeat timeout when
     a message is received, and a subsequent disconnect.
+
+    Heartbeating requires an error margin due to timing inaccuracies which are usually configured
+    by the receiver (such as the broker and even the client). Thus, other brokers may wait for a little bit more
+    or less before considering the connection dead.
     """
     caplog.set_level(logging.DEBUG)
     some_destination = f"some-lorem-destination-{uuid.uuid4()}"
