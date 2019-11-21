@@ -1,5 +1,8 @@
 import json
+import logging
+import re
 import uuid
+from time import sleep
 
 import pytest
 from django_stomp.builder import build_listener
@@ -17,6 +20,9 @@ from tests.support.topic_details import current_topic_configuration
 myself_with_test_callback_standard = "tests.integration.test_execution._test_callback_function_standard"
 myself_with_test_callback_nack = "tests.integration.test_execution._test_callback_function_with_nack"
 myself_with_test_callback_exception = "tests.integration.test_execution._test_callback_function_with_exception"
+myself_with_test_callback_sleep_three_seconds = (
+    "tests.integration.test_execution._test_callback_function_with_sleep_three_seconds"
+)
 
 test_destination_one = "/queue/my-test-destination-one"
 test_destination_two = "/queue/my-test-destination-two"
@@ -275,6 +281,40 @@ def test_should_send_to_another_destination():
     assert message_status.details == some_body
 
 
+def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_than_heartbeat(caplog, settings):
+    """
+    The listener in this code has an, arguably broken, message handler (see
+    _test_callback_function_with_sleep_three_seconds function) which takes longer to process than the
+    heartbeat time of 1 second (1000); resulting in a heartbeat timeout when
+    a message is received, and a subsequent disconnect.
+    """
+    caplog.set_level(logging.DEBUG)
+    some_destination = f"some-lorem-destination-{uuid.uuid4()}"
+
+    # In order to publish sample data
+    with build_publisher().auto_open_close_connection() as publisher:
+        some_body = {"keyOne": 1, "keyTwo": 2}
+        publisher.send(some_body, some_destination, attempt=1)
+
+    settings.STOMP_OUTGOING_HEARTBIT = 1000
+    settings.STOMP_INCOMING_HEARTBIT = 1000
+    start_processing(some_destination, myself_with_test_callback_sleep_three_seconds, is_testing=True)
+    sleep(1)
+
+    assert any(
+        re.compile(
+            f"Received frame.+eart-beat.+{settings.STOMP_OUTGOING_HEARTBIT},{settings.STOMP_INCOMING_HEARTBIT}"
+        ).match(m)
+        for m in caplog.messages
+    )
+    assert any(re.compile("Sending a heartbeat message at [0-9.]+").match(message) for message in caplog.messages)
+    assert any(
+        re.compile("Heartbeat timeout: diff_receive=[0-9.]+, time=[0-9.]+, lastrec=[0-9.]+").match(message)
+        for message in caplog.messages
+    )
+    assert any(re.compile("Lost connection, unable to send heartbeat").match(message) for message in caplog.messages)
+
+
 def _test_callback_function_standard(payload: Payload):
     # Should dequeue the message
     payload.ack()
@@ -286,3 +326,8 @@ def _test_callback_function_with_nack(payload: Payload):
 
 def _test_callback_function_with_exception(payload: Payload):
     raise Exception("Lambe Sal")
+
+
+def _test_callback_function_with_sleep_three_seconds(payload: Payload):
+    sleep(3)
+    payload.ack()
