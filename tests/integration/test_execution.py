@@ -11,11 +11,11 @@ from django_stomp.execution import send_message_from_one_destination_to_another
 from django_stomp.execution import start_processing
 from django_stomp.services.consumer import Payload
 from pytest_mock import MockFixture
-from tests.support.connections_details import consumers_details
-from tests.support.message_details import retrieve_message_published
-from tests.support.queue_details import current_queue_configuration
-from tests.support.subscribers_details import offline_durable_subscribers
-from tests.support.topic_details import current_topic_configuration
+from tests.support.activemq.connections_details import consumers_details
+from tests.support.activemq.message_details import retrieve_message_published
+from tests.support.activemq.queue_details import current_queue_configuration
+from tests.support.activemq.subscribers_details import offline_durable_subscribers
+from tests.support.activemq.topic_details import current_topic_configuration
 
 myself_with_test_callback_standard = "tests.integration.test_execution._test_callback_function_standard"
 myself_with_test_callback_nack = "tests.integration.test_execution._test_callback_function_with_nack"
