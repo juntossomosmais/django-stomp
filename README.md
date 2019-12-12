@@ -7,7 +7,7 @@
 
 A simple implementation of STOMP with Django.
 
-It is heavily tied to ActiveMQ, but can work with any broker which supports STOMP with minor or none adjustments.
+In theory it can work with any broker which supports STOMP with none or minor adjustments.
 
 ## Installation
 
@@ -60,10 +60,14 @@ That's it ✌️
 
 ## Tests
 
-In order to execute the tests, first do the following:
+In order to execute tests for ActiveMQ, execute the following:
 
-    docker-compose up -d
+    docker-compose up -d broker-activemq
     
-Then:
+Or for RabbitMQ:
+
+    docker-compose up -d broker-rabbitmq
+    
+Then at last:
 
     pipenv run tox
