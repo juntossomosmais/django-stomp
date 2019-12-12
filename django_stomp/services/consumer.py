@@ -41,12 +41,13 @@ class Listener(stomp.ConnectionListener):
         subscription_configuration: Dict,
         connection_configuration: Dict,
         is_testing: bool = False,
+        subscription_id=None,
     ) -> None:
         self._subscription_configuration = subscription_configuration
         self._connection_configuration = connection_configuration
         self._connection = connection
         self._callback = callback
-        self._subscription_id = str(uuid.uuid4())
+        self._subscription_id = f"{subscription_id if subscription_id else str(uuid.uuid4())}-listener"
         self._listener_id = str(uuid.uuid4())
         self._is_testing = is_testing
 
@@ -129,11 +130,22 @@ def build_listener(
     )
     client_id = connection_params.get("client_id", uuid.uuid4())
     subscription_configuration = {"destination": destination_name, "ack": ack_type.value}
-    header_setup = {"client-id": f"{client_id}-listener", "activemq.prefetchSize": "1"}
+    header_setup = {
+        # ActiveMQ
+        "client-id": f"{client_id}-listener",
+        "activemq.prefetchSize": "1",
+        # RabbitMQ
+        "prefetch-count": "1",
+    }
+
     if durable_topic_subscription is True:
         durable_subs_header = {
+            # ActiveMQ
             "activemq.subscriptionName": header_setup["client-id"],
             "activemq.subcriptionName": header_setup["client-id"],
+            # RabbitMQ
+            "durable": "true",
+            "auto-delete": "false",
         }
         header_setup.update(durable_subs_header)
     connection_configuration = {
@@ -142,5 +154,12 @@ def build_listener(
         "wait": True,
         "headers": header_setup,
     }
-    listener = Listener(conn, callback, subscription_configuration, connection_configuration, is_testing=is_testing)
+    listener = Listener(
+        conn,
+        callback,
+        subscription_configuration,
+        connection_configuration,
+        is_testing=is_testing,
+        subscription_id=connection_params.get("subscriptionId"),
+    )
     return listener

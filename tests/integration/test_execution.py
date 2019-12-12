@@ -5,12 +5,14 @@ import uuid
 from time import sleep
 
 import pytest
+import trio
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
 from django_stomp.execution import send_message_from_one_destination_to_another
 from django_stomp.execution import start_processing
 from django_stomp.services.consumer import Payload
 from pytest_mock import MockFixture
+from tests.support import rabbitmq
 from tests.support.activemq.connections_details import consumers_details
 from tests.support.activemq.message_details import retrieve_message_published
 from tests.support.activemq.queue_details import current_queue_configuration
@@ -110,7 +112,10 @@ def test_should_consume_message_and_dequeue_it_using_ack():
     start_processing(test_destination_consumer_one, myself_with_test_callback_standard, is_testing=True)
 
     *_, queue_name = test_destination_consumer_one.split("/")
-    queue_status = current_queue_configuration(queue_name)
+    try:
+        queue_status = current_queue_configuration(queue_name)
+    except Exception:
+        queue_status = rabbitmq.current_queue_configuration(queue_name)
 
     assert queue_status.number_of_pending_messages == 0
     assert queue_status.number_of_consumers == 0
@@ -121,12 +126,15 @@ def test_should_consume_message_and_dequeue_it_using_ack():
 test_destination_durable_consumer_one = "/topic/my-test-destination-durable-consumer-one"
 
 
-def test_should_create_durable_subscriber_and_receive_standby_messages(mocker: MockFixture):
+def test_should_create_durable_subscriber_and_receive_standby_messages(mocker: MockFixture, settings):
     temp_uuid_listener = str(uuid.uuid4())
     mocker.patch("django_stomp.execution.listener_client_id", temp_uuid_listener)
     mocker.patch("django_stomp.execution.durable_topic_subscription", True)
+    durable_subscription_id = str(uuid.uuid4())
+    settings.STOMP_SUBSCRIPTION_ID = durable_subscription_id
     # Just to create a durable subscription
     start_processing(test_destination_durable_consumer_one, myself_with_test_callback_standard, is_testing=True)
+    settings.STOMP_SUBSCRIPTION_ID = None
 
     # In order to publish sample data
     publisher = build_publisher()
@@ -136,28 +144,35 @@ def test_should_create_durable_subscriber_and_receive_standby_messages(mocker: M
     publisher.send(some_body, test_destination_durable_consumer_one, attempt=1)
 
     # To recreate a durable subscription
+    settings.STOMP_SUBSCRIPTION_ID = durable_subscription_id
     start_processing(test_destination_durable_consumer_one, myself_with_test_callback_standard, is_testing=True)
 
     *_, topic_name = test_destination_durable_consumer_one.split("/")
-    queue_status = current_topic_configuration(topic_name)
-    assert queue_status.number_of_consumers == 1
-    assert queue_status.messages_enqueued == 3
-    assert queue_status.messages_dequeued == 3
+    try:
+        destination_status = current_topic_configuration(topic_name)
+        assert destination_status.number_of_consumers == 1
+        assert destination_status.messages_enqueued == 3
+        assert destination_status.messages_dequeued == 3
 
-    all_offline_subscribers = list(offline_durable_subscribers("localhost"))
-    for index, subscriber_setup in enumerate(all_offline_subscribers):
-        if subscriber_setup.subscriber_id == f"{temp_uuid_listener}-listener":
-            assert subscriber_setup.dispatched_counter == 3
-            assert subscriber_setup.enqueue_counter == 3
-            assert subscriber_setup.dequeue_counter == 3
-            break
-        assert all_offline_subscribers[index] != all_offline_subscribers[-1]
+        all_offline_subscribers = list(offline_durable_subscribers("localhost"))
+        for index, subscriber_setup in enumerate(all_offline_subscribers):
+            if subscriber_setup.subscriber_id == f"{temp_uuid_listener}-listener":
+                assert subscriber_setup.dispatched_counter == 3
+                assert subscriber_setup.enqueue_counter == 3
+                assert subscriber_setup.dequeue_counter == 3
+                break
+            assert all_offline_subscribers[index] != all_offline_subscribers[-1]
+    except Exception:
+        destination_status = rabbitmq.current_topic_configuration(topic_name)
+        assert destination_status.number_of_consumers == 0
+        assert destination_status.messages_enqueued == 3
+        assert destination_status.messages_dequeued == 3
 
 
 test_destination_prefetch_consumer_one = "/queue/my-destination-prefetch-consumer-one"
 
 
-def test_should_configure_prefetch_size_as_one_following_apache_suggestions(mocker: MockFixture):
+async def test_should_configure_prefetch_size_as_one(mocker: MockFixture, settings):
     """
     See more details here: https://activemq.apache.org/stomp.html
 
@@ -168,24 +183,42 @@ def test_should_configure_prefetch_size_as_one_following_apache_suggestions(mock
     scripting language like Ruby, say, then this parameter must be set to 1 as there is no notion of a
     client-side message size to be sized. STOMP does not support a value of 0.
     """
-    temp_uuid_listener = str(uuid.uuid4())
-    mocker.patch("django_stomp.execution.listener_client_id", temp_uuid_listener)
+    listener_id = str(uuid.uuid4())
+    # LISTENER_CLIENT_ID is used by ActiveMQ
+    mocker.patch("django_stomp.execution.listener_client_id", listener_id)
+    # SUBSCRIPTION_ID is used by RabbitMQ to identify a consumer through a tag
+    subscription_id = str(uuid.uuid4())
+    settings.STOMP_SUBSCRIPTION_ID = subscription_id
 
-    start_processing(
-        test_destination_prefetch_consumer_one,
-        myself_with_test_callback_standard,
-        is_testing=True,
-        testing_disconnect=False,
-    )
+    async def collect_consumer_details():
+        await trio.sleep(0.5)
+        try:
+            consumers = list(consumers_details(f"{listener_id}-listener"))
+        except Exception:
+            consumers = list(rabbitmq.consumers_details(f"{subscription_id}-listener"))
 
-    consumers = list(consumers_details(f"{temp_uuid_listener}-listener"))
+        assert len(consumers) > 0
+        for index, consumer_status in enumerate(consumers):
+            if consumer_status.destination_name in test_destination_prefetch_consumer_one:
+                assert consumer_status.prefetch == 1
+                assert consumer_status.max_pending == 0
+                break
+            assert consumers[index] != consumers[-1]
 
-    for index, consumer_status in enumerate(consumers):
-        if consumer_status.destination_name in test_destination_prefetch_consumer_one:
-            assert consumer_status.prefetch == 1
-            assert consumer_status.max_pending == 0
-            break
-        assert consumers[index] != consumers[-1]
+    async def execute_start_processing():
+        listener = start_processing(
+            test_destination_prefetch_consumer_one,
+            myself_with_test_callback_standard,
+            is_testing=True,
+            testing_disconnect=False,
+            return_listener=True,
+        )
+        await trio.sleep(10)
+        listener.close()
+
+    async with trio.open_nursery() as nursery:
+        nursery.start_soon(execute_start_processing)
+        nursery.start_soon(collect_consumer_details)
 
 
 test_destination_dlq_one = f"/queue/my-destination-dql-one-{uuid.uuid4()}"
@@ -239,10 +272,16 @@ def test_should_save_tshoot_properties_on_header():
     some_body = {"keyOne": 1, "keyTwo": 2}
     publisher.send(some_body, some_destination, attempt=1)
 
-    message_status = retrieve_message_published(some_destination)
+    try:
+        message_status = retrieve_message_published(some_destination)
 
-    assert message_status.properties.get("tshoot-destination")
-    assert message_status.properties["tshoot-destination"] == some_destination
+        assert message_status.properties.get("tshoot-destination")
+        assert message_status.properties["tshoot-destination"] == some_destination
+    except Exception:
+        message_status = rabbitmq.retrieve_message_published(some_destination)
+
+        assert message_status.properties["headers"].get("tshoot-destination")
+        assert message_status.properties["headers"]["tshoot-destination"] == some_destination
 
 
 @pytest.mark.skip(reason="This behaves not as expected, but when used as Django command, it does")

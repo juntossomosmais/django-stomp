@@ -23,8 +23,13 @@ if not durable_topic_subscription and listener_client_id:
 
 
 def start_processing(
-    destination_name: str, callback_str: str, is_testing=False, testing_disconnect=True, param_to_callback=None
-):
+    destination_name: str,
+    callback_str: str,
+    is_testing=False,
+    testing_disconnect=True,
+    param_to_callback=None,
+    return_listener=False,
+) -> Optional[Listener]:
     callback_function = import_string(callback_str)
 
     listener = build_listener(destination_name, listener_client_id, durable_topic_subscription)
@@ -74,6 +79,8 @@ def start_processing(
         while True:
             if tries == 0:
                 testing_listener = main_logic()
+                if return_listener:
+                    return testing_listener
                 tries += 1
             elif tries >= max_tries:
                 if testing_disconnect is True:
