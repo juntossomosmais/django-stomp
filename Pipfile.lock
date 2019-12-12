@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "489bf5d8790aff8b1884f9e981f23eea985a12d200fd7c3af2c2ee724cd4d834"
+            "sha256": "cebe2b5029c6ed5113a0b2a528bc9b85c68934bc729947ed275c7a0527eae7dc"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -70,6 +70,13 @@
         }
     },
     "develop": {
+        "async-generator": {
+            "hashes": [
+                "sha256:01c7bf666359b4967d2cda0000cc2e4af16a0ae098cbffcb8472fb9e8ad6585b",
+                "sha256:6ebb3d106c12920aaae42ccb6f787ef5eefdcdd166ea3d628fa8476abe712144"
+            ],
+            "version": "==1.10"
+        },
         "attrs": {
             "hashes": [
                 "sha256:08a96c641c3a74e44eb59afb61a24f2cb9f4d7188748e76ba4bb5edfa3cb7d1c",
@@ -166,11 +173,11 @@
         },
         "importlib-metadata": {
             "hashes": [
-                "sha256:3a8b2dfd0a2c6a3636e7c016a7e54ae04b997d30e69d5eacdca7a6c2221a1402",
-                "sha256:41e688146d000891f32b1669e8573c57e39e5060e7f5f647aa617cd9a9568278"
+                "sha256:073a852570f92da5f744a3472af1b61e28e9f78ccf0c9117658dc32b15de7b45",
+                "sha256:d95141fbfa7ef2ec65cfd945e2af7e5a6ddbd7c8d9a25e66ff3be8e3daf9f60f"
             ],
             "markers": "python_version < '3.8'",
-            "version": "==1.2.0"
+            "version": "==1.3.0"
         },
         "keyring": {
             "hashes": [
@@ -217,6 +224,13 @@
                 "sha256:c833ef592a0324bcc6a60e48440da07645063c453880c9477ceb22490aec1564"
             ],
             "version": "==8.0.2"
+        },
+        "outcome": {
+            "hashes": [
+                "sha256:ee46c5ce42780cde85d55a61819d0e6b8cb490f1dbd749ba75ff2629771dcd2d",
+                "sha256:fc7822068ba7dd0fc2532743611e8a73246708d3564e29a39f93d6ab3701b66f"
+            ],
+            "version": "==1.0.1"
         },
         "packaging": {
             "hashes": [
@@ -307,6 +321,14 @@
             "index": "pypi",
             "version": "==1.13.0"
         },
+        "pytest-trio": {
+            "hashes": [
+                "sha256:6a50e9585ebbb0ce9ae83d33bde7865952d76c4d4b8759a0345a551f113d468c",
+                "sha256:848c2ba632d9c2d4e2770fe4eb149c8db69ecefc9239e2e6f77c41d9a2393d5e"
+            ],
+            "index": "pypi",
+            "version": "==0.5.2"
+        },
         "readme-renderer": {
             "hashes": [
                 "sha256:bb16f55b259f27f75f640acf5e00cf897845a8b3e4731b5c1a436e4b8529202f",
@@ -336,6 +358,20 @@
             ],
             "version": "==1.13.0"
         },
+        "sniffio": {
+            "hashes": [
+                "sha256:20ed6d5b46f8ae136d00b9dcb807615d83ed82ceea6b2058cecb696765246da5",
+                "sha256:8e3810100f69fe0edd463d02ad407112542a11ffdc29f67db2bf3771afb87a21"
+            ],
+            "version": "==1.1.0"
+        },
+        "sortedcontainers": {
+            "hashes": [
+                "sha256:974e9a32f56b17c1bac2aebd9dcf197f3eb9cd30553c5852a3187ad162e1a03a",
+                "sha256:d9e96492dd51fae31e60837736b38fe42a187b5404c16606ff7ee7cd582d4c60"
+            ],
+            "version": "==2.1.0"
+        },
         "toml": {
             "hashes": [
                 "sha256:229f81c57791a41d65e399fc06bf0848bab550a9dfd5ed66df18ce5f05e73d5c",
@@ -353,10 +389,18 @@
         },
         "tqdm": {
             "hashes": [
-                "sha256:895796ea8df435b6f502bf122f2b2034a3d48e6d8ff52175606ac1051b0e3e12",
-                "sha256:e405d16c98fcf30725d0c9d493ed07302a18846b5452de5253030ccd18996f87"
+                "sha256:7543892c59720e36e4212180274d8f58dde36803bc1f6370fd09afa20b8f5892",
+                "sha256:f0ab01cf3ae5673d18f918700c0165e5fad0f26b5ebe4b34f62ead92686b5340"
             ],
-            "version": "==4.40.1"
+            "version": "==4.40.2"
+        },
+        "trio": {
+            "hashes": [
+                "sha256:a6d83c0cb4a177ec0f5179ce88e27914d5c8e6fd01c4285176b949e6ddc88c6c",
+                "sha256:f1cf00054ad974c86d9b7afa187a65d79fd5995340abe01e8e4784d86f4acb30"
+            ],
+            "index": "pypi",
+            "version": "==0.13.0"
         },
         "twine": {
             "hashes": [
