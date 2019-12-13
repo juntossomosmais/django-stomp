@@ -48,3 +48,7 @@ def only_destination_name(destination: str) -> str:
     if position > 0:
         return destination[position + 1 :]
     return destination
+
+
+def create_dlq_destination_from_another_destination(destination: str) -> str:
+    return f"DLQ.{only_destination_name(destination)}"

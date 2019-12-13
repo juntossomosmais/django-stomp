@@ -7,6 +7,7 @@ from django.conf import settings
 from django.utils.module_loading import import_string
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
+from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import eval_str_as_boolean
 from django_stomp.services.consumer import Listener
 from django_stomp.services.consumer import Payload
@@ -32,6 +33,7 @@ def start_processing(
 ) -> Optional[Listener]:
     callback_function = import_string(callback_str)
 
+    _create_dlq_queue(destination_name)
     listener = build_listener(destination_name, listener_client_id, durable_topic_subscription)
 
     def main_logic() -> Optional[Listener]:
@@ -121,3 +123,10 @@ def _callback_send_to_another_destination(payload: Payload, target_destination):
             payload.ack()
 
     logger.info("The messages has been moved!")
+
+
+def _create_dlq_queue(destination_name):
+    dlq_destination_name = create_dlq_destination_from_another_destination(destination_name)
+    listener_dlq = build_listener(dlq_destination_name, listener_client_id, durable_topic_subscription)
+    listener_dlq.start(lambda payload: None, wait_forever=False)
+    listener_dlq.close()

@@ -10,7 +10,7 @@ from typing import Dict
 
 import stomp
 from django_stomp import customizations
-from django_stomp.helpers import only_destination_name
+from django_stomp.helpers import create_dlq_destination_from_another_destination
 
 logger = logging.getLogger("django_stomp")
 
@@ -139,7 +139,7 @@ def build_listener(
         # RabbitMQ
         "prefetch-count": "1",
         # These two parameters must be set on producer side as well, otherwise you'll get precondition_failed
-        "x-dead-letter-routing-key": f"DLQ.{only_destination_name(destination_name)}",
+        "x-dead-letter-routing-key": create_dlq_destination_from_another_destination(destination_name),
         "x-dead-letter-exchange": "",
     }
 
