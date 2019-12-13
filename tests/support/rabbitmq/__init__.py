@@ -19,7 +19,6 @@ _channel_details_from_channel_request_path = _channels_details_request_path + "/
 
 
 def current_queue_configuration(queue_name, host="localhost", port=15672) -> Optional[CurrentDestinationStatus]:
-    sleep(3)
     queues = _do_request(host, port, _queues_details_request_path)
     results = list(filter(lambda v: v["name"] == queue_name, queues))
     if len(results) == 1:
@@ -42,7 +41,6 @@ def current_queue_configuration(queue_name, host="localhost", port=15672) -> Opt
 
 
 def current_topic_configuration(topic_name, host="localhost", port=15672) -> Optional[CurrentDestinationStatus]:
-    sleep(4)
     queues = _do_request(host, port, _queues_details_request_path + "?name=&use_regex=false")
     for queue_details in queues:
         queue_name = queue_details["name"]
@@ -61,7 +59,6 @@ def current_topic_configuration(topic_name, host="localhost", port=15672) -> Opt
 
 
 def consumers_details(connection_id, host="localhost", port=15672) -> Generator[ConsumerStatus, None, None]:
-    sleep(5)
     channels = _do_request(host, port, _channels_details_request_path)
     print(channels)
     for index, channel in enumerate(channels, 1):
@@ -92,7 +89,6 @@ def consumers_details(connection_id, host="localhost", port=15672) -> Generator[
 
 
 def retrieve_message_published(destination_name, host="localhost", port=15672) -> MessageStatus:
-    sleep(3)
     body = json.dumps(
         {
             "vhost": "/",
@@ -117,6 +113,7 @@ def retrieve_message_published(destination_name, host="localhost", port=15672) -
 
 
 def _do_request(host, port, request_path, do_post=False, body=None):
+    sleep(5)
     session = requests.Session()
     session.mount("http://", HTTPAdapter(max_retries=3))
     address, auth = f"http://{host}:{port}{request_path}", ("guest", "guest")
