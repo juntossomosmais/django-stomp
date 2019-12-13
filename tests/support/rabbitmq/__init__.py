@@ -24,12 +24,16 @@ def current_queue_configuration(queue_name, host="localhost", port=15672) -> Opt
     results = list(filter(lambda v: v["name"] == queue_name, queues))
     if len(results) == 1:
         queue_details = results[0]
-        message_stats = queue_details["message_stats"]
+        if queue_details.get("message_stats"):
+            message_stats = queue_details["message_stats"]
+            messages_dequeued = message_stats["deliver_get"]
+            messages_enqueued = message_stats["publish"]
+        else:
+            messages_dequeued = 0
+            messages_enqueued = None
 
         number_of_pending_messages = queue_details["messages"]
         number_of_consumers = queue_details["consumers"]
-        messages_enqueued = message_stats["publish"]
-        messages_dequeued = message_stats["deliver_get"]
 
         return CurrentDestinationStatus(
             number_of_pending_messages, number_of_consumers, messages_enqueued, messages_dequeued
@@ -100,7 +104,7 @@ def retrieve_message_published(destination_name, host="localhost", port=15672) -
         }
     )
     message_details = _do_request(
-        host, port, _get_message_from_queue_request_path.format(queue_name=destination_name), body=body
+        host, port, _get_message_from_queue_request_path.format(queue_name=destination_name), do_post=True, body=body
     )
     assert len(message_details) == 1
     properties = message_details[0]["properties"]
@@ -112,7 +116,7 @@ def retrieve_message_published(destination_name, host="localhost", port=15672) -
     return MessageStatus(None, details, persistent, correlation_id, properties)
 
 
-def _do_request(host, port, request_path, do_post=True, body=None):
+def _do_request(host, port, request_path, do_post=False, body=None):
     session = requests.Session()
     session.mount("http://", HTTPAdapter(max_retries=3))
     address, auth = f"http://{host}:{port}{request_path}", ("guest", "guest")

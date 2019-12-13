@@ -9,6 +9,8 @@ from typing import Callable
 from typing import Dict
 
 import stomp
+from django_stomp import customizations
+from django_stomp.helpers import only_destination_name
 
 logger = logging.getLogger("django_stomp")
 
@@ -36,7 +38,7 @@ class Payload:
 class Listener(stomp.ConnectionListener):
     def __init__(
         self,
-        connection: stomp.StompConnection11,
+        connection: customizations.CustomStompConnection11,
         callback: Callable,
         subscription_configuration: Dict,
         connection_configuration: Dict,
@@ -125,7 +127,7 @@ def build_listener(
     incoming_heartbeat = int(connection_params.get("incomingHeartbeat", 60000))
     # http://stomp.github.io/stomp-specification-1.2.html#Heart-beating
     # http://jasonrbriggs.github.io/stomp.py/api.html
-    conn = stomp.Connection(
+    conn = customizations.CustomStompConnection11(
         hosts, ssl_version=ssl_version, use_ssl=use_ssl, heartbeats=(outgoing_heartbeat, incoming_heartbeat)
     )
     client_id = connection_params.get("client_id", uuid.uuid4())
@@ -136,6 +138,9 @@ def build_listener(
         "activemq.prefetchSize": "1",
         # RabbitMQ
         "prefetch-count": "1",
+        # These two parameters must be set on producer side as well, otherwise you'll get precondition_failed
+        "x-dead-letter-routing-key": f"DLQ.{only_destination_name(destination_name)}",
+        "x-dead-letter-exchange": "",
     }
 
     if durable_topic_subscription is True:

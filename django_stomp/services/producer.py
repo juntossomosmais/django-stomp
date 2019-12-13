@@ -9,6 +9,7 @@ from typing import Dict
 import tenacity
 from django.core.serializers.json import DjangoJSONEncoder
 from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
+from django_stomp.helpers import only_destination_name
 from django_stomp.helpers import slow_down
 from request_id_django_log.request_id import current_request_id
 from request_id_django_log.settings import NO_REQUEST_ID
@@ -44,7 +45,14 @@ class Publisher:
 
     def send(self, body: dict, queue: str, headers=None, persistent=True, attempt=10):
         correlation_id = current_request_id() if current_request_id() != NO_REQUEST_ID else uuid.uuid4()
-        standard_header = {"correlation-id": correlation_id, "tshoot-destination": queue}
+        standard_header = {
+            "correlation-id": correlation_id,
+            "tshoot-destination": queue,
+            # RabbitMQ
+            # These two parameters must be set on consumer side as well, otherwise you'll get precondition_failed
+            "x-dead-letter-routing-key": f"DLQ.{only_destination_name(queue)}",
+            "x-dead-letter-exchange": "",
+        }
         if headers:
             standard_header.update(headers)
         if persistent:

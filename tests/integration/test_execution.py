@@ -226,20 +226,27 @@ test_destination_dlq_one = f"/queue/my-destination-dql-one-{uuid.uuid4()}"
 
 def test_should_publish_to_dql_due_to_explicit_nack():
     # In order to publish sample data
-    publisher = build_publisher()
-    some_body = {"keyOne": 1, "keyTwo": 2}
-    publisher.send(some_body, test_destination_dlq_one, attempt=1)
+    with build_publisher().auto_open_close_connection() as publisher:
+        some_body = {"keyOne": 1, "keyTwo": 2}
+        publisher.send(some_body, test_destination_dlq_one, attempt=1)
 
     start_processing(test_destination_dlq_one, myself_with_test_callback_nack, is_testing=True)
 
     *_, queue_name = test_destination_dlq_one.split("/")
     dlq_queue_name = f"DLQ.{queue_name}"
-    queue_status = current_queue_configuration(dlq_queue_name)
+    try:
+        queue_status = current_queue_configuration(dlq_queue_name)
 
-    assert queue_status.number_of_pending_messages == 1
-    assert queue_status.number_of_consumers == 0
-    assert queue_status.messages_enqueued == 1
-    assert queue_status.messages_dequeued == 0
+        assert queue_status.number_of_pending_messages == 1
+        assert queue_status.number_of_consumers == 0
+        assert queue_status.messages_enqueued == 1
+        assert queue_status.messages_dequeued == 0
+    except Exception:
+        queue_status = rabbitmq.current_queue_configuration(dlq_queue_name)
+
+        assert queue_status.number_of_pending_messages == 1
+        assert queue_status.number_of_consumers == 0
+        assert queue_status.messages_dequeued == 0
 
 
 test_destination_dlq_two = f"/queue/my-destination-dql-two-{uuid.uuid4()}"
@@ -247,21 +254,28 @@ test_destination_dlq_two = f"/queue/my-destination-dql-two-{uuid.uuid4()}"
 
 def test_should_publish_to_dql_due_to_implicit_nack_given_internal_callback_exception():
     # In order to publish sample data
-    publisher = build_publisher()
-    some_body = {"keyOne": 1, "keyTwo": 2}
-    publisher.send(some_body, test_destination_dlq_two, attempt=1)
+    with build_publisher().auto_open_close_connection() as publisher:
+        some_body = {"keyOne": 1, "keyTwo": 2}
+        publisher.send(some_body, test_destination_dlq_two, attempt=1)
 
     with pytest.raises(Exception) as e:
         start_processing(test_destination_dlq_two, myself_with_test_callback_exception, is_testing=True)
 
     *_, queue_name = test_destination_dlq_two.split("/")
     dlq_queue_name = f"DLQ.{queue_name}"
-    queue_status = current_queue_configuration(dlq_queue_name)
+    try:
+        queue_status = current_queue_configuration(dlq_queue_name)
 
-    assert queue_status.number_of_pending_messages == 1
-    assert queue_status.number_of_consumers == 0
-    assert queue_status.messages_enqueued == 1
-    assert queue_status.messages_dequeued == 0
+        assert queue_status.number_of_pending_messages == 1
+        assert queue_status.number_of_consumers == 0
+        assert queue_status.messages_enqueued == 1
+        assert queue_status.messages_dequeued == 0
+    except Exception:
+        queue_status = rabbitmq.current_queue_configuration(dlq_queue_name)
+
+        assert queue_status.number_of_pending_messages == 1
+        assert queue_status.number_of_consumers == 0
+        assert queue_status.messages_dequeued == 0
 
 
 def test_should_save_tshoot_properties_on_header():
