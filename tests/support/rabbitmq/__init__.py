@@ -60,32 +60,31 @@ def current_topic_configuration(topic_name, host="localhost", port=15672) -> Opt
 
 def consumers_details(connection_id, host="localhost", port=15672) -> Generator[ConsumerStatus, None, None]:
     channels = _do_request(host, port, _channels_details_request_path)
-    print(channels)
-    for index, channel in enumerate(channels, 1):
+    for channel in channels:
         channel_name = channel["connection_details"]["name"]
         channel_details = _do_request(
             host,
             port,
             _channel_details_from_channel_request_path.format(
-                channel_name=urllib.parse.quote(f"{channel_name} ") + f"({index})"
+                channel_name=urllib.parse.quote(f"{channel_name} ") + "(1)"
             ),
         )
-        print(channel_details)
-        for consumer in channel_details["consumer_details"]:
-            if consumer["consumer_tag"] == f"T_{connection_id}":
-                yield ConsumerStatus(
-                    address_to_destination_details=None,
-                    destination_name=consumer["queue"]["name"],
-                    session_id=None,
-                    enqueues=None,
-                    dequeues=None,
-                    dispatched=None,
-                    dispatched_queue=None,
-                    prefetch=consumer["prefetch_count"],
-                    max_pending=channel_details["messages_unacknowledged"],
-                    exclusive=consumer["exclusive"],
-                    retroactive=None,
-                )
+        if channel_details.get("consumer_details"):
+            for consumer in channel_details["consumer_details"]:
+                if consumer["consumer_tag"] == f"T_{connection_id}":
+                    yield ConsumerStatus(
+                        address_to_destination_details=None,
+                        destination_name=consumer["queue"]["name"],
+                        session_id=None,
+                        enqueues=None,
+                        dequeues=None,
+                        dispatched=None,
+                        dispatched_queue=None,
+                        prefetch=consumer["prefetch_count"],
+                        max_pending=channel_details["messages_unacknowledged"],
+                        exclusive=consumer["exclusive"],
+                        retroactive=None,
+                    )
 
 
 def retrieve_message_published(destination_name, host="localhost", port=15672) -> MessageStatus:
