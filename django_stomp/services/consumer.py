@@ -11,6 +11,7 @@ from typing import Dict
 import stomp
 from django_stomp import customizations
 from django_stomp.helpers import create_dlq_destination_from_another_destination
+from django_stomp.helpers import only_destination_name
 
 logger = logging.getLogger("django_stomp")
 
@@ -151,6 +152,7 @@ def build_listener(
             # RabbitMQ
             "durable": "true",
             "auto-delete": "false",
+            "x-queue-name": only_destination_name(destination_name),
         }
         header_setup.update(durable_subs_header)
     connection_configuration = {
