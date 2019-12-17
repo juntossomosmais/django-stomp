@@ -1,22 +1,10 @@
-from dataclasses import dataclass
 from time import sleep
 from typing import Generator
 
 import requests
 
 from parsel import Selector
-
-
-@dataclass(frozen=True)
-class SubscriberSetup:
-    address_to_subscriber_details: str
-    subscriber_id: str
-    destination: str
-    pending_queue_size: int
-    dispatched_queue_size: int
-    dispatched_counter: int
-    enqueue_counter: int
-    dequeue_counter: int
+from tests.support.dtos import SubscriberSetup
 
 
 def offline_durable_subscribers(host) -> Generator[SubscriberSetup, None, None]:

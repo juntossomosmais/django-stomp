@@ -14,9 +14,11 @@ pytest-env = "*"
 pytest-django = "*"
 parsel = "*"
 requests = "*"
+trio = "*"
+pytest-trio = "*"
 
 [packages]
-django = ">=2.2.4"
+django = "~=2.2"
 stomp-py = "*"
 request-id-django-log = "*"
 tenacity = "*"

@@ -9,6 +9,9 @@ from typing import Callable
 from typing import Dict
 
 import stomp
+from django_stomp import customizations
+from django_stomp.helpers import create_dlq_destination_from_another_destination
+from django_stomp.helpers import only_destination_name
 
 logger = logging.getLogger("django_stomp")
 
@@ -36,17 +39,18 @@ class Payload:
 class Listener(stomp.ConnectionListener):
     def __init__(
         self,
-        connection: stomp.StompConnection11,
+        connection: customizations.CustomStompConnection11,
         callback: Callable,
         subscription_configuration: Dict,
         connection_configuration: Dict,
         is_testing: bool = False,
+        subscription_id=None,
     ) -> None:
         self._subscription_configuration = subscription_configuration
         self._connection_configuration = connection_configuration
         self._connection = connection
         self._callback = callback
-        self._subscription_id = str(uuid.uuid4())
+        self._subscription_id = f"{subscription_id if subscription_id else str(uuid.uuid4())}-listener"
         self._listener_id = str(uuid.uuid4())
         self._is_testing = is_testing
 
@@ -124,16 +128,31 @@ def build_listener(
     incoming_heartbeat = int(connection_params.get("incomingHeartbeat", 60000))
     # http://stomp.github.io/stomp-specification-1.2.html#Heart-beating
     # http://jasonrbriggs.github.io/stomp.py/api.html
-    conn = stomp.Connection(
+    conn = customizations.CustomStompConnection11(
         hosts, ssl_version=ssl_version, use_ssl=use_ssl, heartbeats=(outgoing_heartbeat, incoming_heartbeat)
     )
     client_id = connection_params.get("client_id", uuid.uuid4())
     subscription_configuration = {"destination": destination_name, "ack": ack_type.value}
-    header_setup = {"client-id": f"{client_id}-listener", "activemq.prefetchSize": "1"}
+    header_setup = {
+        # ActiveMQ
+        "client-id": f"{client_id}-listener",
+        "activemq.prefetchSize": "1",
+        # RabbitMQ
+        "prefetch-count": "1",
+        # These two parameters must be set on producer side as well, otherwise you'll get precondition_failed
+        "x-dead-letter-routing-key": create_dlq_destination_from_another_destination(destination_name),
+        "x-dead-letter-exchange": "",
+    }
+
     if durable_topic_subscription is True:
         durable_subs_header = {
+            # ActiveMQ
             "activemq.subscriptionName": header_setup["client-id"],
             "activemq.subcriptionName": header_setup["client-id"],
+            # RabbitMQ
+            "durable": "true",
+            "auto-delete": "false",
+            "x-queue-name": only_destination_name(destination_name),
         }
         header_setup.update(durable_subs_header)
     connection_configuration = {
@@ -142,5 +161,12 @@ def build_listener(
         "wait": True,
         "headers": header_setup,
     }
-    listener = Listener(conn, callback, subscription_configuration, connection_configuration, is_testing=is_testing)
+    listener = Listener(
+        conn,
+        callback,
+        subscription_configuration,
+        connection_configuration,
+        is_testing=is_testing,
+        subscription_id=connection_params.get("subscriptionId"),
+    )
     return listener

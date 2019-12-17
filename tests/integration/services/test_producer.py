@@ -43,12 +43,14 @@ def test_should_publish_message_on_destination(setup_publisher_and_test_listener
     assert received_header["correlation-id"] == str(some_correlation_id)
     assert received_header["destination"] == test_destination
     assert received_header["subscription"] == subscription_id
-    assert received_header["priority"] == "4"
     assert received_header["message-id"] is not None
     assert received_header["content-type"] == "application/json;charset=utf-8"
     assert received_header["persistent"] == "true"
-    timestamp_value = int(received_header["timestamp"])
-    converted_timestamp = datetime.utcfromtimestamp(timestamp_value / 1000.0)
-    assert converted_timestamp.date() == datetime.today().date()
     received_body = json.loads(received_message[1])
     assert received_body == some_body
+    #### ActiveMQ has it by default
+    # assert received_header["priority"] == "4"
+    #### ActiveMQ has it by default
+    # timestamp_value = int(received_header["timestamp"])
+    # converted_timestamp = datetime.utcfromtimestamp(timestamp_value / 1000.0)
+    # assert converted_timestamp.date() == datetime.today().date()

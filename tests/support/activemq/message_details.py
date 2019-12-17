@@ -1,21 +1,10 @@
 import json
-from dataclasses import dataclass
 from time import sleep
-from typing import Dict
-from typing import Optional
 
 import requests
 
 from parsel import Selector
-
-
-@dataclass(frozen=True)
-class MessageStatus:
-    message_id: str
-    details: Dict
-    persistent: bool
-    correlation_id: str
-    properties: Optional[Dict]
+from tests.support.dtos import MessageStatus
 
 
 def retrieve_message_published(destination_name, host="localhost") -> MessageStatus:

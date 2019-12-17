@@ -41,3 +41,14 @@ def clean_dict_with_falsy_or_strange_values(value: Dict) -> Dict:
 
 def eval_as_int_otherwise_none(value):
     return int(value) if value else None
+
+
+def only_destination_name(destination: str) -> str:
+    position = destination.rfind("/")
+    if position > 0:
+        return destination[position + 1 :]
+    return destination
+
+
+def create_dlq_destination_from_another_destination(destination: str) -> str:
+    return f"DLQ.{only_destination_name(destination)}"

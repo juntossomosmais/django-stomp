@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from time import sleep
 from typing import Generator
 
@@ -6,21 +5,7 @@ import requests
 
 from django_stomp.helpers import eval_str_as_boolean
 from parsel import Selector
-
-
-@dataclass(frozen=True)
-class ConsumerStatus:
-    address_to_destination_details: str
-    destination_name: str
-    session_id: int
-    enqueues: int
-    dequeues: int
-    dispatched: int
-    dispatched_queue: int
-    prefetch: int
-    max_pending: int
-    exclusive: bool
-    retroactive: bool
+from tests.support.dtos import ConsumerStatus
 
 
 def consumers_details(connection_id, host="localhost") -> Generator[ConsumerStatus, None, None]:

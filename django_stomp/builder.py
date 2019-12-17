@@ -38,6 +38,7 @@ def _build_connection_parameter(client_id: Optional[str] = None) -> Dict:
     stomp_server_standby_port = eval_as_int_otherwise_none(getattr(settings, "STOMP_SERVER_STANDBY_PORT", None))
     outgoing_heartbeat = eval_as_int_otherwise_none(getattr(settings, "STOMP_OUTGOING_HEARTBIT", None))
     incoming_heartbeat = eval_as_int_otherwise_none(getattr(settings, "STOMP_INCOMING_HEARTBIT", None))
+    subscription_id = getattr(settings, "STOMP_SUBSCRIPTION_ID", None)
 
     required_params = {
         "host": getattr(settings, "STOMP_SERVER_HOST", None),
@@ -46,6 +47,7 @@ def _build_connection_parameter(client_id: Optional[str] = None) -> Dict:
         "portStandby": stomp_server_standby_port,
         "outgoingHeartbeat": outgoing_heartbeat,
         "incomingHeartbeat": incoming_heartbeat,
+        "subscriptionId": subscription_id,
     }
 
     logger.debug("Server details connection: %s", required_params)

@@ -1,9 +1,16 @@
 version: "2.4"
 services:
-  broker:
+  broker-activemq:
     image: rmohr/activemq:latest
     ports:
       - 8161:8161
       - 61613:61613
     volumes:
       - ./tests/resources/custom-activemq-conf:/opt/apache-activemq-5.15.6/conf
+  broker-rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - 61613:61613
+      - 15672:15672
+    volumes:
+      - ./tests/resources/custom-rabbitmq-conf:/etc/rabbitmq/
