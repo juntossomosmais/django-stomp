@@ -1,9 +1,13 @@
+import logging
+
 from stomp import connect
 from stomp.constants import CMD_NACK
 from stomp.constants import HDR_MESSAGE_ID
 from stomp.constants import HDR_SUBSCRIPTION
 from stomp.constants import HDR_TRANSACTION
 from stomp.transport import DEFAULT_SSL_VERSION
+
+logger = logging.getLogger("django_stomp")
 
 
 class CustomStompConnection11(connect.StompConnection11):
@@ -22,7 +26,6 @@ class CustomStompConnection11(connect.StompConnection11):
         ssl_cert_file=None,
         ssl_ca_certs=None,
         ssl_cert_validator=None,
-        wait_on_receipt=False,
         ssl_version=DEFAULT_SSL_VERSION,
         timeout=None,
         heartbeats=(0, 0),
@@ -31,29 +34,32 @@ class CustomStompConnection11(connect.StompConnection11):
         auto_decode=True,
         auto_content_length=True,
     ):
-        super().__init__(
-            host_and_ports,
-            prefer_localhost,
-            try_loopback_connect,
-            reconnect_sleep_initial,
-            reconnect_sleep_increase,
-            reconnect_sleep_jitter,
-            reconnect_sleep_max,
-            reconnect_attempts_max,
-            use_ssl,
-            ssl_key_file,
-            ssl_cert_file,
-            ssl_ca_certs,
-            ssl_cert_validator,
-            wait_on_receipt,
-            ssl_version,
-            timeout,
-            heartbeats,
-            keepalive,
-            vhost,
-            auto_decode,
-            auto_content_length,
-        )
+        connection11_params = {
+            "host_and_ports": host_and_ports,
+            "prefer_localhost": prefer_localhost,
+            "try_loopback_connect": try_loopback_connect,
+            "reconnect_sleep_initial": reconnect_sleep_initial,
+            "reconnect_sleep_increase": reconnect_sleep_increase,
+            "reconnect_sleep_jitter": reconnect_sleep_jitter,
+            "reconnect_sleep_max": reconnect_sleep_max,
+            "reconnect_attempts_max": reconnect_attempts_max,
+            "use_ssl": use_ssl,
+            "ssl_key_file": ssl_key_file,
+            "ssl_cert_file": ssl_cert_file,
+            "ssl_ca_certs": ssl_ca_certs,
+            "ssl_cert_validator": ssl_cert_validator,
+            "ssl_version": ssl_version,
+            "timeout": timeout,
+            "heartbeats": heartbeats,
+            "keepalive": keepalive,
+            "vhost": vhost,
+            "auto_decode": auto_decode,
+            "auto_content_length": auto_content_length,
+        }
+
+        logger.debug("Creating a connection11 instance with the following params: %s", connection11_params)
+
+        super().__init__(**connection11_params)
 
     def nack(self, id, subscription, transaction=None, requeue=False):
         assert id is not None, "'id' is required"
