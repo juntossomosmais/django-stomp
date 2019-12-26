@@ -7,7 +7,7 @@ from stomp.constants import HDR_SUBSCRIPTION
 from stomp.constants import HDR_TRANSACTION
 from stomp.transport import DEFAULT_SSL_VERSION
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("django_stomp")
 
 
 class CustomStompConnection11(connect.StompConnection11):
