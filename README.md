@@ -4,6 +4,11 @@
 [![Maintainability](https://api.codeclimate.com/v1/badges/381136911e038d1a6887/maintainability)](https://codeclimate.com/github/juntossomosmais/django-stomp/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/381136911e038d1a6887/test_coverage)](https://codeclimate.com/github/juntossomosmais/django-stomp/test_coverage)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
+[![Downloads](https://pepy.tech/badge/django-stomp)](https://pepy.tech/project/django-stomp)
+[![Downloads](https://pepy.tech/badge/django-stomp/month)](https://pepy.tech/project/django-stomp/month)
+[![Downloads](https://pepy.tech/badge/django-stomp/week)](https://pepy.tech/project/django-stomp/week)
+[![PyPI version](https://badge.fury.io/py/django-stomp.svg)](https://badge.fury.io/py/django-stomp)
+[![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/juntossomosmais/django-stomp/blob/master/LICENSE)
 
 A simple implementation of STOMP with Django.
 
