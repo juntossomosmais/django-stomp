@@ -9,8 +9,8 @@ with open(os.path.join(os.path.dirname(__file__), "README.md")) as readme:
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
-    name="django_stomp",
-    version="1.0.1",
+    name="django-stomp",
+    version="1.0.2",
     description="A simple implementation of STOMP with Django",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -20,7 +20,7 @@ setup(
     license="MIT",
     url="https://github.com/juntossomosmais/django-stomp",
     packages=find_packages(),
-    install_requires=["request-id-django-log", "stomp.py", "tenacity"],
+    install_requires=["request-id-django-log==0.1.1", "stomp.py~=4.1", "tenacity~=6.0"],
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.7",
