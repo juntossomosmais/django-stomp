@@ -40,7 +40,7 @@ def clean_dict_with_falsy_or_strange_values(value: Dict) -> Dict:
 
 
 def eval_as_int_otherwise_none(value):
-    return int(value) if value else None
+    return int(value) if value or value == 0 else None
 
 
 def only_destination_name(destination: str) -> str:
