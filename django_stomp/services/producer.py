@@ -30,7 +30,6 @@ class Publisher:
 
     @slow_down
     def start(self):
-        self.connection.start()
         self.connection.connect(**self._connection_configuration)
         logger.info("Connected")
 

@@ -89,7 +89,6 @@ class Listener(stomp.ConnectionListener):
             self._connection.set_listener(self._listener_id, self)
 
         self._callback = callback if callback else self._callback
-        self._connection.start()
         self._connection.connect(**self._connection_configuration)
         self._connection.subscribe(
             id=self._subscription_id,
