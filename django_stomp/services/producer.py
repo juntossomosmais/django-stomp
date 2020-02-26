@@ -34,7 +34,8 @@ class Publisher:
         logger.info("Connected")
 
     def close(self):
-        self.connection.disconnect()
+        disconnect_receipt = str(uuid.uuid4())
+        self.connection.disconnect(receipt=disconnect_receipt)
         logger.info("Disconnected")
 
     def start_if_not_open(self):
