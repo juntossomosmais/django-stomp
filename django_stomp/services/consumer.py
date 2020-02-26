@@ -123,8 +123,8 @@ def build_listener(
     use_ssl = connection_params.get("use_ssl", False)
     ssl_version = connection_params.get("ssl_version", ssl.PROTOCOL_TLS)
     logger.info(f"Use SSL? {use_ssl}. Version: {ssl_version}")
-    outgoing_heartbeat = int(connection_params.get("outgoingHeartbeat", 60000))
-    incoming_heartbeat = int(connection_params.get("incomingHeartbeat", 60000))
+    outgoing_heartbeat = int(connection_params.get("outgoingHeartbeat", 0))
+    incoming_heartbeat = int(connection_params.get("incomingHeartbeat", 0))
     # http://stomp.github.io/stomp-specification-1.2.html#Heart-beating
     # http://jasonrbriggs.github.io/stomp.py/api.html
     conn = customizations.CustomStompConnection11(
