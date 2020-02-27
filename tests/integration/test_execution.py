@@ -258,8 +258,7 @@ def test_should_publish_to_dql_due_to_implicit_nack_given_internal_callback_exce
         some_body = {"keyOne": 1, "keyTwo": 2}
         publisher.send(some_body, test_destination_dlq_two, attempt=1)
 
-    with pytest.raises(Exception) as e:
-        start_processing(test_destination_dlq_two, myself_with_test_callback_exception, is_testing=True)
+    start_processing(test_destination_dlq_two, myself_with_test_callback_exception, is_testing=True)
 
     *_, queue_name = test_destination_dlq_two.split("/")
     dlq_queue_name = f"DLQ.{queue_name}"
