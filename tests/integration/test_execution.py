@@ -1,17 +1,19 @@
 import json
 import logging
 import re
+import threading
 import uuid
 from time import sleep
 
 import pytest
 import trio
+from pytest_mock import MockFixture
+
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
 from django_stomp.execution import send_message_from_one_destination_to_another
 from django_stomp.execution import start_processing
 from django_stomp.services.consumer import Payload
-from pytest_mock import MockFixture
 from tests.support import rabbitmq
 from tests.support.activemq.connections_details import consumers_details
 from tests.support.activemq.message_details import retrieve_message_published
@@ -23,7 +25,7 @@ myself_with_test_callback_standard = "tests.integration.test_execution._test_cal
 myself_with_test_callback_nack = "tests.integration.test_execution._test_callback_function_with_nack"
 myself_with_test_callback_exception = "tests.integration.test_execution._test_callback_function_with_exception"
 myself_with_test_callback_sleep_three_seconds = (
-    "tests.integration.test_execution._test_callback_function_with_sleep_three_seconds"
+    "tests.integration.test_execution._test_callback_function_with_sleep_three_seconds_while_heartbeat_thread_is_alive"
 )
 
 test_destination_one = "/queue/my-test-destination-one"
@@ -128,7 +130,7 @@ test_destination_durable_consumer_one = "/topic/my-test-destination-durable-cons
 
 def test_should_create_durable_subscriber_and_receive_standby_messages(mocker: MockFixture, settings):
     temp_uuid_listener = str(uuid.uuid4())
-    mocker.patch("django_stomp.execution.listener_client_id", temp_uuid_listener)
+    mocker.patch("django_stomp.execution.get_listener_client_id", return_value=temp_uuid_listener)
     mocker.patch("django_stomp.execution.durable_topic_subscription", True)
     durable_subscription_id = str(uuid.uuid4())
     settings.STOMP_SUBSCRIPTION_ID = durable_subscription_id
@@ -185,7 +187,7 @@ async def test_should_configure_prefetch_size_as_one(mocker: MockFixture, settin
     """
     listener_id = str(uuid.uuid4())
     # LISTENER_CLIENT_ID is used by ActiveMQ
-    mocker.patch("django_stomp.execution.listener_client_id", listener_id)
+    mocker.patch("django_stomp.execution.get_listener_client_id", return_value=listener_id)
     # SUBSCRIPTION_ID is used by RabbitMQ to identify a consumer through a tag
     subscription_id = str(uuid.uuid4())
     settings.STOMP_SUBSCRIPTION_ID = subscription_id
@@ -336,9 +338,9 @@ def test_should_send_to_another_destination():
 def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_than_heartbeat(caplog, settings):
     """
     The listener in this code has an, arguably broken, message handler (see
-    _test_callback_function_with_sleep_three_seconds function) which takes longer to process than the
-    heartbeat time of 1 second (1000); resulting in a heartbeat timeout when
-    a message is received, and a subsequent disconnect.
+    _test_callback_function_with_sleep_three_seconds function) which awaits (blocking the consumer
+    for three seconds) for a heartbeat timeout that occurs if no message is shared between the broker and the
+    consumer in 1 second (1000 ms).
 
     Heartbeating requires an error margin due to timing inaccuracies which are usually configured
     by the receiver (such as the broker and even the client). Thus, other brokers may wait for a little bit more
@@ -354,8 +356,8 @@ def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_
 
     settings.STOMP_OUTGOING_HEARTBIT = 1000
     settings.STOMP_INCOMING_HEARTBIT = 1000
+
     start_processing(some_destination, myself_with_test_callback_sleep_three_seconds, is_testing=True)
-    sleep(1)
 
     assert any(
         re.compile(
@@ -368,7 +370,7 @@ def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_
         re.compile("Heartbeat timeout: diff_receive=[0-9.]+, time=[0-9.]+, lastrec=[0-9.]+").match(message)
         for message in caplog.messages
     )
-    assert any(re.compile("Lost connection, unable to send heartbeat").match(message) for message in caplog.messages)
+    assert any(re.compile("Heartbeat loop ended").match(message) for message in caplog.messages)
 
 
 def _test_callback_function_standard(payload: Payload):
@@ -384,6 +386,10 @@ def _test_callback_function_with_exception(payload: Payload):
     raise Exception("Lambe Sal")
 
 
-def _test_callback_function_with_sleep_three_seconds(payload: Payload):
-    sleep(3)
-    payload.ack()
+def _test_callback_function_with_sleep_three_seconds_while_heartbeat_thread_is_alive(payload: Payload):
+    heartbeat_threads = [thread for thread in threading.enumerate() if "StompHeartbeatThread" in thread.name]
+    while True:
+        sleep(3)
+        heartbeat_threads = filter(lambda thread: "StompHeartbeatThread" in thread.name, threading.enumerate())
+        if all(not thread.is_alive() for thread in heartbeat_threads):
+            break

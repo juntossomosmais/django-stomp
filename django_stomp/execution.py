@@ -5,13 +5,14 @@ from typing import Optional
 
 from django.conf import settings
 from django.utils.module_loading import import_string
+from request_id_django_log import local_threading
+
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import eval_str_as_boolean
 from django_stomp.services.consumer import Listener
 from django_stomp.services.consumer import Payload
-from request_id_django_log import local_threading
 
 logger = logging.getLogger("django_stomp")
 
@@ -19,8 +20,12 @@ wait_to_connect = int(getattr(settings, "STOMP_WAIT_TO_CONNECT", 10))
 durable_topic_subscription = eval_str_as_boolean(getattr(settings, "STOMP_DURABLE_TOPIC_SUBSCRIPTION", False))
 listener_client_id = getattr(settings, "STOMP_LISTENER_CLIENT_ID", None)
 publisher_name = "django-stomp-another-target"
-if not durable_topic_subscription and listener_client_id:
-    listener_client_id = f"{listener_client_id}-{uuid.uuid4().hex}"
+
+
+def get_listener_client_id():
+    if not durable_topic_subscription and listener_client_id:
+        return f"{listener_client_id}-{uuid.uuid4().hex}"
+    return listener_client_id
 
 
 def start_processing(
@@ -34,7 +39,8 @@ def start_processing(
     callback_function = import_string(callback_str)
 
     _create_dlq_queue(destination_name)
-    listener = build_listener(destination_name, listener_client_id, durable_topic_subscription)
+    client_id = get_listener_client_id()
+    listener = build_listener(destination_name, client_id, durable_topic_subscription)
 
     def main_logic() -> Optional[Listener]:
         try:
