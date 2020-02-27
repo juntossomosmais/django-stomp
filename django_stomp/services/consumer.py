@@ -9,6 +9,7 @@ from typing import Callable
 from typing import Dict
 
 import stomp
+
 from django_stomp import customizations
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import only_destination_name
@@ -104,7 +105,8 @@ class Listener(stomp.ConnectionListener):
                 time.sleep(1)
 
     def close(self):
-        self._connection.disconnect()
+        disconnect_receipt = str(uuid.uuid4())
+        self._connection.disconnect(receipt=disconnect_receipt)
         logger.info("Disconnected")
 
 
