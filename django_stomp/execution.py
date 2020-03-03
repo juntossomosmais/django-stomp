@@ -11,6 +11,7 @@ from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import eval_str_as_boolean
+from django_stomp.helpers import remove_key_from_dict
 from django_stomp.services.consumer import Listener
 from django_stomp.services.consumer import Payload
 
@@ -100,15 +101,20 @@ def start_processing(
 
 
 def send_message_from_one_destination_to_another(
-    source_destination: str, target_destination: str, is_testing=False, testing_disconnect=True
-):
+    source_destination: str,
+    target_destination: str,
+    is_testing: bool = False,
+    testing_disconnect: bool = True,
+    return_listener: bool = False,
+) -> Listener:
     callback_function = "django_stomp.execution._callback_send_to_another_destination"
-    start_processing(
+    return start_processing(
         source_destination,
         callback_function,
         is_testing=is_testing,
         testing_disconnect=testing_disconnect,
         param_to_callback=target_destination,
+        return_listener=return_listener,
     )
 
 
@@ -125,6 +131,9 @@ def _callback_send_to_another_destination(payload: Payload, target_destination):
 
     with build_publisher(publisher_name_to_move).auto_open_close_connection() as publisher:
         with publisher.do_inside_transaction():
+            # Remove the message-id header in the SEND frame since in RabbitMQ we cannot
+            # set it: https://www.rabbitmq.com/stomp.html#pear.hpos
+            remove_key_from_dict(headers, "message-id")
             publisher.send(body, target_destination, headers)
             payload.ack()
 
@@ -133,6 +142,7 @@ def _callback_send_to_another_destination(payload: Payload, target_destination):
 
 def _create_dlq_queue(destination_name):
     dlq_destination_name = create_dlq_destination_from_another_destination(destination_name)
-    listener_dlq = build_listener(dlq_destination_name, listener_client_id, durable_topic_subscription)
+    client_id = get_listener_client_id()
+    listener_dlq = build_listener(dlq_destination_name, client_id, durable_topic_subscription)
     listener_dlq.start(lambda payload: None, wait_forever=False)
     listener_dlq.close()

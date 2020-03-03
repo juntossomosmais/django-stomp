@@ -5,21 +5,20 @@ import threading
 import uuid
 from time import sleep
 
-import pytest
 import trio
-from pytest_mock import MockFixture
-
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
 from django_stomp.execution import send_message_from_one_destination_to_another
 from django_stomp.execution import start_processing
 from django_stomp.services.consumer import Payload
+from pytest_mock import MockFixture
 from tests.support import rabbitmq
 from tests.support.activemq.connections_details import consumers_details
 from tests.support.activemq.message_details import retrieve_message_published
 from tests.support.activemq.queue_details import current_queue_configuration
 from tests.support.activemq.subscribers_details import offline_durable_subscribers
 from tests.support.activemq.topic_details import current_topic_configuration
+from tests.support.helpers import wait_for_message_in_log
 
 myself_with_test_callback_standard = "tests.integration.test_execution._test_callback_function_standard"
 myself_with_test_callback_nack = "tests.integration.test_execution._test_callback_function_with_nack"
@@ -289,18 +288,16 @@ def test_should_save_tshoot_properties_on_header():
 
     try:
         message_status = retrieve_message_published(some_destination)
-
-        assert message_status.properties.get("tshoot-destination")
-        assert message_status.properties["tshoot-destination"] == some_destination
     except Exception:
         message_status = rabbitmq.retrieve_message_published(some_destination)
 
-        assert message_status.properties["headers"].get("tshoot-destination")
-        assert message_status.properties["headers"]["tshoot-destination"] == some_destination
+    assert message_status.properties.get("tshoot-destination")
+    assert message_status.properties["tshoot-destination"] == some_destination
 
 
-@pytest.mark.skip(reason="This behaves not as expected, but when used as Django command, it does")
-def test_should_send_to_another_destination():
+def test_should_send_to_another_destination(caplog):
+    caplog.set_level(logging.DEBUG)
+
     some_source_destination = f"/queue/source-{uuid.uuid4()}"
     some_target_destination = f"/queue/target-{uuid.uuid4()}"
 
@@ -310,23 +307,33 @@ def test_should_send_to_another_destination():
         some_headers = {"some-header-1": 1, "some-header-2": 2}
         publisher.send(some_body, some_source_destination, some_headers, attempt=1)
 
-    send_message_from_one_destination_to_another(some_source_destination, some_target_destination, is_testing=True)
+    move_messages_consumer = send_message_from_one_destination_to_another(
+        some_source_destination, some_target_destination, is_testing=True, return_listener=True
+    )
 
-    *_, queue_name = some_source_destination.split("/")
-    queue_status = current_queue_configuration(queue_name)
-    assert queue_status.number_of_pending_messages == 0
-    assert queue_status.number_of_consumers == 0
-    assert queue_status.messages_enqueued == 1
-    assert queue_status.messages_dequeued == 1
+    wait_for_message_in_log(caplog, r"The messages has been moved")
+    move_messages_consumer.close()
 
-    *_, queue_name = some_target_destination.split("/")
-    queue_status = current_queue_configuration(queue_name)
-    assert queue_status.number_of_pending_messages == 1
-    assert queue_status.number_of_consumers == 0
-    assert queue_status.messages_enqueued == 1
-    assert queue_status.messages_dequeued == 0
+    *_, source_queue_name = some_source_destination.split("/")
+    *_, target_queue_name = some_target_destination.split("/")
+    try:
+        source_queue_status = current_queue_configuration(source_queue_name)
+        target_queue_status = current_queue_configuration(target_queue_name)
+        message_status = retrieve_message_published(target_queue_name)
+    except Exception:
+        source_queue_status = rabbitmq.current_queue_configuration(source_queue_name)
+        target_queue_status = rabbitmq.current_queue_configuration(target_queue_name)
+        message_status = rabbitmq.retrieve_message_published(target_queue_name)
 
-    message_status = retrieve_message_published(queue_name)
+    assert source_queue_status.number_of_pending_messages == 0
+    assert source_queue_status.number_of_consumers == 0
+    assert source_queue_status.messages_enqueued == 1
+    assert source_queue_status.messages_dequeued == 1
+
+    assert target_queue_status.number_of_pending_messages == 1
+    assert target_queue_status.number_of_consumers == 0
+    assert target_queue_status.messages_enqueued == 1
+    assert target_queue_status.messages_dequeued == 0
 
     keys = list(some_headers.keys())
     assert len(keys) == 2
@@ -357,7 +364,12 @@ def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_
     settings.STOMP_OUTGOING_HEARTBIT = 1000
     settings.STOMP_INCOMING_HEARTBIT = 1000
 
-    start_processing(some_destination, myself_with_test_callback_sleep_three_seconds, is_testing=True)
+    message_consumer = start_processing(
+        some_destination, myself_with_test_callback_sleep_three_seconds, is_testing=True, return_listener=True
+    )
+
+    wait_for_message_in_log(caplog, r"Heartbeat loop ended", message_count_to_wait=2)
+    message_consumer.close()
 
     assert any(
         re.compile(
