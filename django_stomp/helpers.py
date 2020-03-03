@@ -1,5 +1,6 @@
 import functools
 import time
+import uuid
 from typing import Dict
 
 
@@ -56,3 +57,31 @@ def create_dlq_destination_from_another_destination(destination: str) -> str:
 
 def remove_key_from_dict(dictionary, key):
     dictionary.pop(key, None)
+
+
+def is_destination_from_virtual_topic(destination_name: str) -> bool:
+    return ".VirtualTopic." in destination_name
+
+
+def is_dlq_destination(destination_name: str) -> bool:
+    return "DLQ." in destination_name
+
+
+def get_subscription_destination(destination_name: str) -> str:
+    """
+    Given a destination name like Consumer.XPTO.VirtualTopic.topic-name, returns
+    '/topic/VirtualTopic.topic-name' in order to mimic the ActiveMQ Virtual Topics
+    default behaviour in RabbitMQ.
+
+    More on: https://activemq.apache.org/virtual-destinations
+    """
+    if is_destination_from_virtual_topic(destination_name) and not is_dlq_destination(destination_name):
+        virtual_topic_name = destination_name.split(".VirtualTopic.")[-1]
+        return f"/topic/VirtualTopic.{virtual_topic_name}"
+    return destination_name
+
+
+def get_listener_client_id(durable_topic_subscription: bool, listener_client_id: str) -> str:
+    if not durable_topic_subscription and listener_client_id:
+        return f"{listener_client_id}-{uuid.uuid4().hex}"
+    return listener_client_id

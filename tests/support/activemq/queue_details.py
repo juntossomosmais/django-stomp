@@ -1,7 +1,6 @@
 from time import sleep
 
 import requests
-
 from parsel import Selector
 from tests.support.dtos import CurrentDestinationStatus
 
@@ -16,7 +15,7 @@ def current_queue_configuration(queue_name, host="localhost") -> CurrentDestinat
     assert len(all_queues) > 0
     for index, queue_details in enumerate(all_queues):
         queue_details_as_selector = Selector(text=queue_details)
-        if queue_name in queue_details_as_selector.css("td a::attr(href)").get():
+        if f"JMSDestination={queue_name}" in queue_details_as_selector.css("td a::attr(href)").get():
             n_of_pending_messages = int(queue_details_as_selector.css("td + td::text").get())
             n_of_consumers = int(queue_details_as_selector.css("td + td + td::text").get())
             m_enqueued = int(queue_details_as_selector.css("td + td + td + td::text").get())

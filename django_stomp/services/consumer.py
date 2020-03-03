@@ -9,7 +9,6 @@ from typing import Callable
 from typing import Dict
 
 import stomp
-
 from django_stomp import customizations
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import only_destination_name
@@ -116,6 +115,7 @@ def build_listener(
     ack_type=Acknowledgements.CLIENT,
     durable_topic_subscription=False,
     is_testing=False,
+    routing_key=None,
     **connection_params,
 ) -> Listener:
     logger.info("Building listener...")
@@ -133,7 +133,14 @@ def build_listener(
         hosts, ssl_version=ssl_version, use_ssl=use_ssl, heartbeats=(outgoing_heartbeat, incoming_heartbeat)
     )
     client_id = connection_params.get("client_id", uuid.uuid4())
-    subscription_configuration = {"destination": destination_name, "ack": ack_type.value}
+    routing_key = routing_key or destination_name
+    subscription_configuration = {
+        "destination": routing_key,
+        "ack": ack_type.value,
+        # RabbitMQ
+        "x-queue-name": only_destination_name(destination_name),
+        "auto-delete": "false",
+    }
     header_setup = {
         # ActiveMQ
         "client-id": f"{client_id}-listener",
@@ -152,8 +159,6 @@ def build_listener(
             "activemq.subcriptionName": header_setup["client-id"],
             # RabbitMQ
             "durable": "true",
-            "auto-delete": "false",
-            "x-queue-name": only_destination_name(destination_name),
         }
         header_setup.update(durable_subs_header)
     connection_configuration = {

@@ -26,6 +26,10 @@ myself_with_test_callback_exception = "tests.integration.test_execution._test_ca
 myself_with_test_callback_sleep_three_seconds = (
     "tests.integration.test_execution._test_callback_function_with_sleep_three_seconds_while_heartbeat_thread_is_alive"
 )
+myself_with_test_callback_with_log = "tests.integration.test_execution._test_callback_function_with_logging"
+myself_with_test_callback_with_another_log = (
+    "tests.integration.test_execution._test_callback_function_with_another_log_message"
+)
 
 test_destination_one = "/queue/my-test-destination-one"
 test_destination_two = "/queue/my-test-destination-two"
@@ -385,6 +389,171 @@ def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_
     assert any(re.compile("Heartbeat loop ended").match(message) for message in caplog.messages)
 
 
+def test_should_create_queues_for_virtual_topic_listeners_and_consume_its_messages(caplog):
+    caplog.set_level(logging.DEBUG)
+    number_of_consumers = 2
+
+    some_virtual_topic = f"VirtualTopic.{uuid.uuid4()}"
+    consumers = [
+        start_processing(
+            f"Consumer.{uuid.uuid4()}.{some_virtual_topic}",
+            myself_with_test_callback_standard,
+            is_testing=True,
+            return_listener=True,
+        )
+        for _ in range(number_of_consumers)
+    ]
+
+    with build_publisher().auto_open_close_connection() as publisher:
+        some_body = {"send": 2, "Virtual": "Topic"}
+        publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
+
+    wait_for_message_in_log(
+        caplog, r"Received frame: 'MESSAGE'.*body='{\"send\": 2, \"Virtual\": \"Topic\"}.*'", message_count_to_wait=2
+    )
+
+    for consumer in consumers:
+        consumer.close()
+
+    received_frame_log_messages = [
+        message
+        for message in caplog.messages
+        if re.compile(r"Received frame: 'MESSAGE'.*body='{\"send\": 2, \"Virtual\": \"Topic\"}.*'").match(message)
+    ]
+
+    sending_frame_log_messages = [
+        message for message in caplog.messages if re.compile(r"Sending frame: \[b'ACK'.*").match(message)
+    ]
+
+    assert len(received_frame_log_messages) == number_of_consumers
+    assert len(sending_frame_log_messages) == number_of_consumers
+
+
+def test_should_create_queue_for_virtual_topic_consumer_and_process_messages_sent_when_consumer_is_disconnected(caplog):
+    caplog.set_level(logging.DEBUG)
+
+    some_virtual_topic = f"VirtualTopic.{uuid.uuid4()}"
+    virtual_topic_consumer_queue = f"Consumer.{uuid.uuid4()}.{some_virtual_topic}"
+    consumer = start_processing(
+        virtual_topic_consumer_queue, myself_with_test_callback_with_log, is_testing=True, return_listener=True
+    )
+
+    with build_publisher().auto_open_close_connection() as publisher:
+        some_body = {"send": 2, "another": "VirtualTopic"}
+        publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
+
+    wait_for_message_in_log(caplog, r"I'll process the message: {'send': 2, 'another': 'VirtualTopic'}!")
+    consumer.close()
+
+    # Send message to VirtualTopic with consumers disconnected...
+    with build_publisher().auto_open_close_connection() as publisher:
+        some_body = {"send": "anotherMessage", "2": "VirtualTopic"}
+        publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
+
+    # Start another consumer for the same queue created previously...
+    another_consumer = start_processing(
+        virtual_topic_consumer_queue, myself_with_test_callback_with_log, is_testing=True, return_listener=True
+    )
+
+    wait_for_message_in_log(caplog, r"I'll process the message: {'send': 'anotherMessage', '2': 'VirtualTopic'}!")
+    another_consumer.close()
+
+    received_first_frame_log_messages = [
+        message
+        for message in caplog.messages
+        if re.compile(r"I'll process the message: {'send': 2, 'another': 'VirtualTopic'}!").match(message)
+    ]
+    received_second_frame_log_messages = [
+        message
+        for message in caplog.messages
+        if re.compile(r"I'll process the message: {'send': 'anotherMessage', '2': 'VirtualTopic'}!").match(message)
+    ]
+
+    sending_frame_log_messages = [
+        message for message in caplog.messages if re.compile(r"Sending frame: \[b'ACK'.*").match(message)
+    ]
+
+    assert len(received_first_frame_log_messages) == 1
+    assert len(received_second_frame_log_messages) == 1
+    assert len(sending_frame_log_messages) == 2
+
+
+def test_should_create_queue_for_virtual_topic_and_compete_for_its_messages(caplog):
+    caplog.set_level(logging.DEBUG)
+
+    some_virtual_topic = f"VirtualTopic.{uuid.uuid4()}"
+    virtual_topic_consumer_queue = f"Consumer.{uuid.uuid4()}.{some_virtual_topic}"
+
+    consumers = [
+        start_processing(
+            virtual_topic_consumer_queue, myself_with_test_callback_with_log, is_testing=True, return_listener=True
+        ),
+        start_processing(
+            virtual_topic_consumer_queue,
+            myself_with_test_callback_with_another_log,
+            is_testing=True,
+            return_listener=True,
+        ),
+    ]
+
+    with build_publisher().auto_open_close_connection() as publisher:
+        with publisher.do_inside_transaction():
+            some_body = {"send": 2, "some": "VirtualTopic"}
+            publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
+            publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
+            publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
+
+    wait_for_message_in_log(caplog, r"Sending frame: \[b'ACK'.*", message_count_to_wait=3)
+
+    for consumer in consumers:
+        consumer.close()
+
+    callback_logs = [
+        message
+        for message in caplog.messages
+        if re.compile(r"I'll process the message: {'send': 2, 'some': 'VirtualTopic'}!").match(message)
+    ]
+    another_callback_logs = [
+        message
+        for message in caplog.messages
+        if re.compile(r"{'send': 2, 'some': 'VirtualTopic'} is the message that I'll process!").match(message)
+    ]
+
+    sending_frame_log_messages = [
+        message for message in caplog.messages if re.compile(r"Sending frame: \[b'ACK'.*").match(message)
+    ]
+
+    assert 1 <= len(callback_logs) <= 2
+    assert 1 <= len(another_callback_logs) <= 2
+    assert len(callback_logs + another_callback_logs) == 3
+    assert len(sending_frame_log_messages) == 3
+
+
+def test_shouldnt_process_message_from_virtual_topic_older_than_the_consumer_queue_creation():
+    some_virtual_topic = f"VirtualTopic.{uuid.uuid4()}"
+    virtual_topic_consumer_queue = f"Consumer.{uuid.uuid4()}.{some_virtual_topic}"
+
+    with build_publisher().auto_open_close_connection() as publisher:
+        some_body = {"send": 2, "topicThat": "isVirtual"}
+        publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
+
+    start_processing(virtual_topic_consumer_queue, myself_with_test_callback_with_log, is_testing=True)
+
+    try:
+        queue_status = current_queue_configuration(virtual_topic_consumer_queue)
+
+        assert queue_status.number_of_pending_messages == 0
+        assert queue_status.number_of_consumers == 0
+        assert queue_status.messages_enqueued == 0
+        assert queue_status.messages_dequeued == 0
+    except Exception:
+        queue_status = rabbitmq.current_queue_configuration(virtual_topic_consumer_queue)
+
+        assert queue_status.number_of_pending_messages == 0
+        assert queue_status.number_of_consumers == 0
+        assert queue_status.messages_dequeued == 0
+
+
 def _test_callback_function_standard(payload: Payload):
     # Should dequeue the message
     payload.ack()
@@ -405,3 +574,15 @@ def _test_callback_function_with_sleep_three_seconds_while_heartbeat_thread_is_a
         heartbeat_threads = filter(lambda thread: "StompHeartbeatThread" in thread.name, threading.enumerate())
         if all(not thread.is_alive() for thread in heartbeat_threads):
             break
+
+
+def _test_callback_function_with_logging(payload: Payload):
+    logger = logging.getLogger(__name__)
+    logger.info("I'll process the message: %s!", payload.body)
+    payload.ack()
+
+
+def _test_callback_function_with_another_log_message(payload: Payload):
+    logger = logging.getLogger(__name__)
+    logger.info("%s is the message that I'll process!", payload.body)
+    payload.ack()

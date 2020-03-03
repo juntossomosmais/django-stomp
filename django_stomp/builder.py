@@ -21,7 +21,11 @@ def build_publisher(client_id: Optional[str] = None) -> Publisher:
 
 
 def build_listener(
-    destination_name, client_id: Optional[str] = None, durable_topic_subscription=False, is_testing=False
+    destination_name: str,
+    durable_topic_subscription: bool = False,
+    is_testing: bool = False,
+    client_id: Optional[str] = None,
+    routing_key: Optional[str] = None,
 ) -> Listener:
     connection_params = _build_connection_parameter(client_id)
 
@@ -29,6 +33,7 @@ def build_listener(
         destination_name,
         durable_topic_subscription=durable_topic_subscription,
         is_testing=is_testing,
+        routing_key=routing_key,
         **connection_params,
     )
 

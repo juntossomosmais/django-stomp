@@ -25,7 +25,7 @@ def current_queue_configuration(queue_name, host="localhost", port=15672) -> Opt
         queue_details = results[0]
         if queue_details.get("message_stats"):
             message_stats = queue_details["message_stats"]
-            messages_dequeued = message_stats["deliver_get"]
+            messages_dequeued = message_stats.get("deliver_get", 0)
             messages_enqueued = message_stats["publish"]
         else:
             messages_dequeued = 0
@@ -107,8 +107,9 @@ def retrieve_message_published(destination_name, host="localhost", port=15672) -
     details = json.loads(message_details[0]["payload"])
     persistent = None
     correlation_id = properties["correlation_id"]
+    headers = properties.pop("headers")
 
-    return MessageStatus(None, details, persistent, correlation_id, properties)
+    return MessageStatus(None, details, persistent, correlation_id, {**headers, **properties})
 
 
 def _do_request(host, port, request_path, do_post=False, body=None):
