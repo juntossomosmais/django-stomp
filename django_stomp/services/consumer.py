@@ -119,7 +119,7 @@ def build_listener(
     **connection_params,
 ) -> Listener:
     logger.info("Building listener...")
-    hosts = [(connection_params.get("host"), connection_params.get("port"))]
+    hosts, vhost = [(connection_params.get("host"), connection_params.get("port"))], connection_params.get("vhost")
     if connection_params.get("hostStandby") and connection_params.get("portStandby"):
         hosts.append((connection_params.get("hostStandby"), connection_params.get("portStandby")))
     use_ssl = connection_params.get("use_ssl", False)
@@ -130,7 +130,11 @@ def build_listener(
     # http://stomp.github.io/stomp-specification-1.2.html#Heart-beating
     # http://jasonrbriggs.github.io/stomp.py/api.html
     conn = customizations.CustomStompConnection11(
-        hosts, ssl_version=ssl_version, use_ssl=use_ssl, heartbeats=(outgoing_heartbeat, incoming_heartbeat)
+        hosts,
+        ssl_version=ssl_version,
+        use_ssl=use_ssl,
+        heartbeats=(outgoing_heartbeat, incoming_heartbeat),
+        vhost=vhost,
     )
     client_id = connection_params.get("client_id", uuid.uuid4())
     routing_key = routing_key or destination_name
