@@ -63,6 +63,77 @@ python manage.py pubsub "/queue/your-stuff" app.sample.my_honest_logic
 
 That's it ✌️
 
+### Settings
+
+Here is a list of parameters that you can set in your Django project settings:
+
+***STOMP_SERVER_HOST***
+
+  The hostname of the STOMP server.
+
+***STOMP_SERVER_PORT***
+    
+  The STOMP server port used to allow STOMP connections.
+
+***STOMP_SERVER_USER***
+    
+  The client username to connect to a STOMP server.
+
+***STOMP_SERVER_PASSWORD***
+    
+  The client password to connect to a STOMP server.
+
+***STOMP_USE_SSL***
+    
+  Set to ``True, true, 1, T, t, Y or y`` in order to all STOMP connections use a SSL/TLS tunnel.
+
+***STOMP_SERVER_STANDBY_HOST***
+    
+  The hostname of the STOMP standby server.
+
+***STOMP_SERVER_STANDBY_PORT***
+    
+  The STOMP standby server port used to allow STOMP connections.
+
+***STOMP_SERVER_VHOST***
+    
+  The virtual host used in the STOMP server.
+
+***STOMP_SUBSCRIPTION_ID***
+    
+  Used to identify the subscription in the connection between client and server. See the [STOMP protocol specification
+](https://stomp.github.io/stomp-specification-1.1.html#SUBSCRIBE_id_Header) for more information.
+
+***STOMP_OUTGOING_HEARTBIT***
+    
+  A positive integer to indicates what is the period (in milliseconds) the client will send a frame to the server 
+that indicates its still alive. Set to ``0`` to means that it cannot send any heart-beat frame. See the [STOMP 
+protocol specification](https://stomp.github.io/stomp-specification-1.1.html#Heart-beating) for more information.
+
+***STOMP_INCOMING_HEARTBIT***
+    
+  A positive integer to indicates what is the period (in milliseconds) the client will await for a server frame until 
+it assumes that the server is still alive. Set to ``0`` to means that it do not want to receive heart-beats. See 
+the [STOMP protocol specification](https://stomp.github.io/stomp-specification-1.1.html#Heart-beating) for more 
+information.
+
+***STOMP_WAIT_TO_CONNECT***
+    
+  A positive integer to indicates how long it needs to await to try to reconnect if an `Exception` in the listener 
+logic is not properly handled.
+
+***STOMP_DURABLE_TOPIC_SUBSCRIPTION***
+    
+  Set to ``True, true, 1, T, t, Y or y`` in order to all STOMP topic subscription be durable. See the [RabbitMQ](
+https://www.rabbitmq.com/stomp.html#d.dts) take on it or the [ActiveMQ](https://activemq.apache.org/
+how-do-durable-queues-and-topics-work) for more information.
+
+***STOMP_LISTENER_CLIENT_ID***
+    
+  A string that represents the client id for a durable subscriber or the listener prefix client id in a non-durable 
+subscription in ActiveMQ.
+
+
 ## Tests
 
 In order to execute tests for ActiveMQ, execute the following:
@@ -80,5 +151,9 @@ Then at last:
 
 ## Known limitations
 
-* Currently, we assume that all dead lettered messages are sent to a queue with the same name as its original destination but prefixed with `DLQ.`, i.e., if your queue is `/queue/some-queue`, the dead letter destination is asssumed to be `/queue/DLQ.some-queue`.
-* Be cautious with the heartbeat functionality! If your consumer is slow, it could prevent the client to receive and process any `heart-beat` frame sent by the server, causing the client to terminate the connection due to a false positive heartbeat timeout.
+* Currently, we assume that all dead lettered messages are sent to a queue with the same name as its original 
+destination but prefixed with `DLQ.`, i.e., if your queue is `/queue/some-queue`, the dead letter destination is 
+asssumed to be `/queue/DLQ.some-queue`.
+* Be cautious with the heartbeat functionality! If your consumer is slow, it could prevent the client to receive and 
+process any `heart-beat` frame sent by the server, causing the client to terminate the connection due to a false 
+positive heartbeat timeout.
