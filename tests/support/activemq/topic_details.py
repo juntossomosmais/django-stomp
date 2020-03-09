@@ -16,7 +16,7 @@ def current_topic_configuration(topic_name, host="localhost") -> CurrentDestinat
     assert len(all_topics) > 0
     for index, queue_details in enumerate(all_topics):
         topic_details_as_selector = Selector(text=queue_details)
-        if topic_name in topic_details_as_selector.css("td a::attr(href)").get():
+        if f"JMSDestination={topic_name}" in topic_details_as_selector.css("td a::attr(href)").get():
             number_of_consumers = int(topic_details_as_selector.css("td + td::text").get())
             messages_enqueued = int(topic_details_as_selector.css("td + td + td::text").get())
             messages_dequeued = int(topic_details_as_selector.css("td + td + td + td::text").get())

@@ -1,10 +1,10 @@
 import json
 import logging
 import re
+import threading
 import uuid
 from time import sleep
 
-import pytest
 import trio
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
@@ -18,12 +18,17 @@ from tests.support.activemq.message_details import retrieve_message_published
 from tests.support.activemq.queue_details import current_queue_configuration
 from tests.support.activemq.subscribers_details import offline_durable_subscribers
 from tests.support.activemq.topic_details import current_topic_configuration
+from tests.support.helpers import wait_for_message_in_log
 
 myself_with_test_callback_standard = "tests.integration.test_execution._test_callback_function_standard"
 myself_with_test_callback_nack = "tests.integration.test_execution._test_callback_function_with_nack"
 myself_with_test_callback_exception = "tests.integration.test_execution._test_callback_function_with_exception"
 myself_with_test_callback_sleep_three_seconds = (
-    "tests.integration.test_execution._test_callback_function_with_sleep_three_seconds"
+    "tests.integration.test_execution._test_callback_function_with_sleep_three_seconds_while_heartbeat_thread_is_alive"
+)
+myself_with_test_callback_with_log = "tests.integration.test_execution._test_callback_function_with_logging"
+myself_with_test_callback_with_another_log = (
+    "tests.integration.test_execution._test_callback_function_with_another_log_message"
 )
 
 test_destination_one = "/queue/my-test-destination-one"
@@ -128,7 +133,7 @@ test_destination_durable_consumer_one = "/topic/my-test-destination-durable-cons
 
 def test_should_create_durable_subscriber_and_receive_standby_messages(mocker: MockFixture, settings):
     temp_uuid_listener = str(uuid.uuid4())
-    mocker.patch("django_stomp.execution.listener_client_id", temp_uuid_listener)
+    mocker.patch("django_stomp.execution.get_listener_client_id", return_value=temp_uuid_listener)
     mocker.patch("django_stomp.execution.durable_topic_subscription", True)
     durable_subscription_id = str(uuid.uuid4())
     settings.STOMP_SUBSCRIPTION_ID = durable_subscription_id
@@ -185,7 +190,7 @@ async def test_should_configure_prefetch_size_as_one(mocker: MockFixture, settin
     """
     listener_id = str(uuid.uuid4())
     # LISTENER_CLIENT_ID is used by ActiveMQ
-    mocker.patch("django_stomp.execution.listener_client_id", listener_id)
+    mocker.patch("django_stomp.execution.get_listener_client_id", return_value=listener_id)
     # SUBSCRIPTION_ID is used by RabbitMQ to identify a consumer through a tag
     subscription_id = str(uuid.uuid4())
     settings.STOMP_SUBSCRIPTION_ID = subscription_id
@@ -258,8 +263,7 @@ def test_should_publish_to_dql_due_to_implicit_nack_given_internal_callback_exce
         some_body = {"keyOne": 1, "keyTwo": 2}
         publisher.send(some_body, test_destination_dlq_two, attempt=1)
 
-    with pytest.raises(Exception) as e:
-        start_processing(test_destination_dlq_two, myself_with_test_callback_exception, is_testing=True)
+    start_processing(test_destination_dlq_two, myself_with_test_callback_exception, is_testing=True)
 
     *_, queue_name = test_destination_dlq_two.split("/")
     dlq_queue_name = f"DLQ.{queue_name}"
@@ -288,18 +292,16 @@ def test_should_save_tshoot_properties_on_header():
 
     try:
         message_status = retrieve_message_published(some_destination)
-
-        assert message_status.properties.get("tshoot-destination")
-        assert message_status.properties["tshoot-destination"] == some_destination
     except Exception:
         message_status = rabbitmq.retrieve_message_published(some_destination)
 
-        assert message_status.properties["headers"].get("tshoot-destination")
-        assert message_status.properties["headers"]["tshoot-destination"] == some_destination
+    assert message_status.properties.get("tshoot-destination")
+    assert message_status.properties["tshoot-destination"] == some_destination
 
 
-@pytest.mark.skip(reason="This behaves not as expected, but when used as Django command, it does")
-def test_should_send_to_another_destination():
+def test_should_send_to_another_destination(caplog):
+    caplog.set_level(logging.DEBUG)
+
     some_source_destination = f"/queue/source-{uuid.uuid4()}"
     some_target_destination = f"/queue/target-{uuid.uuid4()}"
 
@@ -309,23 +311,33 @@ def test_should_send_to_another_destination():
         some_headers = {"some-header-1": 1, "some-header-2": 2}
         publisher.send(some_body, some_source_destination, some_headers, attempt=1)
 
-    send_message_from_one_destination_to_another(some_source_destination, some_target_destination, is_testing=True)
+    move_messages_consumer = send_message_from_one_destination_to_another(
+        some_source_destination, some_target_destination, is_testing=True, return_listener=True
+    )
 
-    *_, queue_name = some_source_destination.split("/")
-    queue_status = current_queue_configuration(queue_name)
-    assert queue_status.number_of_pending_messages == 0
-    assert queue_status.number_of_consumers == 0
-    assert queue_status.messages_enqueued == 1
-    assert queue_status.messages_dequeued == 1
+    wait_for_message_in_log(caplog, r"The messages has been moved")
+    move_messages_consumer.close()
 
-    *_, queue_name = some_target_destination.split("/")
-    queue_status = current_queue_configuration(queue_name)
-    assert queue_status.number_of_pending_messages == 1
-    assert queue_status.number_of_consumers == 0
-    assert queue_status.messages_enqueued == 1
-    assert queue_status.messages_dequeued == 0
+    *_, source_queue_name = some_source_destination.split("/")
+    *_, target_queue_name = some_target_destination.split("/")
+    try:
+        source_queue_status = current_queue_configuration(source_queue_name)
+        target_queue_status = current_queue_configuration(target_queue_name)
+        message_status = retrieve_message_published(target_queue_name)
+    except Exception:
+        source_queue_status = rabbitmq.current_queue_configuration(source_queue_name)
+        target_queue_status = rabbitmq.current_queue_configuration(target_queue_name)
+        message_status = rabbitmq.retrieve_message_published(target_queue_name)
 
-    message_status = retrieve_message_published(queue_name)
+    assert source_queue_status.number_of_pending_messages == 0
+    assert source_queue_status.number_of_consumers == 0
+    assert source_queue_status.messages_enqueued == 1
+    assert source_queue_status.messages_dequeued == 1
+
+    assert target_queue_status.number_of_pending_messages == 1
+    assert target_queue_status.number_of_consumers == 0
+    assert target_queue_status.messages_enqueued == 1
+    assert target_queue_status.messages_dequeued == 0
 
     keys = list(some_headers.keys())
     assert len(keys) == 2
@@ -337,9 +349,9 @@ def test_should_send_to_another_destination():
 def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_than_heartbeat(caplog, settings):
     """
     The listener in this code has an, arguably broken, message handler (see
-    _test_callback_function_with_sleep_three_seconds function) which takes longer to process than the
-    heartbeat time of 1 second (1000); resulting in a heartbeat timeout when
-    a message is received, and a subsequent disconnect.
+    _test_callback_function_with_sleep_three_seconds function) which awaits (blocking the consumer
+    for three seconds) for a heartbeat timeout that occurs if no message is shared between the broker and the
+    consumer in 1 second (1000 ms).
 
     Heartbeating requires an error margin due to timing inaccuracies which are usually configured
     by the receiver (such as the broker and even the client). Thus, other brokers may wait for a little bit more
@@ -355,8 +367,13 @@ def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_
 
     settings.STOMP_OUTGOING_HEARTBIT = 1000
     settings.STOMP_INCOMING_HEARTBIT = 1000
-    start_processing(some_destination, myself_with_test_callback_sleep_three_seconds, is_testing=True)
-    sleep(1)
+
+    message_consumer = start_processing(
+        some_destination, myself_with_test_callback_sleep_three_seconds, is_testing=True, return_listener=True
+    )
+
+    wait_for_message_in_log(caplog, r"Heartbeat loop ended", message_count_to_wait=2)
+    message_consumer.close()
 
     assert any(
         re.compile(
@@ -369,7 +386,172 @@ def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_
         re.compile("Heartbeat timeout: diff_receive=[0-9.]+, time=[0-9.]+, lastrec=[0-9.]+").match(message)
         for message in caplog.messages
     )
-    assert any(re.compile("Lost connection, unable to send heartbeat").match(message) for message in caplog.messages)
+    assert any(re.compile("Heartbeat loop ended").match(message) for message in caplog.messages)
+
+
+def test_should_create_queues_for_virtual_topic_listeners_and_consume_its_messages(caplog):
+    caplog.set_level(logging.DEBUG)
+    number_of_consumers = 2
+
+    some_virtual_topic = f"VirtualTopic.{uuid.uuid4()}"
+    consumers = [
+        start_processing(
+            f"Consumer.{uuid.uuid4()}.{some_virtual_topic}",
+            myself_with_test_callback_standard,
+            is_testing=True,
+            return_listener=True,
+        )
+        for _ in range(number_of_consumers)
+    ]
+
+    with build_publisher().auto_open_close_connection() as publisher:
+        some_body = {"send": 2, "Virtual": "Topic"}
+        publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
+
+    wait_for_message_in_log(
+        caplog, r"Received frame: 'MESSAGE'.*body='{\"send\": 2, \"Virtual\": \"Topic\"}.*'", message_count_to_wait=2
+    )
+
+    for consumer in consumers:
+        consumer.close()
+
+    received_frame_log_messages = [
+        message
+        for message in caplog.messages
+        if re.compile(r"Received frame: 'MESSAGE'.*body='{\"send\": 2, \"Virtual\": \"Topic\"}.*'").match(message)
+    ]
+
+    sending_frame_log_messages = [
+        message for message in caplog.messages if re.compile(r"Sending frame: \[b'ACK'.*").match(message)
+    ]
+
+    assert len(received_frame_log_messages) == number_of_consumers
+    assert len(sending_frame_log_messages) == number_of_consumers
+
+
+def test_should_create_queue_for_virtual_topic_consumer_and_process_messages_sent_when_consumer_is_disconnected(caplog):
+    caplog.set_level(logging.DEBUG)
+
+    some_virtual_topic = f"VirtualTopic.{uuid.uuid4()}"
+    virtual_topic_consumer_queue = f"Consumer.{uuid.uuid4()}.{some_virtual_topic}"
+    consumer = start_processing(
+        virtual_topic_consumer_queue, myself_with_test_callback_with_log, is_testing=True, return_listener=True
+    )
+
+    with build_publisher().auto_open_close_connection() as publisher:
+        some_body = {"send": 2, "another": "VirtualTopic"}
+        publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
+
+    wait_for_message_in_log(caplog, r"I'll process the message: {'send': 2, 'another': 'VirtualTopic'}!")
+    consumer.close()
+
+    # Send message to VirtualTopic with consumers disconnected...
+    with build_publisher().auto_open_close_connection() as publisher:
+        some_body = {"send": "anotherMessage", "2": "VirtualTopic"}
+        publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
+
+    # Start another consumer for the same queue created previously...
+    another_consumer = start_processing(
+        virtual_topic_consumer_queue, myself_with_test_callback_with_log, is_testing=True, return_listener=True
+    )
+
+    wait_for_message_in_log(caplog, r"I'll process the message: {'send': 'anotherMessage', '2': 'VirtualTopic'}!")
+    another_consumer.close()
+
+    received_first_frame_log_messages = [
+        message
+        for message in caplog.messages
+        if re.compile(r"I'll process the message: {'send': 2, 'another': 'VirtualTopic'}!").match(message)
+    ]
+    received_second_frame_log_messages = [
+        message
+        for message in caplog.messages
+        if re.compile(r"I'll process the message: {'send': 'anotherMessage', '2': 'VirtualTopic'}!").match(message)
+    ]
+
+    sending_frame_log_messages = [
+        message for message in caplog.messages if re.compile(r"Sending frame: \[b'ACK'.*").match(message)
+    ]
+
+    assert len(received_first_frame_log_messages) == 1
+    assert len(received_second_frame_log_messages) == 1
+    assert len(sending_frame_log_messages) == 2
+
+
+def test_should_create_queue_for_virtual_topic_and_compete_for_its_messages(caplog):
+    caplog.set_level(logging.DEBUG)
+
+    some_virtual_topic = f"VirtualTopic.{uuid.uuid4()}"
+    virtual_topic_consumer_queue = f"Consumer.{uuid.uuid4()}.{some_virtual_topic}"
+
+    consumers = [
+        start_processing(
+            virtual_topic_consumer_queue, myself_with_test_callback_with_log, is_testing=True, return_listener=True
+        ),
+        start_processing(
+            virtual_topic_consumer_queue,
+            myself_with_test_callback_with_another_log,
+            is_testing=True,
+            return_listener=True,
+        ),
+    ]
+
+    with build_publisher().auto_open_close_connection() as publisher:
+        with publisher.do_inside_transaction():
+            some_body = {"send": 2, "some": "VirtualTopic"}
+            publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
+            publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
+            publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
+
+    wait_for_message_in_log(caplog, r"Sending frame: \[b'ACK'.*", message_count_to_wait=3)
+
+    for consumer in consumers:
+        consumer.close()
+
+    callback_logs = [
+        message
+        for message in caplog.messages
+        if re.compile(r"I'll process the message: {'send': 2, 'some': 'VirtualTopic'}!").match(message)
+    ]
+    another_callback_logs = [
+        message
+        for message in caplog.messages
+        if re.compile(r"{'send': 2, 'some': 'VirtualTopic'} is the message that I'll process!").match(message)
+    ]
+
+    sending_frame_log_messages = [
+        message for message in caplog.messages if re.compile(r"Sending frame: \[b'ACK'.*").match(message)
+    ]
+
+    assert 1 <= len(callback_logs) <= 2
+    assert 1 <= len(another_callback_logs) <= 2
+    assert len(callback_logs + another_callback_logs) == 3
+    assert len(sending_frame_log_messages) == 3
+
+
+def test_shouldnt_process_message_from_virtual_topic_older_than_the_consumer_queue_creation():
+    some_virtual_topic = f"VirtualTopic.{uuid.uuid4()}"
+    virtual_topic_consumer_queue = f"Consumer.{uuid.uuid4()}.{some_virtual_topic}"
+
+    with build_publisher().auto_open_close_connection() as publisher:
+        some_body = {"send": 2, "topicThat": "isVirtual"}
+        publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
+
+    start_processing(virtual_topic_consumer_queue, myself_with_test_callback_with_log, is_testing=True)
+
+    try:
+        queue_status = current_queue_configuration(virtual_topic_consumer_queue)
+
+        assert queue_status.number_of_pending_messages == 0
+        assert queue_status.number_of_consumers == 0
+        assert queue_status.messages_enqueued == 0
+        assert queue_status.messages_dequeued == 0
+    except Exception:
+        queue_status = rabbitmq.current_queue_configuration(virtual_topic_consumer_queue)
+
+        assert queue_status.number_of_pending_messages == 0
+        assert queue_status.number_of_consumers == 0
+        assert queue_status.messages_dequeued == 0
 
 
 def _test_callback_function_standard(payload: Payload):
@@ -385,6 +567,22 @@ def _test_callback_function_with_exception(payload: Payload):
     raise Exception("Lambe Sal")
 
 
-def _test_callback_function_with_sleep_three_seconds(payload: Payload):
-    sleep(3)
+def _test_callback_function_with_sleep_three_seconds_while_heartbeat_thread_is_alive(payload: Payload):
+    heartbeat_threads = [thread for thread in threading.enumerate() if "StompHeartbeatThread" in thread.name]
+    while True:
+        sleep(3)
+        heartbeat_threads = filter(lambda thread: "StompHeartbeatThread" in thread.name, threading.enumerate())
+        if all(not thread.is_alive() for thread in heartbeat_threads):
+            break
+
+
+def _test_callback_function_with_logging(payload: Payload):
+    logger = logging.getLogger(__name__)
+    logger.info("I'll process the message: %s!", payload.body)
+    payload.ack()
+
+
+def _test_callback_function_with_another_log_message(payload: Payload):
+    logger = logging.getLogger(__name__)
+    logger.info("%s is the message that I'll process!", payload.body)
     payload.ack()

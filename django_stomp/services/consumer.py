@@ -89,7 +89,6 @@ class Listener(stomp.ConnectionListener):
             self._connection.set_listener(self._listener_id, self)
 
         self._callback = callback if callback else self._callback
-        self._connection.start()
         self._connection.connect(**self._connection_configuration)
         self._connection.subscribe(
             id=self._subscription_id,
@@ -105,7 +104,8 @@ class Listener(stomp.ConnectionListener):
                 time.sleep(1)
 
     def close(self):
-        self._connection.disconnect()
+        disconnect_receipt = str(uuid.uuid4())
+        self._connection.disconnect(receipt=disconnect_receipt)
         logger.info("Disconnected")
 
 
@@ -115,6 +115,7 @@ def build_listener(
     ack_type=Acknowledgements.CLIENT,
     durable_topic_subscription=False,
     is_testing=False,
+    routing_key=None,
     **connection_params,
 ) -> Listener:
     logger.info("Building listener...")
@@ -124,15 +125,22 @@ def build_listener(
     use_ssl = connection_params.get("use_ssl", False)
     ssl_version = connection_params.get("ssl_version", ssl.PROTOCOL_TLS)
     logger.info(f"Use SSL? {use_ssl}. Version: {ssl_version}")
-    outgoing_heartbeat = int(connection_params.get("outgoingHeartbeat", 60000))
-    incoming_heartbeat = int(connection_params.get("incomingHeartbeat", 60000))
+    outgoing_heartbeat = int(connection_params.get("outgoingHeartbeat", 0))
+    incoming_heartbeat = int(connection_params.get("incomingHeartbeat", 0))
     # http://stomp.github.io/stomp-specification-1.2.html#Heart-beating
     # http://jasonrbriggs.github.io/stomp.py/api.html
     conn = customizations.CustomStompConnection11(
         hosts, ssl_version=ssl_version, use_ssl=use_ssl, heartbeats=(outgoing_heartbeat, incoming_heartbeat)
     )
     client_id = connection_params.get("client_id", uuid.uuid4())
-    subscription_configuration = {"destination": destination_name, "ack": ack_type.value}
+    routing_key = routing_key or destination_name
+    subscription_configuration = {
+        "destination": routing_key,
+        "ack": ack_type.value,
+        # RabbitMQ
+        "x-queue-name": only_destination_name(destination_name),
+        "auto-delete": "false",
+    }
     header_setup = {
         # ActiveMQ
         "client-id": f"{client_id}-listener",
@@ -151,8 +159,6 @@ def build_listener(
             "activemq.subcriptionName": header_setup["client-id"],
             # RabbitMQ
             "durable": "true",
-            "auto-delete": "false",
-            "x-queue-name": only_destination_name(destination_name),
         }
         header_setup.update(durable_subs_header)
     connection_configuration = {
