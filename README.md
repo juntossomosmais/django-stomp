@@ -76,3 +76,9 @@ Or for RabbitMQ:
 Then at last:
 
     pipenv run tox
+
+
+## Known limitations
+
+* Currently, we assume that all dead lettered messages are sent to a queue with the same name as its original destination but prefixed with `DLQ.`, i.e., if your queue is `/queue/some-queue`, the dead letter destination is asssumed to be `/queue/DLQ.some-queue`.
+* Be cautious with the heartbeat functionality! If your consumer is slow, it could prevent the client to receive and process any `heart-beat` frame sent by the server, causing the client to terminate the connection due to a false positive heartbeat timeout.
