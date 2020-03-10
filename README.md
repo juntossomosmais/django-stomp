@@ -125,8 +125,8 @@ logic is not properly handled.
 ***STOMP_DURABLE_TOPIC_SUBSCRIPTION***
     
   Set to ``True, true, 1, T, t, Y or y`` in order to all STOMP topic subscription be durable. See the [RabbitMQ](
-https://www.rabbitmq.com/stomp.html#d.dts) take on it or the [ActiveMQ](https://activemq.apache.org/
-how-do-durable-queues-and-topics-work) for more information.
+https://www.rabbitmq.com/stomp.html#d.dts) take on it or the
+[ActiveMQ](https://activemq.apache.org/how-do-durable-queues-and-topics-work) for more information.
 
 ***STOMP_LISTENER_CLIENT_ID***
     
