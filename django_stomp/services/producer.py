@@ -123,7 +123,7 @@ class Publisher:
 
 def build_publisher(**connection_params) -> Publisher:
     logger.info("Building publisher...")
-    hosts = [(connection_params.get("host"), connection_params.get("port"))]
+    hosts, vhost = [(connection_params.get("host"), connection_params.get("port"))], connection_params.get("vhost")
     if connection_params.get("hostStandby") and connection_params.get("portStandby"):
         hosts.append((connection_params.get("hostStandby"), connection_params.get("portStandby")))
     use_ssl = connection_params.get("use_ssl", False)
@@ -136,7 +136,7 @@ def build_publisher(**connection_params) -> Publisher:
         "wait": True,
         "headers": {"client-id": f"{client_id}-publisher"},
     }
-    conn = Connection(hosts, ssl_version=ssl_version, use_ssl=use_ssl)
+    conn = Connection(hosts, ssl_version=ssl_version, use_ssl=use_ssl, vhost=vhost)
     publisher = Publisher(conn, connection_configuration)
     return publisher
 

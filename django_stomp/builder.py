@@ -53,6 +53,7 @@ def _build_connection_parameter(client_id: Optional[str] = None) -> Dict:
         "outgoingHeartbeat": outgoing_heartbeat,
         "incomingHeartbeat": incoming_heartbeat,
         "subscriptionId": subscription_id,
+        "vhost": getattr(settings, "STOMP_SERVER_VHOST", None),
     }
 
     logger.debug("Server details connection: %s", required_params)
