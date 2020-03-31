@@ -5,6 +5,7 @@ import threading
 import uuid
 from time import sleep
 
+import pytest
 import trio
 from django.core.serializers.json import DjangoJSONEncoder
 from django_stomp.builder import build_listener
@@ -37,7 +38,6 @@ myself_with_test_callback_with_another_log = (
 test_destination_one = "/queue/my-test-destination-one"
 test_destination_two = "/queue/my-test-destination-two"
 myself_with_test_callback_one = "tests.integration.test_execution._test_callback_function_one"
-myself_with_test_callback_one_without_correlation_id = "tests.integration.test_execution._test_callback_function_one_without_correlation_id"
 
 
 def test_should_consume_message_and_publish_to_another_queue_using_same_correlation_id():
@@ -558,13 +558,24 @@ def test_shouldnt_process_message_from_virtual_topic_older_than_the_consumer_que
         assert queue_status.messages_dequeued == 0
 
 
-def test_should_consume_message_without_correlation_id():
-    publisher = build_publisher()
+def test_should_raise_exception_when_correlation_id_is_required_but_not_received(settings):
+    settings.STOMP_CORRELATION_ID_REQUIRED = True
+
     some_body = {"keyOne": 1, "keyTwo": 2}
-    publisher.send(some_body, test_destination_consumer_one, attempt=1)
+    _test_send_message_without_correlation_id_header(some_body, test_destination_one)
+
+    with pytest.raises(Exception):
+        assert start_processing(test_destination_one, myself_with_test_callback_one, is_testing=True)
+
+
+def test_should_consume_message_without_correlation_id_when_it_is_not_required(settings):
+    settings.STOMP_CORRELATION_ID_REQUIRED = False
+
+    some_body = {"keyOne": 1, "keyTwo": 2}
+    _test_send_message_without_correlation_id_header(some_body, test_destination_one)
 
     # Calling what we need to test
-    start_processing(test_destination_one, myself_with_test_callback_one_without_correlation_id, is_testing=True)
+    start_processing(test_destination_one, myself_with_test_callback_one, is_testing=True)
 
     evaluation_consumer = build_listener(test_destination_two, is_testing=True)
     test_listener = evaluation_consumer._test_listener
@@ -575,40 +586,9 @@ def test_should_consume_message_without_correlation_id():
 
     assert received_message is not None
     received_header = received_message[0]
-    assert "correlation-id" not in received_header
+    assert "correlation-id" in received_header
     received_body = json.loads(received_message[1])
     assert received_body == some_body
-
-
-def _test_callback_function_one_without_correlation_id(payload: Payload):
-    queue = test_destination_two
-
-    publisher = build_publisher()
-
-    standard_header = {
-        "tshoot-destination": queue,
-        # RabbitMQ
-        # These two parameters must be set on consumer side as well, otherwise you'll get precondition_failed
-        "x-dead-letter-routing-key": create_dlq_destination_from_another_destination(queue),
-        "x-dead-letter-exchange": "",
-    }
-
-    send_params = {
-        "destination": queue,
-        "body": json.dumps(payload.body, cls=DjangoJSONEncoder),
-        "headers": standard_header,
-        "content_type": publisher._default_content_type,
-        "transaction": getattr(publisher, "_tmp_transaction_id", None),
-    }
-    send_params = clean_dict_with_falsy_or_strange_values(send_params)
-
-    def _internal_send_logic():
-        publisher.start_if_not_open()
-        publisher.connection.send(**send_params)
-
-    publisher._retry_send(_internal_send_logic, attempt=1)
-
-    payload.ack()
 
 
 def _test_callback_function_standard(payload: Payload):
@@ -643,3 +623,29 @@ def _test_callback_function_with_another_log_message(payload: Payload):
     logger = logging.getLogger(__name__)
     logger.info("%s is the message that I'll process!", payload.body)
     payload.ack()
+
+
+def _test_send_message_without_correlation_id_header(body: str, queue: str, attempt=1):
+    publisher = build_publisher()
+    standard_header = {
+        "tshoot-destination": queue,
+        # RabbitMQ
+        # These two parameters must be set on consumer side as well, otherwise you'll get precondition_failed
+        "x-dead-letter-routing-key": create_dlq_destination_from_another_destination(queue),
+        "x-dead-letter-exchange": "",
+    }
+
+    send_params = {
+        "destination": queue,
+        "body": json.dumps(body, cls=DjangoJSONEncoder),
+        "headers": standard_header,
+        "content_type": publisher._default_content_type,
+        "transaction": getattr(publisher, "_tmp_transaction_id", None),
+    }
+    send_params = clean_dict_with_falsy_or_strange_values(send_params)
+
+    def _internal_send_logic():
+        publisher.start_if_not_open()
+        publisher.connection.send(**send_params)
+
+    publisher._retry_send(_internal_send_logic, attempt=attempt)

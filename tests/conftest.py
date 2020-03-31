@@ -23,4 +23,5 @@ def pytest_configure():
         STOMP_SERVER_PASSWORD=os.getenv("STOMP_SERVER_PASSWORD"),
         STOMP_USE_SSL=os.getenv("STOMP_USE_SSL"),
         STOMP_LISTENER_CLIENT_ID=os.getenv("STOMP_LISTENER_CLIENT_ID"),
+        STOMP_CORRELATION_ID_REQUIRED=os.getenv("STOMP_CORRELATION_ID_REQUIRED"),
     )

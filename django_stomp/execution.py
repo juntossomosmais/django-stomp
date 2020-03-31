@@ -22,6 +22,7 @@ logger = logging.getLogger("django_stomp")
 wait_to_connect = int(getattr(settings, "STOMP_WAIT_TO_CONNECT", 10))
 durable_topic_subscription = eval_str_as_boolean(getattr(settings, "STOMP_DURABLE_TOPIC_SUBSCRIPTION", False))
 listener_client_id = getattr(settings, "STOMP_LISTENER_CLIENT_ID", None)
+is_correlation_id_required = getattr(settings, "STOMP_CORRELATION_ID_REQUIRED", True)
 publisher_name = "django-stomp-another-target"
 
 
@@ -47,7 +48,7 @@ def start_processing(
             logger.info("Starting listener...")
 
             def _callback(payload: Payload) -> None:
-                local_threading.request_id = payload.headers["correlation-id"] if "correlation-id" in payload.headers else None
+                local_threading.request_id = _get_or_create_correlation_id(payload)
                 try:
                     if param_to_callback:
                         callback_function(payload, param_to_callback)
@@ -149,3 +150,15 @@ def _create_queue(queue_name: str, durable_topic_subscription: bool = False, rou
 def _create_dlq_queue(destination_name: str):
     dlq_destination_name = create_dlq_destination_from_another_destination(destination_name)
     _create_queue(dlq_destination_name)
+
+
+def _get_or_create_correlation_id(payload: Payload) -> str:
+    if "correlation-id" in payload.headers:
+        return payload.headers["correlation-id"]
+
+    if not is_correlation_id_required:
+        correlation_id = uuid.uuid4()
+        logger.info(f"STOMP_CORRELATION_ID_REQUIRED was set to false. New correlation-id was generated {correlation_id}")
+        return correlation_id
+
+    raise Exception(f"correlation-id header is required! Headers: {payload.headers}")
