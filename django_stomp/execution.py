@@ -47,7 +47,7 @@ def start_processing(
             logger.info("Starting listener...")
 
             def _callback(payload: Payload) -> None:
-                local_threading.request_id = payload.headers["correlation-id"]
+                local_threading.request_id = payload.headers["correlation-id"] if "correlation-id" in payload.headers else None
                 try:
                     if param_to_callback:
                         callback_function(payload, param_to_callback)
