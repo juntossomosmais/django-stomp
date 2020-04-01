@@ -7,6 +7,7 @@ from django.conf import settings
 from django.utils.module_loading import import_string
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
+from django_stomp.exceptions import CorrelationIdNotProvidedException
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import eval_str_as_boolean
 from django_stomp.helpers import get_listener_client_id
@@ -22,7 +23,7 @@ logger = logging.getLogger("django_stomp")
 wait_to_connect = int(getattr(settings, "STOMP_WAIT_TO_CONNECT", 10))
 durable_topic_subscription = eval_str_as_boolean(getattr(settings, "STOMP_DURABLE_TOPIC_SUBSCRIPTION", False))
 listener_client_id = getattr(settings, "STOMP_LISTENER_CLIENT_ID", None)
-is_correlation_id_required = getattr(settings, "STOMP_CORRELATION_ID_REQUIRED", True)
+is_correlation_id_required = eval_str_as_boolean(getattr(settings, "STOMP_CORRELATION_ID_REQUIRED", True))
 publisher_name = "django-stomp-another-target"
 
 
@@ -48,7 +49,7 @@ def start_processing(
             logger.info("Starting listener...")
 
             def _callback(payload: Payload) -> None:
-                local_threading.request_id = _get_or_create_correlation_id(payload)
+                local_threading.request_id = _get_or_create_correlation_id(payload.headers)
                 try:
                     if param_to_callback:
                         callback_function(payload, param_to_callback)
@@ -152,13 +153,13 @@ def _create_dlq_queue(destination_name: str):
     _create_queue(dlq_destination_name)
 
 
-def _get_or_create_correlation_id(payload: Payload) -> str:
-    if "correlation-id" in payload.headers:
-        return payload.headers["correlation-id"]
+def _get_or_create_correlation_id(headers: dict) -> str:
+    if "correlation-id" in headers:
+        return headers["correlation-id"]
 
     if not is_correlation_id_required:
         correlation_id = uuid.uuid4()
-        logger.info(f"STOMP_CORRELATION_ID_REQUIRED was set to false. New correlation-id was generated {correlation_id}")
+        logger.warning(f"STOMP_CORRELATION_ID_REQUIRED was set to false. New correlation-id was generated {correlation_id}")
         return correlation_id
 
-    raise Exception(f"correlation-id header is required! Headers: {payload.headers}")
+    raise CorrelationIdNotProvidedException(headers)
