@@ -14,6 +14,7 @@ from django_stomp.execution import send_message_from_one_destination_to_another
 from django_stomp.execution import start_processing
 from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
 from django_stomp.helpers import create_dlq_destination_from_another_destination
+from django_stomp.helpers import retry
 from django_stomp.services.consumer import Payload
 from pytest_mock import MockFixture
 from tests.support import rabbitmq
@@ -639,7 +640,7 @@ def _test_send_message_without_correlation_id_header(body: str, queue: str, atte
         "destination": queue,
         "body": json.dumps(body, cls=DjangoJSONEncoder),
         "headers": standard_header,
-        "content_type": publisher._default_content_type,
+        "content_type": "application/json;charset=utf-8",
         "transaction": getattr(publisher, "_tmp_transaction_id", None),
     }
     send_params = clean_dict_with_falsy_or_strange_values(send_params)
@@ -648,4 +649,4 @@ def _test_send_message_without_correlation_id_header(body: str, queue: str, atte
         publisher.start_if_not_open()
         publisher.connection.send(**send_params)
 
-    publisher._retry_send(_internal_send_logic, attempt=attempt)
+    retry(_internal_send_logic, attempt=attempt)

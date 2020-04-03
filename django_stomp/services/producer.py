@@ -3,12 +3,11 @@ import logging
 import ssl
 import uuid
 from contextlib import contextmanager
-from typing import Callable
 from typing import Dict
 
-import tenacity
 from django.core.serializers.json import DjangoJSONEncoder
 from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
+from django_stomp.helpers import retry
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import slow_down
 from request_id_django_log.request_id import current_request_id
@@ -71,17 +70,8 @@ class Publisher:
             self.start_if_not_open()
             self.connection.send(**send_params)
 
-        self._retry_send(_internal_send_logic, attempt=attempt)
+        retry(_internal_send_logic, attempt=attempt)
 
-    @staticmethod
-    def _retry_send(function: Callable, attempt=10, *args, **kwargs):
-        retry_configuration = tenacity.Retrying(
-            stop=tenacity.stop_after_attempt(attempt),
-            wait=tenacity.wait_fixed(3) + tenacity.wait_random(0, 2),
-            after=tenacity.after_log(logger, logger.level) if logger else None,
-            reraise=True,
-        )
-        return retry_configuration(function, *args, **kwargs)
 
     @staticmethod
     def _add_persistent_messaging_header(headers: Dict) -> Dict:
