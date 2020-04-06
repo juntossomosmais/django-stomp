@@ -133,6 +133,12 @@ https://www.rabbitmq.com/stomp.html#d.dts) take on it or the
   A string that represents the client id for a durable subscriber or the listener prefix client id in a non-durable 
 subscription in ActiveMQ.
 
+***STOMP_CORRELATION_ID_REQUIRED***
+    
+ A flag that indicates if `correlation-id` header must be required or not. By default this flag is true (good practice 
+thinking in future troubleshooting). 
+Set to ``False, false, 0, F, f, N or n`` in order to allow consume messages without `correlation-id` header. If it's 
+false `django-stomp` generates a correlation-id header for the message automatically.
 
 ## Tests
 

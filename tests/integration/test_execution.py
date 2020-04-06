@@ -5,11 +5,16 @@ import threading
 import uuid
 from time import sleep
 
+import pytest
 import trio
+from django.core.serializers.json import DjangoJSONEncoder
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
 from django_stomp.execution import send_message_from_one_destination_to_another
 from django_stomp.execution import start_processing
+from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
+from django_stomp.helpers import create_dlq_destination_from_another_destination
+from django_stomp.helpers import retry
 from django_stomp.services.consumer import Payload
 from pytest_mock import MockFixture
 from tests.support import rabbitmq
@@ -554,6 +559,39 @@ def test_shouldnt_process_message_from_virtual_topic_older_than_the_consumer_que
         assert queue_status.messages_dequeued == 0
 
 
+def test_should_raise_exception_when_correlation_id_is_required_but_not_received(settings):
+    settings.STOMP_CORRELATION_ID_REQUIRED = True
+
+    some_body = {"keyOne": 1, "keyTwo": 2}
+    _test_send_message_without_correlation_id_header(some_body, test_destination_one)
+
+    with pytest.raises(Exception):
+        assert start_processing(test_destination_one, myself_with_test_callback_one, is_testing=True)
+
+
+def test_should_consume_message_without_correlation_id_when_it_is_not_required(settings):
+    settings.STOMP_CORRELATION_ID_REQUIRED = False
+
+    some_body = {"keyOne": 1, "keyTwo": 2}
+    _test_send_message_without_correlation_id_header(some_body, test_destination_one)
+
+    # Calling what we need to test
+    start_processing(test_destination_one, myself_with_test_callback_one, is_testing=True)
+
+    evaluation_consumer = build_listener(test_destination_two, is_testing=True)
+    test_listener = evaluation_consumer._test_listener
+    evaluation_consumer.start(wait_forever=False)
+
+    test_listener.wait_for_message()
+    received_message = test_listener.get_latest_message()
+
+    assert received_message is not None
+    received_header = received_message[0]
+    assert "correlation-id" in received_header
+    received_body = json.loads(received_message[1])
+    assert received_body == some_body
+
+
 def _test_callback_function_standard(payload: Payload):
     # Should dequeue the message
     payload.ack()
@@ -586,3 +624,29 @@ def _test_callback_function_with_another_log_message(payload: Payload):
     logger = logging.getLogger(__name__)
     logger.info("%s is the message that I'll process!", payload.body)
     payload.ack()
+
+
+def _test_send_message_without_correlation_id_header(body: str, queue: str, attempt=1):
+    publisher = build_publisher()
+    standard_header = {
+        "tshoot-destination": queue,
+        # RabbitMQ
+        # These two parameters must be set on consumer side as well, otherwise you'll get precondition_failed
+        "x-dead-letter-routing-key": create_dlq_destination_from_another_destination(queue),
+        "x-dead-letter-exchange": "",
+    }
+
+    send_params = {
+        "destination": queue,
+        "body": json.dumps(body, cls=DjangoJSONEncoder),
+        "headers": standard_header,
+        "content_type": "application/json;charset=utf-8",
+        "transaction": getattr(publisher, "_tmp_transaction_id", None),
+    }
+    send_params = clean_dict_with_falsy_or_strange_values(send_params)
+
+    def _internal_send_logic():
+        publisher.start_if_not_open()
+        publisher.connection.send(**send_params)
+
+    retry(_internal_send_logic, attempt=attempt)
