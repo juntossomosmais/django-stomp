@@ -9,9 +9,9 @@ from typing import Callable
 from typing import Dict
 
 import stomp
-from django_stomp import customizations
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import only_destination_name
+from stomp import connect
 
 logger = logging.getLogger("django_stomp")
 
@@ -39,7 +39,7 @@ class Payload:
 class Listener(stomp.ConnectionListener):
     def __init__(
         self,
-        connection: customizations.CustomStompConnection11,
+        connection: connect.StompConnection11,
         callback: Callable,
         subscription_configuration: Dict,
         connection_configuration: Dict,
@@ -72,7 +72,8 @@ class Listener(stomp.ConnectionListener):
             self._connection.ack(message_id, self._subscription_id)
 
         def nack_logic():
-            self._connection.nack(message_id, self._subscription_id)
+            # Requeue is used because of RabbitMQ: https://www.rabbitmq.com/stomp.html#ack-nack
+            self._connection.nack(message_id, self._subscription_id, requeue=False)
 
         self._callback(Payload(ack_logic, nack_logic, headers, json.loads(message)))
 
@@ -129,7 +130,7 @@ def build_listener(
     incoming_heartbeat = int(connection_params.get("incomingHeartbeat", 0))
     # http://stomp.github.io/stomp-specification-1.2.html#Heart-beating
     # http://jasonrbriggs.github.io/stomp.py/api.html
-    conn = customizations.CustomStompConnection11(
+    conn = connect.StompConnection11(
         hosts,
         ssl_version=ssl_version,
         use_ssl=use_ssl,
