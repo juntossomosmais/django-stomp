@@ -3,6 +3,7 @@ from typing import Dict
 from typing import Optional
 
 from django.conf import settings
+
 from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
 from django_stomp.helpers import eval_as_int_otherwise_none
 from django_stomp.helpers import eval_str_as_boolean
@@ -23,6 +24,7 @@ def build_publisher(client_id: Optional[str] = None) -> Publisher:
 def build_listener(
     destination_name: str,
     durable_topic_subscription: bool = False,
+    should_process_msg_on_background: bool = False,
     is_testing: bool = False,
     client_id: Optional[str] = None,
     routing_key: Optional[str] = None,
@@ -34,6 +36,7 @@ def build_listener(
         durable_topic_subscription=durable_topic_subscription,
         is_testing=is_testing,
         routing_key=routing_key,
+        should_process_msg_on_background=should_process_msg_on_background,
         **connection_params,
     )
 

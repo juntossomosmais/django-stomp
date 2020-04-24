@@ -28,12 +28,15 @@ from tests.support.helpers import wait_for_message_in_log
 myself_with_test_callback_standard = "tests.integration.test_execution._test_callback_function_standard"
 myself_with_test_callback_nack = "tests.integration.test_execution._test_callback_function_with_nack"
 myself_with_test_callback_exception = "tests.integration.test_execution._test_callback_function_with_exception"
-myself_with_test_callback_sleep_three_seconds = (
+myself_with_test_callback_sleep_three_seconds_while_heartbeat_is_running = (
     "tests.integration.test_execution._test_callback_function_with_sleep_three_seconds_while_heartbeat_thread_is_alive"
 )
 myself_with_test_callback_with_log = "tests.integration.test_execution._test_callback_function_with_logging"
 myself_with_test_callback_with_another_log = (
     "tests.integration.test_execution._test_callback_function_with_another_log_message"
+)
+myself_with_test_callback_sleep_three_seconds = (
+    "tests.integration.test_execution._test_callback_function_with_sleep_three_seconds"
 )
 
 test_destination_one = "/queue/my-test-destination-one"
@@ -351,12 +354,14 @@ def test_should_send_to_another_destination(caplog):
     assert message_status.details == some_body
 
 
-def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_than_heartbeat(caplog, settings):
+def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_than_heartbeat(
+    caplog, settings, mocker
+):
     """
     The listener in this code has an, arguably broken, message handler (see
-    _test_callback_function_with_sleep_three_seconds function) which awaits (blocking the consumer
-    for three seconds) for a heartbeat timeout that occurs if no message is shared between the broker and the
-    consumer in 1 second (1000 ms).
+    _test_callback_function_with_sleep_three_seconds_while_heartbeat_thread_is_alive function) which awaits
+    (blocking the consumer for three seconds) for a heartbeat timeout that occurs if no message is shared
+    between the broker and the consumer in 1 second (1000 ms).
 
     Heartbeating requires an error margin due to timing inaccuracies which are usually configured
     by the receiver (such as the broker and even the client). Thus, other brokers may wait for a little bit more
@@ -374,7 +379,10 @@ def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_
     settings.STOMP_INCOMING_HEARTBIT = 1000
 
     message_consumer = start_processing(
-        some_destination, myself_with_test_callback_sleep_three_seconds, is_testing=True, return_listener=True
+        some_destination,
+        myself_with_test_callback_sleep_three_seconds_while_heartbeat_is_running,
+        is_testing=True,
+        return_listener=True,
     )
 
     wait_for_message_in_log(caplog, r"Heartbeat loop ended", message_count_to_wait=2)
@@ -592,6 +600,43 @@ def test_should_consume_message_without_correlation_id_when_it_is_not_required(s
     assert received_body == some_body
 
 
+def test_should_use_heartbeat_and_dont_lose_connection_when_using_background_processing(caplog, settings, mocker):
+    """
+    The listener in this code has a message handler that takes a long time to process a message (see
+    _test_callback_function_with_sleep_three_seconds function). Using a background process to process
+    the message, the heartbeat functionality should still work, maintaining the connection
+    estabilished between broker and consumer.
+    """
+    caplog.set_level(logging.DEBUG)
+    some_destination = f"some-lorem-destination-{uuid.uuid4()}"
+
+    # In order to publish sample data
+    with build_publisher().auto_open_close_connection() as publisher:
+        some_body = {"keyOne": 1, "keyTwo": 2}
+        publisher.send(some_body, some_destination, attempt=1)
+
+    settings.STOMP_OUTGOING_HEARTBIT = 1000
+    settings.STOMP_INCOMING_HEARTBIT = 1000
+    mocker.patch("django_stomp.execution.should_process_msg_on_background", True)
+
+    message_consumer = start_processing(
+        some_destination, myself_with_test_callback_sleep_three_seconds, is_testing=True, return_listener=True
+    )
+
+    wait_for_message_in_log(caplog, f"{some_body} sucessfully processed!", message_count_to_wait=1)
+    message_consumer.close()
+
+    received_heartbeat_frame_regex = re.compile(
+        f"Received frame.+heart-beat.+{settings.STOMP_OUTGOING_HEARTBIT},{settings.STOMP_INCOMING_HEARTBIT}"
+    )
+    sending_heartbeat_message_regex = re.compile("Sending a heartbeat message at [0-9.]+")
+    sending_ack_frame_regex = re.compile(f"Sending frame: .+ACK.+subscription:{message_consumer._subscription_id}.+")
+
+    assert any(received_heartbeat_frame_regex.match(m) for m in caplog.messages)
+    assert any(sending_heartbeat_message_regex.match(m) for m in caplog.messages)
+    assert any(sending_ack_frame_regex.match(m) for m in caplog.messages)
+
+
 def _test_callback_function_standard(payload: Payload):
     # Should dequeue the message
     payload.ack()
@@ -650,3 +695,10 @@ def _test_send_message_without_correlation_id_header(body: str, queue: str, atte
         publisher.connection.send(**send_params)
 
     retry(_internal_send_logic, attempt=attempt)
+
+
+def _test_callback_function_with_sleep_three_seconds(payload: Payload):
+    sleep(3)
+    payload.ack()
+    logger = logging.getLogger(__name__)
+    logger.info("%s sucessfully processed!", payload.body)

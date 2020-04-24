@@ -3,10 +3,12 @@ import logging
 import ssl
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from enum import Enum
 from typing import Callable
 from typing import Dict
+from typing import Optional
 
 import stomp
 from django_stomp.helpers import create_dlq_destination_from_another_destination
@@ -43,8 +45,9 @@ class Listener(stomp.ConnectionListener):
         callback: Callable,
         subscription_configuration: Dict,
         connection_configuration: Dict,
+        should_process_msg_on_background: bool,
         is_testing: bool = False,
-        subscription_id=None,
+        subscription_id: Optional[str] = None,
     ) -> None:
         self._subscription_configuration = subscription_configuration
         self._connection_configuration = connection_configuration
@@ -53,6 +56,8 @@ class Listener(stomp.ConnectionListener):
         self._subscription_id = f"{subscription_id if subscription_id else str(uuid.uuid4())}-listener"
         self._listener_id = str(uuid.uuid4())
         self._is_testing = is_testing
+        self._should_process_msg_on_background = should_process_msg_on_background
+        self._pool_executor = ThreadPoolExecutor(thread_name_prefix=self._subscription_id)
 
         if self._is_testing:
             from stomp.listener import TestListener
@@ -61,11 +66,11 @@ class Listener(stomp.ConnectionListener):
         else:
             self._test_listener = None
 
-    def on_message(self, headers, message):
+    def on_message(self, headers, body):
         message_id = headers["message-id"]
         logger.info(f"Message ID: {message_id}")
         logger.debug("Received headers: %s", headers)
-        logger.debug("Received message: %s", message)
+        logger.debug("Received message: %s", body)
 
         # https://jasonrbriggs.github.io/stomp.py/api.html#acks-and-nacks
         def ack_logic():
@@ -75,7 +80,12 @@ class Listener(stomp.ConnectionListener):
             # Requeue is used because of RabbitMQ: https://www.rabbitmq.com/stomp.html#ack-nack
             self._connection.nack(message_id, self._subscription_id, requeue=False)
 
-        self._callback(Payload(ack_logic, nack_logic, headers, json.loads(message)))
+        payload = Payload(ack_logic, nack_logic, headers, json.loads(body))
+
+        if self._should_process_msg_on_background:
+            self._pool_executor.submit(self._callback, payload)
+        else:
+            self._callback(payload)
 
     def is_open(self):
         return self._connection.is_connected()
@@ -109,9 +119,13 @@ class Listener(stomp.ConnectionListener):
         self._connection.disconnect(receipt=disconnect_receipt)
         logger.info("Disconnected")
 
+    def __del__(self):
+        self._pool_executor.shutdown()
+
 
 def build_listener(
     destination_name,
+    should_process_msg_on_background,
     callback=None,
     ack_type=Acknowledgements.CLIENT,
     durable_topic_subscription=False,
@@ -179,5 +193,6 @@ def build_listener(
         connection_configuration,
         is_testing=is_testing,
         subscription_id=connection_params.get("subscriptionId"),
+        should_process_msg_on_background=should_process_msg_on_background,
     )
     return listener
