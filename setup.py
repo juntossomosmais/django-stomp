@@ -10,7 +10,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name="django-stomp",
-    version="2.1.1",
+    version="2.2.1",
     description="A simple implementation of STOMP with Django",
     long_description=README,
     long_description_content_type="text/markdown",
