@@ -24,7 +24,7 @@ wait_to_connect = int(getattr(settings, "STOMP_WAIT_TO_CONNECT", 10))
 durable_topic_subscription = eval_str_as_boolean(getattr(settings, "STOMP_DURABLE_TOPIC_SUBSCRIPTION", False))
 listener_client_id = getattr(settings, "STOMP_LISTENER_CLIENT_ID", None)
 is_correlation_id_required = eval_str_as_boolean(getattr(settings, "STOMP_CORRELATION_ID_REQUIRED", True))
-should_process_msg_on_background = eval_str_as_boolean(getattr(settings, "STOMP_PROCESS_MSG_ON_BACKGROUND", False))
+should_process_msg_on_background = eval_str_as_boolean(getattr(settings, "STOMP_PROCESS_MSG_ON_BACKGROUND", True))
 publisher_name = "django-stomp-another-target"
 
 

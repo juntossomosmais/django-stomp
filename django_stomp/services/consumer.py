@@ -12,6 +12,7 @@ from typing import Optional
 
 import stomp
 from django_stomp.helpers import create_dlq_destination_from_another_destination
+from django_stomp.helpers import is_heartbeat_enabled
 from django_stomp.helpers import only_destination_name
 from django_stomp.settings import STOMP_PROCESS_MSG_WORKERS
 from stomp import connect
@@ -154,6 +155,13 @@ def build_listener(
     logger.info(f"Use SSL? {use_ssl}. Version: {ssl_version}")
     outgoing_heartbeat = int(connection_params.get("outgoingHeartbeat", 0))
     incoming_heartbeat = int(connection_params.get("incomingHeartbeat", 0))
+
+    if is_heartbeat_enabled(outgoing_heartbeat, incoming_heartbeat) and not should_process_msg_on_background:
+        logger.warning(
+            "STOMP heartbeat enabled while message processing on background is disable! "
+            "This could potentially lead to a false positive heartbeat timeout!"
+        )
+
     # http://stomp.github.io/stomp-specification-1.2.html#Heart-beating
     # http://jasonrbriggs.github.io/stomp.py/api.html
     conn = connect.StompConnection11(

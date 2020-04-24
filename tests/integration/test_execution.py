@@ -377,6 +377,7 @@ def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_
 
     settings.STOMP_OUTGOING_HEARTBIT = 1000
     settings.STOMP_INCOMING_HEARTBIT = 1000
+    mocker.patch("django_stomp.execution.should_process_msg_on_background", False)
 
     message_consumer = start_processing(
         some_destination,
@@ -617,7 +618,6 @@ def test_should_use_heartbeat_and_dont_lose_connection_when_using_background_pro
 
     settings.STOMP_OUTGOING_HEARTBIT = 1000
     settings.STOMP_INCOMING_HEARTBIT = 1000
-    mocker.patch("django_stomp.execution.should_process_msg_on_background", True)
 
     message_consumer = start_processing(
         some_destination, myself_with_test_callback_sleep_three_seconds, is_testing=True, return_listener=True

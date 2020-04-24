@@ -3,7 +3,6 @@ from typing import Dict
 from typing import Optional
 
 from django.conf import settings
-
 from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
 from django_stomp.helpers import eval_as_int_otherwise_none
 from django_stomp.helpers import eval_str_as_boolean
@@ -44,8 +43,8 @@ def build_listener(
 def _build_connection_parameter(client_id: Optional[str] = None) -> Dict:
     stomp_server_port = eval_as_int_otherwise_none(getattr(settings, "STOMP_SERVER_PORT", None))
     stomp_server_standby_port = eval_as_int_otherwise_none(getattr(settings, "STOMP_SERVER_STANDBY_PORT", None))
-    outgoing_heartbeat = eval_as_int_otherwise_none(getattr(settings, "STOMP_OUTGOING_HEARTBIT", None))
-    incoming_heartbeat = eval_as_int_otherwise_none(getattr(settings, "STOMP_INCOMING_HEARTBIT", None))
+    outgoing_heartbeat = eval_as_int_otherwise_none(getattr(settings, "STOMP_OUTGOING_HEARTBIT", "6000"))
+    incoming_heartbeat = eval_as_int_otherwise_none(getattr(settings, "STOMP_INCOMING_HEARTBIT", "6000"))
     subscription_id = getattr(settings, "STOMP_SUBSCRIPTION_ID", None)
 
     required_params = {
