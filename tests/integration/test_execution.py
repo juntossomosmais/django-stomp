@@ -631,10 +631,12 @@ def test_should_use_heartbeat_and_dont_lose_connection_when_using_background_pro
     )
     sending_heartbeat_message_regex = re.compile("Sending a heartbeat message at [0-9.]+")
     sending_ack_frame_regex = re.compile(f"Sending frame: .+ACK.+subscription:{message_consumer._subscription_id}.+")
+    heartbeat_timeout_regex = re.compile("Heartbeat timeout: diff_receive=[0-9.]+, time=[0-9.]+, lastrec=[0-9.]+")
 
     assert any(received_heartbeat_frame_regex.match(m) for m in caplog.messages)
     assert any(sending_heartbeat_message_regex.match(m) for m in caplog.messages)
     assert any(sending_ack_frame_regex.match(m) for m in caplog.messages)
+    assert any(heartbeat_timeout_regex.match(m) for m in caplog.messages)
 
 
 def _test_callback_function_standard(payload: Payload):
