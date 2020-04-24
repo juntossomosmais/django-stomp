@@ -37,13 +37,6 @@ def wait_for_message_in_log(caplog, message_to_wait, message_count_to_wait=None,
         sleep(1)
 
 
-def get_currently_active_threads_name():
-    """
-    Retrieves the threads name that are currently active
-    """
-    return [thread.name for thread in threading.enumerate()]
-
-
 def get_active_threads_name_with_prefix(prefix: str):
     """
     Retrieves the threads name that starts with `prefix` and are active.

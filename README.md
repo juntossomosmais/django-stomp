@@ -137,7 +137,7 @@ subscription in ActiveMQ.
     
   A flag that indicates if `correlation-id` header must be required or not. By default this flag is true (good practice 
 thinking in future troubleshooting). 
-  Set to ``False, false, 0, F, f, N or n`` in order to allow consume messages without `correlation-id` header. If it's 
+Set to ``False, false, 0, F, f, N or n`` in order to allow consume messages without `correlation-id` header. If it's 
 false `django-stomp` generates a correlation-id header for the message automatically.
 
 ***STOMP_PROCESS_MSG_ON_BACKGROUND***
