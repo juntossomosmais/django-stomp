@@ -42,3 +42,11 @@ def get_currently_active_threads_name():
     Retrieves the threads name that are currently active
     """
     return [thread.name for thread in threading.enumerate()]
+
+
+def get_active_threads_name_with_prefix(prefix: str):
+    """
+    Retrieves the threads name that starts with `prefix` and are active.
+    """
+    prefix_regex = re.compile(f"^{prefix}")
+    return [thread.name for thread in threading.enumerate() if prefix_regex.match(thread.name)]

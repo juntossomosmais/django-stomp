@@ -146,6 +146,11 @@ false `django-stomp` generates a correlation-id header for the message automatic
 to still take place.
   Set to ``True, true, 1, T, t, Y or y`` in order to have the message processing on background.
 
+***STOMP_PROCESS_MSG_WORKERS***
+
+  Optional parameter that controls how many workers the pool that manage the background processing should create. If
+defined, this parameter **must** be an integer!
+
 ## Tests
 
 In order to execute tests for ActiveMQ, execute the following:

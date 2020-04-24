@@ -11,11 +11,14 @@ from typing import Dict
 from typing import Optional
 
 import stomp
+from django.conf import settings
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import only_destination_name
 from stomp import connect
 
 logger = logging.getLogger("django_stomp")
+
+STOMP_PROCESS_MSG_WORKERS = getattr(settings, "STOMP_PROCESS_MSG_WORKERS", None)
 
 
 class Acknowledgements(Enum):
@@ -57,7 +60,7 @@ class Listener(stomp.ConnectionListener):
         self._listener_id = str(uuid.uuid4())
         self._is_testing = is_testing
         self._should_process_msg_on_background = should_process_msg_on_background
-        self._pool_executor = ThreadPoolExecutor(thread_name_prefix=self._subscription_id)
+        self._pool_executor = self._create_new_worker_executor()
 
         if self._is_testing:
             from stomp.listener import TestListener
@@ -65,6 +68,9 @@ class Listener(stomp.ConnectionListener):
             self._test_listener = TestListener()
         else:
             self._test_listener = None
+
+    def _create_new_worker_executor(self):
+        return ThreadPoolExecutor(max_workers=STOMP_PROCESS_MSG_WORKERS, thread_name_prefix=self._subscription_id)
 
     def on_message(self, headers, body):
         message_id = headers["message-id"]
@@ -83,9 +89,17 @@ class Listener(stomp.ConnectionListener):
         payload = Payload(ack_logic, nack_logic, headers, json.loads(body))
 
         if self._should_process_msg_on_background:
-            self._pool_executor.submit(self._callback, payload)
+            self._submit_task_to_worker_pool(payload)
         else:
             self._callback(payload)
+
+    def _submit_task_to_worker_pool(self, payload):
+        try:
+            self._pool_executor.submit(self._callback, payload)
+        except RuntimeError:
+            logger.warning("Worker pool was shutdown!")
+            self._pool_executor = self._create_new_worker_executor()
+            self._pool_executor.submit(self._callback, payload)
 
     def is_open(self):
         return self._connection.is_connected()
@@ -119,7 +133,7 @@ class Listener(stomp.ConnectionListener):
         self._connection.disconnect(receipt=disconnect_receipt)
         logger.info("Disconnected")
 
-    def __del__(self):
+    def shutdown_worker_pool(self):
         self._pool_executor.shutdown()
 
 
