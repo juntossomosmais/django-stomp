@@ -636,7 +636,7 @@ def test_should_use_heartbeat_and_dont_lose_connection_when_using_background_pro
     assert any(received_heartbeat_frame_regex.match(m) for m in caplog.messages)
     assert any(sending_heartbeat_message_regex.match(m) for m in caplog.messages)
     assert any(sending_ack_frame_regex.match(m) for m in caplog.messages)
-    assert any(heartbeat_timeout_regex.match(m) for m in caplog.messages)
+    assert not any(heartbeat_timeout_regex.match(m) for m in caplog.messages)
 
 
 def _test_callback_function_standard(payload: Payload):
