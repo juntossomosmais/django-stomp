@@ -11,14 +11,12 @@ from typing import Dict
 from typing import Optional
 
 import stomp
-from django.conf import settings
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import only_destination_name
+from django_stomp.settings import STOMP_PROCESS_MSG_WORKERS
 from stomp import connect
 
 logger = logging.getLogger("django_stomp")
-
-STOMP_PROCESS_MSG_WORKERS = getattr(settings, "STOMP_PROCESS_MSG_WORKERS", None)
 
 
 class Acknowledgements(Enum):
