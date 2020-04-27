@@ -23,6 +23,7 @@ def build_publisher(client_id: Optional[str] = None) -> Publisher:
 def build_listener(
     destination_name: str,
     durable_topic_subscription: bool = False,
+    should_process_msg_on_background: bool = False,
     is_testing: bool = False,
     client_id: Optional[str] = None,
     routing_key: Optional[str] = None,
@@ -34,6 +35,7 @@ def build_listener(
         durable_topic_subscription=durable_topic_subscription,
         is_testing=is_testing,
         routing_key=routing_key,
+        should_process_msg_on_background=should_process_msg_on_background,
         **connection_params,
     )
 
@@ -41,8 +43,8 @@ def build_listener(
 def _build_connection_parameter(client_id: Optional[str] = None) -> Dict:
     stomp_server_port = eval_as_int_otherwise_none(getattr(settings, "STOMP_SERVER_PORT", None))
     stomp_server_standby_port = eval_as_int_otherwise_none(getattr(settings, "STOMP_SERVER_STANDBY_PORT", None))
-    outgoing_heartbeat = eval_as_int_otherwise_none(getattr(settings, "STOMP_OUTGOING_HEARTBIT", None))
-    incoming_heartbeat = eval_as_int_otherwise_none(getattr(settings, "STOMP_INCOMING_HEARTBIT", None))
+    outgoing_heartbeat = eval_as_int_otherwise_none(getattr(settings, "STOMP_OUTGOING_HEARTBIT", "6000"))
+    incoming_heartbeat = eval_as_int_otherwise_none(getattr(settings, "STOMP_INCOMING_HEARTBIT", "6000"))
     subscription_id = getattr(settings, "STOMP_SUBSCRIPTION_ID", None)
 
     required_params = {

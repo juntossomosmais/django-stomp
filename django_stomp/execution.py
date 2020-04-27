@@ -24,6 +24,7 @@ wait_to_connect = int(getattr(settings, "STOMP_WAIT_TO_CONNECT", 10))
 durable_topic_subscription = eval_str_as_boolean(getattr(settings, "STOMP_DURABLE_TOPIC_SUBSCRIPTION", False))
 listener_client_id = getattr(settings, "STOMP_LISTENER_CLIENT_ID", None)
 is_correlation_id_required = eval_str_as_boolean(getattr(settings, "STOMP_CORRELATION_ID_REQUIRED", True))
+should_process_msg_on_background = eval_str_as_boolean(getattr(settings, "STOMP_PROCESS_MSG_ON_BACKGROUND", True))
 publisher_name = "django-stomp-another-target"
 
 
@@ -42,7 +43,13 @@ def start_processing(
         routing_key = get_subscription_destination(destination_name)
         _create_queue(destination_name, durable_topic_subscription=True, routing_key=routing_key)
     client_id = get_listener_client_id(durable_topic_subscription, listener_client_id)
-    listener = build_listener(destination_name, durable_topic_subscription, client_id=client_id)
+
+    listener = build_listener(
+        destination_name,
+        durable_topic_subscription,
+        client_id=client_id,
+        should_process_msg_on_background=should_process_msg_on_background,
+    )
 
     def main_logic() -> Optional[Listener]:
         try:

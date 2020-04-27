@@ -1,4 +1,5 @@
 import re
+import threading
 from time import sleep
 
 
@@ -34,3 +35,11 @@ def wait_for_message_in_log(caplog, message_to_wait, message_count_to_wait=None,
             break
         max_seconds_to_wait -= 1
         sleep(1)
+
+
+def get_active_threads_name_with_prefix(prefix: str):
+    """
+    Retrieves the threads name that starts with `prefix` and are active.
+    """
+    prefix_regex = re.compile(f"^{prefix}")
+    return [thread.name for thread in threading.enumerate() if prefix_regex.match(thread.name)]

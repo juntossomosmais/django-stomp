@@ -109,13 +109,14 @@ Here is a list of parameters that you can set in your Django project settings:
   A positive integer to indicates what is the period (in milliseconds) the client will send a frame to the server 
 that indicates its still alive. Set to ``0`` to means that it cannot send any heart-beat frame. See the [STOMP 
 protocol specification](https://stomp.github.io/stomp-specification-1.1.html#Heart-beating) for more information.
+Defaults to 6000 ms.
 
 ***STOMP_INCOMING_HEARTBIT***
     
   A positive integer to indicates what is the period (in milliseconds) the client will await for a server frame until 
 it assumes that the server is still alive. Set to ``0`` to means that it do not want to receive heart-beats. See 
 the [STOMP protocol specification](https://stomp.github.io/stomp-specification-1.1.html#Heart-beating) for more 
-information.
+information. Defaults to 6000 ms.
 
 ***STOMP_WAIT_TO_CONNECT***
     
@@ -135,10 +136,21 @@ subscription in ActiveMQ.
 
 ***STOMP_CORRELATION_ID_REQUIRED***
     
- A flag that indicates if `correlation-id` header must be required or not. By default this flag is true (good practice 
+  A flag that indicates if `correlation-id` header must be required or not. By default this flag is true (good practice 
 thinking in future troubleshooting). 
 Set to ``False, false, 0, F, f, N or n`` in order to allow consume messages without `correlation-id` header. If it's 
 false `django-stomp` generates a correlation-id header for the message automatically.
+
+***STOMP_PROCESS_MSG_ON_BACKGROUND***
+
+  A flag to indicate if it should process a received message on background, enabling the broker-consumer communication 
+to still take place.
+  Set to ``True, true, 1, T, t, Y or y`` in order to have the message processing on background.
+
+***STOMP_PROCESS_MSG_WORKERS***
+
+  Optional parameter that controls how many workers the pool that manage the background processing should create. If
+defined, this parameter **must** be an integer!
 
 ## Tests
 
@@ -160,6 +172,7 @@ Then at last:
 * Currently, we assume that all dead lettered messages are sent to a queue with the same name as its original 
 destination but prefixed with `DLQ.`, i.e., if your queue is `/queue/some-queue`, the dead letter destination is 
 asssumed to be `/queue/DLQ.some-queue`.
-* Be cautious with the heartbeat functionality! If your consumer is slow, it could prevent the client to receive and 
-process any `heart-beat` frame sent by the server, causing the client to terminate the connection due to a false 
-positive heartbeat timeout.
+* **Be cautious with the heartbeat functionality**! If your consumer is slow, it could prevent the client to receive 
+and process any `heart-beat` frame sent by the server, causing the client to terminate the connection due to a false 
+positive heartbeat timeout. You can workaround it with the `STOMP_PROCESS_MSG_ON_BACKGROUND` parameter that uses a
+thread pool to process the message.

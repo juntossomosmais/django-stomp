@@ -2,11 +2,10 @@ import functools
 import logging
 import time
 import uuid
-from typing import Dict
 from typing import Callable
+from typing import Dict
 
 import tenacity
-
 
 logger = logging.getLogger("django_stomp")
 
@@ -102,3 +101,17 @@ def retry(function: Callable, attempt=10, *args, **kwargs):
         reraise=True,
     )
     return retry_configuration(function, *args, **kwargs)
+
+
+def eval_as_int_if_provided_value_is_not_none_otherwise_none(value):
+    return int(value) if value is not None else None
+
+
+def is_heartbeat_enabled(outgoing_heartbeat: int, incoming_heartbeat: int):
+    """
+    Determine if STOMP heartbeat is enabled or not. Per the specification, it'll only be enabled
+    if a both estabilished times is greater than zero.
+
+    More on: https://stomp.github.io/stomp-specification-1.1.html#Heart-beating
+    """
+    return outgoing_heartbeat > 0 and incoming_heartbeat > 0
