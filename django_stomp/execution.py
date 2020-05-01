@@ -42,6 +42,7 @@ def start_processing(
     if is_destination_from_virtual_topic(destination_name):
         routing_key = get_subscription_destination(destination_name)
         _create_queue(destination_name, durable_topic_subscription=True, routing_key=routing_key)
+        logger.info("Created/Refreshed queue to consume from topic in case of RabbitMQ...")
     client_id = get_listener_client_id(durable_topic_subscription, listener_client_id)
 
     listener = build_listener(
@@ -158,6 +159,7 @@ def _create_queue(queue_name: str, durable_topic_subscription: bool = False, rou
 def _create_dlq_queue(destination_name: str):
     dlq_destination_name = create_dlq_destination_from_another_destination(destination_name)
     _create_queue(dlq_destination_name)
+    logger.info("Created/Refreshed DLQ in case of RabbitMQ...")
 
 
 def _get_or_create_correlation_id(headers: dict) -> str:

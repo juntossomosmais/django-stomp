@@ -23,7 +23,7 @@ def build_publisher(client_id: Optional[str] = None) -> Publisher:
 def build_listener(
     destination_name: str,
     durable_topic_subscription: bool = False,
-    should_process_msg_on_background: bool = False,
+    should_process_msg_on_background: bool = True,
     is_testing: bool = False,
     client_id: Optional[str] = None,
     routing_key: Optional[str] = None,
@@ -57,16 +57,13 @@ def _build_connection_parameter(client_id: Optional[str] = None) -> Dict:
         "subscriptionId": subscription_id,
         "vhost": getattr(settings, "STOMP_SERVER_VHOST", None),
     }
+    extra_params = {"use_ssl": eval_str_as_boolean(settings.STOMP_USE_SSL), "client_id": client_id}
 
-    logger.debug("Server details connection: %s", required_params)
+    logger.info("Server details connection: %s. Extra params: %s", required_params, extra_params)
 
     credentials = {
         "username": getattr(settings, "STOMP_SERVER_USER", None),
         "password": getattr(settings, "STOMP_SERVER_PASSWORD", None),
     }
-
-    extra_params = {"use_ssl": eval_str_as_boolean(settings.STOMP_USE_SSL), "client_id": client_id}
-
-    logger.debug("Extra params: %s", extra_params)
 
     return clean_dict_with_falsy_or_strange_values({**required_params, **extra_params, **credentials})
