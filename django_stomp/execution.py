@@ -169,6 +169,6 @@ def _get_or_create_correlation_id(headers: dict) -> str:
     if not is_correlation_id_required:
         correlation_id = uuid.uuid4()
         logger.info(f"New correlation-id was generated {correlation_id}")
-        return correlation_id
+        return str(correlation_id)
 
     raise CorrelationIdNotProvidedException(headers)
