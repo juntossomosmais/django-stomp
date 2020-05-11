@@ -375,8 +375,8 @@ def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_
         some_body = {"keyOne": 1, "keyTwo": 2}
         publisher.send(some_body, some_destination, attempt=1)
 
-    settings.STOMP_OUTGOING_HEARTBIT = 1000
-    settings.STOMP_INCOMING_HEARTBIT = 1000
+    settings.STOMP_OUTGOING_HEARTBEAT = 1000
+    settings.STOMP_INCOMING_HEARTBEAT = 1000
     mocker.patch("django_stomp.execution.should_process_msg_on_background", False)
 
     message_consumer = start_processing(
@@ -391,7 +391,7 @@ def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_
 
     assert any(
         re.compile(
-            f"Received frame.+eart-beat.+{settings.STOMP_OUTGOING_HEARTBIT},{settings.STOMP_INCOMING_HEARTBIT}"
+            f"Received frame.+eart-beat.+{settings.STOMP_OUTGOING_HEARTBEAT},{settings.STOMP_INCOMING_HEARTBEAT}"
         ).match(m)
         for m in caplog.messages
     )
@@ -616,8 +616,8 @@ def test_should_use_heartbeat_and_dont_lose_connection_when_using_background_pro
         some_body = {"keyOne": 1, "keyTwo": 2}
         publisher.send(some_body, some_destination, attempt=1)
 
-    settings.STOMP_OUTGOING_HEARTBIT = 1000
-    settings.STOMP_INCOMING_HEARTBIT = 1000
+    settings.STOMP_OUTGOING_HEARTBEAT = 1000
+    settings.STOMP_INCOMING_HEARTBEAT = 1000
 
     message_consumer = start_processing(
         some_destination, myself_with_test_callback_sleep_three_seconds, is_testing=True, return_listener=True
@@ -627,7 +627,7 @@ def test_should_use_heartbeat_and_dont_lose_connection_when_using_background_pro
     message_consumer.close()
 
     received_heartbeat_frame_regex = re.compile(
-        f"Received frame.+heart-beat.+{settings.STOMP_OUTGOING_HEARTBIT},{settings.STOMP_INCOMING_HEARTBIT}"
+        f"Received frame.+heart-beat.+{settings.STOMP_OUTGOING_HEARTBEAT},{settings.STOMP_INCOMING_HEARTBEAT}"
     )
     sending_heartbeat_message_regex = re.compile("Sending a heartbeat message at [0-9.]+")
     sending_ack_frame_regex = re.compile(f"Sending frame: .+ACK.+subscription:{message_consumer._subscription_id}.+")

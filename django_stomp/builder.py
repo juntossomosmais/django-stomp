@@ -52,8 +52,8 @@ def _build_connection_parameter(
         getattr(settings, "STOMP_SERVER_PORT", None)
     )
     stomp_server_standby_port = eval_as_int_otherwise_none(getattr(settings, "STOMP_SERVER_STANDBY_PORT", None))
-    outgoing_heartbeat = eval_as_int_otherwise_none(getattr(settings, "STOMP_OUTGOING_HEARTBIT", "6000"))
-    incoming_heartbeat = eval_as_int_otherwise_none(getattr(settings, "STOMP_INCOMING_HEARTBIT", "6000"))
+    outgoing_heartbeat = eval_as_int_otherwise_none(getattr(settings, "STOMP_OUTGOING_HEARTBEAT", "10000"))
+    incoming_heartbeat = eval_as_int_otherwise_none(getattr(settings, "STOMP_INCOMING_HEARTBEAT", "10000"))
     subscription_id = getattr(settings, "STOMP_SUBSCRIPTION_ID", None)
 
     required_params = {

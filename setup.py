@@ -10,7 +10,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name="django-stomp",
-    version="3.2.0",
+    version="4.0.0",
     description="A simple implementation of STOMP with Django",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -27,7 +27,7 @@ setup(
         "Framework :: Django :: 2.1",
         "Environment :: Web Environment",
         "Natural Language :: Portuguese (Brazilian)",
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Framework :: Django",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
