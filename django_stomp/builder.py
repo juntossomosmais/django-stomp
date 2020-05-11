@@ -27,8 +27,10 @@ def build_listener(
     is_testing: bool = False,
     client_id: Optional[str] = None,
     routing_key: Optional[str] = None,
+    custom_stomp_server_host: Optional[str] = None,
+    custom_stomp_server_port: Optional[int] = None,
 ) -> Listener:
-    connection_params = _build_connection_parameter(client_id)
+    connection_params = _build_connection_parameter(client_id, custom_stomp_server_host, custom_stomp_server_port)
 
     return consumer.build_listener(
         destination_name,
@@ -40,15 +42,22 @@ def build_listener(
     )
 
 
-def _build_connection_parameter(client_id: Optional[str] = None) -> Dict:
-    stomp_server_port = eval_as_int_otherwise_none(getattr(settings, "STOMP_SERVER_PORT", None))
+def _build_connection_parameter(
+    client_id: Optional[str] = None,
+    custom_stomp_server_host: Optional[str] = None,
+    custom_stomp_server_port: Optional[int] = None,
+) -> Dict:
+    stomp_server_host = custom_stomp_server_host or getattr(settings, "STOMP_SERVER_HOST", None)
+    stomp_server_port = eval_as_int_otherwise_none(custom_stomp_server_port) or eval_as_int_otherwise_none(
+        getattr(settings, "STOMP_SERVER_PORT", None)
+    )
     stomp_server_standby_port = eval_as_int_otherwise_none(getattr(settings, "STOMP_SERVER_STANDBY_PORT", None))
     outgoing_heartbeat = eval_as_int_otherwise_none(getattr(settings, "STOMP_OUTGOING_HEARTBIT", "6000"))
     incoming_heartbeat = eval_as_int_otherwise_none(getattr(settings, "STOMP_INCOMING_HEARTBIT", "6000"))
     subscription_id = getattr(settings, "STOMP_SUBSCRIPTION_ID", None)
 
     required_params = {
-        "host": getattr(settings, "STOMP_SERVER_HOST", None),
+        "host": stomp_server_host,
         "port": stomp_server_port,
         "hostStandby": getattr(settings, "STOMP_SERVER_STANDBY_HOST", None),
         "portStandby": stomp_server_standby_port,

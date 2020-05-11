@@ -35,14 +35,19 @@ def start_processing(
     testing_disconnect=True,
     param_to_callback=None,
     return_listener=False,
+    execute_workaround_to_deal_with_rabbit_mq=True,
+    broker_host_to_consume_messages: Optional[str] = None,
+    broker_port_to_consume_messages: Optional[int] = None,
 ) -> Optional[Listener]:
     callback_function = import_string(callback_str)
 
-    _create_dlq_queue(destination_name)
-    if is_destination_from_virtual_topic(destination_name):
-        routing_key = get_subscription_destination(destination_name)
-        _create_queue(destination_name, durable_topic_subscription=True, routing_key=routing_key)
-        logger.info("Created/Refreshed queue to consume from topic in case of RabbitMQ...")
+    if execute_workaround_to_deal_with_rabbit_mq:
+        _create_dlq_queue(destination_name)
+        if is_destination_from_virtual_topic(destination_name):
+            routing_key = get_subscription_destination(destination_name)
+            _create_queue(destination_name, durable_topic_subscription=True, routing_key=routing_key)
+            logger.info("Created/Refreshed queue to consume from topic in case of RabbitMQ...")
+
     client_id = get_listener_client_id(durable_topic_subscription, listener_client_id)
 
     listener = build_listener(
@@ -50,6 +55,8 @@ def start_processing(
         durable_topic_subscription,
         client_id=client_id,
         should_process_msg_on_background=should_process_msg_on_background,
+        custom_stomp_server_host=broker_host_to_consume_messages,
+        custom_stomp_server_port=broker_port_to_consume_messages,
     )
 
     def main_logic() -> Optional[Listener]:
@@ -115,8 +122,11 @@ def send_message_from_one_destination_to_another(
     is_testing: bool = False,
     testing_disconnect: bool = True,
     return_listener: bool = False,
+    custom_stomp_server_host: Optional[str] = None,
+    custom_stomp_server_port: Optional[int] = None,
 ) -> Listener:
     callback_function = "django_stomp.execution._callback_send_to_another_destination"
+
     return start_processing(
         source_destination,
         callback_function,
@@ -124,6 +134,9 @@ def send_message_from_one_destination_to_another(
         testing_disconnect=testing_disconnect,
         param_to_callback=target_destination,
         return_listener=return_listener,
+        execute_workaround_to_deal_with_rabbit_mq=False,
+        broker_host_to_consume_messages=custom_stomp_server_host,
+        broker_port_to_consume_messages=custom_stomp_server_port,
     )
 
 
