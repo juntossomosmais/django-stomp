@@ -104,19 +104,19 @@ Here is a list of parameters that you can set in your Django project settings:
   Used to identify the subscription in the connection between client and server. See the [STOMP protocol specification
 ](https://stomp.github.io/stomp-specification-1.1.html#SUBSCRIBE_id_Header) for more information.
 
-***STOMP_OUTGOING_HEARTBIT***
+***STOMP_OUTGOING_HEARTBEAT***
     
   A positive integer to indicates what is the period (in milliseconds) the client will send a frame to the server 
 that indicates its still alive. Set to ``0`` to means that it cannot send any heart-beat frame. See the [STOMP 
 protocol specification](https://stomp.github.io/stomp-specification-1.1.html#Heart-beating) for more information.
-Defaults to 6000 ms.
+Defaults to 10000 ms.
 
-***STOMP_INCOMING_HEARTBIT***
+***STOMP_INCOMING_HEARTBEAT***
     
   A positive integer to indicates what is the period (in milliseconds) the client will await for a server frame until 
 it assumes that the server is still alive. Set to ``0`` to means that it do not want to receive heart-beats. See 
 the [STOMP protocol specification](https://stomp.github.io/stomp-specification-1.1.html#Heart-beating) for more 
-information. Defaults to 6000 ms.
+information. Defaults to 10000 ms.
 
 ***STOMP_WAIT_TO_CONNECT***
     
