@@ -182,6 +182,7 @@ def build_listener(
         # RabbitMQ
         "x-queue-name": only_destination_name(destination_name),
         "auto-delete": "false",
+        "durable": "true",
     }
     header_setup = {
         # ActiveMQ
@@ -199,8 +200,6 @@ def build_listener(
             # ActiveMQ
             "activemq.subscriptionName": header_setup["client-id"],
             "activemq.subcriptionName": header_setup["client-id"],
-            # RabbitMQ
-            "durable": "true",
         }
         header_setup.update(durable_subs_header)
     connection_configuration = {

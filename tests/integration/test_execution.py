@@ -656,6 +656,38 @@ def test_shouldnt_create_a_durable_subscriber_when_dealing_with_virtual_topics()
     )
 
 
+def test_should_connect_with_a_queue_created_without_the_durable_header(caplog):
+    caplog.set_level(logging.DEBUG)
+
+    some_destination = f"/queue/some-queue-{uuid.uuid4()}"
+    listener = build_listener(some_destination)
+    listener._subscription_configuration.pop("durable")
+    listener.start(wait_forever=False)
+    listener.close()
+
+    send_frames_with_durable_true_regex = re.compile(r"^Sending frame:.*durable:true.*")
+    send_frames_with_durable_true_logs = [m for m in caplog.messages if send_frames_with_durable_true_regex.match(m)]
+
+    assert not send_frames_with_durable_true_logs
+
+    publisher = build_publisher()
+    some_correlation_id = uuid.uuid4()
+    some_header = {"correlation-id": some_correlation_id}
+    some_body = {"keyOne": 1, "keyTwo": 2}
+    publisher.send(some_body, some_destination, headers=some_header, attempt=1)
+
+    # Calling what we need to test
+    message_consumer = start_processing(
+        some_destination, myself_with_test_callback_with_log, is_testing=True, return_listener=True
+    )
+
+    wait_for_message_in_log(caplog, r"Sending frame: \[b'ACK'.*", message_count_to_wait=1)
+    message_consumer.close()
+
+    consumer_log_message_regex = re.compile(f"I'll process the message: {some_body}!")
+    assert any([consumer_log_message_regex.match(m) for m in caplog.messages])
+
+
 def _test_callback_function_standard(payload: Payload):
     # Should dequeue the message
     payload.ack()
