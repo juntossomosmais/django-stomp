@@ -176,3 +176,6 @@ asssumed to be `/queue/DLQ.some-queue`.
 and process any `heart-beat` frame sent by the server, causing the client to terminate the connection due to a false 
 positive heartbeat timeout. You can workaround it with the `STOMP_PROCESS_MSG_ON_BACKGROUND` parameter that uses a
 thread pool to process the message.
+* For the RabbitMQ users: the **django-stomp consumer** always try to connect to a 
+[durable queue](https://www.rabbitmq.com/queues.html#durability), so if your queue is not durable, the RabbitMQ broker 
+will not allow the subscription.

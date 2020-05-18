@@ -666,9 +666,8 @@ def test_should_connect_with_a_queue_created_without_the_durable_header(caplog):
     listener.close()
 
     send_frames_with_durable_true_regex = re.compile(r"^Sending frame:.*durable:true.*")
-    send_frames_with_durable_true_logs = [m for m in caplog.messages if send_frames_with_durable_true_regex.match(m)]
 
-    assert not send_frames_with_durable_true_logs
+    assert all(not send_frames_with_durable_true_regex.match(m) for m in caplog.messages)
 
     publisher = build_publisher()
     some_correlation_id = uuid.uuid4()
@@ -685,7 +684,9 @@ def test_should_connect_with_a_queue_created_without_the_durable_header(caplog):
     message_consumer.close()
 
     consumer_log_message_regex = re.compile(f"I'll process the message: {some_body}!")
-    assert any([consumer_log_message_regex.match(m) for m in caplog.messages])
+
+    assert any(send_frames_with_durable_true_regex.match(m) for m in caplog.messages)
+    assert any(consumer_log_message_regex.match(m) for m in caplog.messages)
 
 
 def _test_callback_function_standard(payload: Payload):
