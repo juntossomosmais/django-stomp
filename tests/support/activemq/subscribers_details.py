@@ -18,7 +18,6 @@ def offline_durable_subscribers(host) -> Generator[SubscriberSetup, None, None]:
         .getall()
     )
 
-    assert len(all_offline_subscribers) > 0
     for index, column_details in enumerate(all_offline_subscribers):
         column_details_as_selector = Selector(text=column_details)
         client_id_request_path = column_details_as_selector.css("td a::attr(href)").get()
