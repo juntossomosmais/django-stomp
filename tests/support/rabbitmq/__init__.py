@@ -16,6 +16,7 @@ _bindings_from_queue_request_path = _queues_details_request_path + "/%2F/{queue_
 _get_message_from_queue_request_path = _queues_details_request_path + "/%2F/{queue_name}/get"
 _channels_details_request_path = "/api/channels"
 _channel_details_from_channel_request_path = _channels_details_request_path + "/{channel_name}"
+_overview_request_path = "/api/overview"
 
 
 def current_queue_configuration(queue_name, host="localhost", port=15672) -> Optional[CurrentDestinationStatus]:
@@ -110,6 +111,11 @@ def retrieve_message_published(destination_name, host="localhost", port=15672) -
     headers = properties.pop("headers")
 
     return MessageStatus(None, details, persistent, correlation_id, {**headers, **properties})
+
+
+def get_broker_version(host="localhost", port=15672) -> str:
+    broker_overview = _do_request(host, port, _overview_request_path)
+    return broker_overview["rabbitmq_version"]
 
 
 def _do_request(host, port, request_path, do_post=False, body=None):

@@ -45,7 +45,7 @@ def start_processing(
         _create_dlq_queue(destination_name)
         if is_destination_from_virtual_topic(destination_name):
             routing_key = get_subscription_destination(destination_name)
-            _create_queue(destination_name, durable_topic_subscription=True, routing_key=routing_key)
+            _create_queue(destination_name, routing_key=routing_key)
             logger.info("Created/Refreshed queue to consume from topic in case of RabbitMQ...")
 
     client_id = get_listener_client_id(durable_topic_subscription, listener_client_id)

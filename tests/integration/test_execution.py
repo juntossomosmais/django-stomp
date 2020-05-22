@@ -23,6 +23,7 @@ from tests.support.activemq.message_details import retrieve_message_published
 from tests.support.activemq.queue_details import current_queue_configuration
 from tests.support.activemq.subscribers_details import offline_durable_subscribers
 from tests.support.activemq.topic_details import current_topic_configuration
+from tests.support.helpers import is_testing_against_rabbitmq
 from tests.support.helpers import wait_for_message_in_log
 
 myself_with_test_callback_standard = "tests.integration.test_execution._test_callback_function_standard"
@@ -168,6 +169,7 @@ def test_should_create_durable_subscriber_and_receive_standby_messages(mocker: M
         assert destination_status.messages_dequeued == 3
 
         all_offline_subscribers = list(offline_durable_subscribers("localhost"))
+        assert len(all_offline_subscribers) > 0
         for index, subscriber_setup in enumerate(all_offline_subscribers):
             if subscriber_setup.subscriber_id == f"{temp_uuid_listener}-listener":
                 assert subscriber_setup.dispatched_counter == 3
@@ -637,6 +639,54 @@ def test_should_use_heartbeat_and_dont_lose_connection_when_using_background_pro
     assert any(sending_heartbeat_message_regex.match(m) for m in caplog.messages)
     assert any(sending_ack_frame_regex.match(m) for m in caplog.messages)
     assert not any(heartbeat_timeout_regex.match(m) for m in caplog.messages)
+
+
+@pytest.mark.skipif(is_testing_against_rabbitmq(), reason="RabbitMQ doesn't holds the concept of a durable subscriber")
+def test_shouldnt_create_a_durable_subscriber_when_dealing_with_virtual_topics():
+    all_offline_subscribers_before_the_virtual_topic_connection = list(offline_durable_subscribers("localhost"))
+
+    some_virtual_topic = f"VirtualTopic.{uuid.uuid4()}"
+    virtual_topic_consumer_queue = f"Consumer.{uuid.uuid4()}.{some_virtual_topic}"
+    start_processing(virtual_topic_consumer_queue, myself_with_test_callback_one, is_testing=True)
+
+    all_offline_subscribers_after_the_virtual_topic_connection = list(offline_durable_subscribers("localhost"))
+
+    assert sorted(all_offline_subscribers_before_the_virtual_topic_connection) == sorted(
+        all_offline_subscribers_after_the_virtual_topic_connection
+    )
+
+
+def test_should_connect_with_a_queue_created_without_the_durable_header(caplog):
+    caplog.set_level(logging.DEBUG)
+
+    some_destination = f"/queue/some-queue-{uuid.uuid4()}"
+    listener = build_listener(some_destination)
+    listener._subscription_configuration.pop("durable")
+    listener.start(wait_forever=False)
+    listener.close()
+
+    send_frames_with_durable_true_regex = re.compile(r"^Sending frame:.*durable:true.*")
+
+    assert all(not send_frames_with_durable_true_regex.match(m) for m in caplog.messages)
+
+    publisher = build_publisher()
+    some_correlation_id = uuid.uuid4()
+    some_header = {"correlation-id": some_correlation_id}
+    some_body = {"keyOne": 1, "keyTwo": 2}
+    publisher.send(some_body, some_destination, headers=some_header, attempt=1)
+
+    # Calling what we need to test
+    message_consumer = start_processing(
+        some_destination, myself_with_test_callback_with_log, is_testing=True, return_listener=True
+    )
+
+    wait_for_message_in_log(caplog, r"Sending frame: \[b'ACK'.*", message_count_to_wait=1)
+    message_consumer.close()
+
+    consumer_log_message_regex = re.compile(f"I'll process the message: {some_body}!")
+
+    assert any(send_frames_with_durable_true_regex.match(m) for m in caplog.messages)
+    assert any(consumer_log_message_regex.match(m) for m in caplog.messages)
 
 
 def _test_callback_function_standard(payload: Payload):

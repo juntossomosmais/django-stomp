@@ -2,6 +2,8 @@ import re
 import threading
 from time import sleep
 
+from tests.support import rabbitmq
+
 
 def iterable_len(iterable):
     """
@@ -43,3 +45,14 @@ def get_active_threads_name_with_prefix(prefix: str):
     """
     prefix_regex = re.compile(f"^{prefix}")
     return [thread.name for thread in threading.enumerate() if prefix_regex.match(thread.name)]
+
+
+def is_testing_against_rabbitmq() -> bool:
+    """
+    Verify if the test suite is running against RabbitMQ.
+    """
+    try:
+        rabbitmq.get_broker_version()
+        return True
+    except Exception:
+        return False
