@@ -788,5 +788,5 @@ def test_should_clean_all_messages_on_a_destination(caplog):
 
     assert source_queue_status.number_of_pending_messages == 0
     assert source_queue_status.number_of_consumers == 0
-    assert source_queue_status.messages_enqueued == 10
-    assert source_queue_status.messages_dequeued == 10  # cleaned queue!
+    assert source_queue_status.messages_enqueued == trash_msgs_count  # enqueued the queue with trash!
+    assert source_queue_status.messages_dequeued == trash_msgs_count  # cleaned all the trash on the queue!
