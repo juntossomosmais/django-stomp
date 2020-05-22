@@ -139,6 +139,39 @@ def send_message_from_one_destination_to_another(
         broker_port_to_consume_messages=custom_stomp_server_port,
     )
 
+def clean_messages_on_queue_by_acking(
+    source_destination: str,
+    is_testing: bool = False,
+    testing_disconnect: bool = True,
+    return_listener: bool = False,
+) -> Listener:
+    """
+    Cleans a queue by acking all messages on it (no queue purging or deleting).
+    """
+    ack_only_callback_path = "django_stomp.execution._callback_for_cleaning_queues"
+
+    return start_processing(
+        source_destination,
+        ack_only_callback_path,
+        is_testing=is_testing,
+        testing_disconnect=testing_disconnect,
+        return_listener=return_listener,
+        execute_workaround_to_deal_with_rabbit_mq=False,
+    )
+
+
+def _callback_for_cleaning_queues(payload: Payload):
+    """
+    Callback that just acks all messages on a queue for cleaning it.
+    """
+    headers = payload.headers
+    body = payload.body
+    logger.info("Acking the following headers: %s, and body: %s", headers, body)
+
+    payload.ack()
+    logger.info("Message has been removed!")
+
+
 
 def _callback_send_to_another_destination(payload: Payload, target_destination):
     logger.info(f"Message received!")
