@@ -11,7 +11,8 @@ from django.core.management import call_command
 from django.core.serializers.json import DjangoJSONEncoder
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
-from django_stomp.execution import send_message_from_one_destination_to_another, clean_messages_on_queue_by_acking
+from django_stomp.execution import clean_messages_on_destination_by_acking
+from django_stomp.execution import send_message_from_one_destination_to_another
 from django_stomp.execution import start_processing
 from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
 from django_stomp.helpers import create_dlq_destination_from_another_destination
@@ -772,7 +773,7 @@ def test_should_clean_all_messages_on_a_destination(caplog):
             publisher.send(some_body, some_source_destination, some_headers, attempt=1)
 
     # # command invocation
-    consumer = clean_messages_on_queue_by_acking(some_source_destination, is_testing=True, return_listener=True)
+    consumer = clean_messages_on_destination_by_acking(some_source_destination, is_testing=True, return_listener=True)
     wait_for_message_in_log(caplog, r"Message has been removed!", message_count_to_wait=trash_msgs_count)
     consumer.close()
 

@@ -140,7 +140,7 @@ def send_message_from_one_destination_to_another(
     )
 
 
-def clean_messages_on_queue_by_acking(
+def clean_messages_on_destination_by_acking(
     source_destination: str, is_testing: bool = False, testing_disconnect: bool = True, return_listener: bool = False,
 ) -> Listener:
     """

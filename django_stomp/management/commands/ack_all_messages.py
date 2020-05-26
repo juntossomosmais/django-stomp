@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 from django_stomp.exceptions import DjangoStompIncorrectUse
-from django_stomp.execution import clean_messages_on_queue_by_acking
+from django_stomp.execution import clean_messages_on_destination_by_acking
 
 
 class Command(BaseCommand):
@@ -17,4 +17,4 @@ class Command(BaseCommand):
             raise DjangoStompIncorrectUse("No destination_to_clean was supplied! Nothing to clean!")
 
         self.stdout.write(f"Preparing to clean the queue: {source_destination}")
-        clean_messages_on_queue_by_acking(source_destination)
+        clean_messages_on_destination_by_acking(source_destination)
