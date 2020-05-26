@@ -7,9 +7,11 @@ from time import sleep
 
 import pytest
 import trio
+from django.core.management import call_command
 from django.core.serializers.json import DjangoJSONEncoder
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
+from django_stomp.execution import clean_messages_on_destination_by_acking
 from django_stomp.execution import send_message_from_one_destination_to_another
 from django_stomp.execution import start_processing
 from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
@@ -754,3 +756,38 @@ def _test_callback_function_with_sleep_three_seconds(payload: Payload):
     payload.ack()
     logger = logging.getLogger(__name__)
     logger.info("%s sucessfully processed!", payload.body)
+
+
+def test_should_clean_all_messages_on_a_destination(caplog):
+    caplog.set_level(logging.DEBUG)
+
+    some_source_destination = f"/queue/flood-this-queue-with-trash"
+    trash_msgs_count = 10
+
+    # publishes trash to a destination
+    with build_publisher().auto_open_close_connection() as publisher:
+        some_body = {"some": "trash"}
+        some_headers = {"some": "header"}
+
+        for i in range(0, trash_msgs_count):
+            publisher.send(some_body, some_source_destination, some_headers, attempt=1)
+
+    # # command invocation
+    consumer = clean_messages_on_destination_by_acking(some_source_destination, is_testing=True, return_listener=True)
+    wait_for_message_in_log(caplog, r"Message has been removed!", message_count_to_wait=trash_msgs_count)
+    consumer.close()
+
+    # removing /queue/
+    *_, source_queue_name = some_source_destination.split("/")
+
+    try:
+        # if activemq broker is running
+        source_queue_status = current_queue_configuration(source_queue_name)
+    except Exception:
+        # if rabbitmq broker is running
+        source_queue_status = rabbitmq.current_queue_configuration(source_queue_name)
+
+    assert source_queue_status.number_of_pending_messages == 0
+    assert source_queue_status.number_of_consumers == 0
+    assert source_queue_status.messages_enqueued == trash_msgs_count  # enqueued the queue with trash!
+    assert source_queue_status.messages_dequeued == trash_msgs_count  # cleaned all the trash on the queue!
