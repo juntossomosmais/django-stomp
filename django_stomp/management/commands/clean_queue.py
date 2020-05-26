@@ -1,7 +1,6 @@
 from django.core.management.base import BaseCommand
-
 from django_stomp.exceptions import DjangoStompIncorrectUse
-from django_stomp.execution import start_processing, clean_messages_on_queue_by_acking
+from django_stomp.execution import clean_messages_on_queue_by_acking
 
 
 class Command(BaseCommand):

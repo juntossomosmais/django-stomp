@@ -139,11 +139,9 @@ def send_message_from_one_destination_to_another(
         broker_port_to_consume_messages=custom_stomp_server_port,
     )
 
+
 def clean_messages_on_queue_by_acking(
-    source_destination: str,
-    is_testing: bool = False,
-    testing_disconnect: bool = True,
-    return_listener: bool = False,
+    source_destination: str, is_testing: bool = False, testing_disconnect: bool = True, return_listener: bool = False,
 ) -> Listener:
     """
     Cleans a queue by acking all messages on it (no queue purging or deleting).
@@ -170,7 +168,6 @@ def _callback_for_cleaning_queues(payload: Payload):
 
     payload.ack()
     logger.info("Message has been removed!")
-
 
 
 def _callback_send_to_another_destination(payload: Payload, target_destination):
