@@ -46,8 +46,7 @@ class Publisher:
 
     def send(self, body: dict, queue: str, headers=None, persistent=True, attempt=10):
         """
-        Builds the final message headers by adding and removing some dangerous keys. Also, constructs
-        the final send data that and sends it to the broker using the STOMP protocol.
+        Builds the final message headers/body and sends to the broker with the STOMP protocol.
         """
         final_headers = self._build_final_headers(queue, headers, persistent)
         send_data = self._build_send_data(queue, body, final_headers)
@@ -56,7 +55,7 @@ class Publisher:
 
     def _build_final_headers(self, queue: str, headers: Dict, persistent: bool):
         """
-        Builds the message final headers.
+        Builds the message final headers. Removes unsafe or broker-reserved headers.
         """
         correlation_id = current_request_id() if current_request_id() != NO_REQUEST_ID else uuid.uuid4()
 
@@ -82,7 +81,7 @@ class Publisher:
     def _remove_unsafe_or_reserved_for_broker_use_headers(self, headers: Dict) -> Dict:
         """
         Removes headers that are used internally by the brokers or that might
-        cause unexpected behaviors.
+        cause unexpected behaviors (unsafe).
         """
         headers_for_removal = UNSAFE_OR_RESERVED_BROKER_HEADERS
         clean_headers = {key: headers[key] for key in headers if key not in headers_for_removal}

@@ -21,5 +21,5 @@ STOMP_PROCESS_MSG_WORKERS = eval_settings_otherwise_raise_exception(
 )
 
 # headers that must be purged from messages if present
-# message-id is used by RabbitMQ
+# 'message-id': RabbitMQ uses it internally
 UNSAFE_OR_RESERVED_BROKER_HEADERS = ["message-id"]
