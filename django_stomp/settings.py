@@ -19,3 +19,7 @@ def eval_settings_otherwise_raise_exception(
 STOMP_PROCESS_MSG_WORKERS = eval_settings_otherwise_raise_exception(
     "STOMP_PROCESS_MSG_WORKERS", eval_as_int_if_provided_value_is_not_none_otherwise_none
 )
+
+# headers that must be purged from messages if present
+# message-id is used by RabbitMQ
+UNSAFE_OR_RESERVED_BROKER_HEADERS = ["message-id"]

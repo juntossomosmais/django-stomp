@@ -4,12 +4,14 @@ import ssl
 import uuid
 from contextlib import contextmanager
 from typing import Dict
+from typing import List
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
-from django_stomp.helpers import retry
 from django_stomp.helpers import create_dlq_destination_from_another_destination
+from django_stomp.helpers import retry
 from django_stomp.helpers import slow_down
+from django_stomp.settings import UNSAFE_OR_RESERVED_BROKER_HEADERS
 from request_id_django_log.request_id import current_request_id
 from request_id_django_log.settings import NO_REQUEST_ID
 from stomp import Connection
@@ -43,8 +45,22 @@ class Publisher:
             self.start()
 
     def send(self, body: dict, queue: str, headers=None, persistent=True, attempt=10):
+        """
+        Builds the final message header by adding some valeus and by removing some dangerous ones and
+        constructs the final send data that is sent to the broker via STOMP protocol.
+        """
+        final_headers = self._build_final_headers(queue, headers, persistent)
+        send_data = self._build_send_data(queue, body, final_headers)
+
+        self._send_to_broker(send_data, how_many_attempts=attempt)
+
+    def _build_final_headers(self, queue: str, headers: Dict, persistent: bool):
+        """
+        Builds the message final headers.
+        """
         correlation_id = current_request_id() if current_request_id() != NO_REQUEST_ID else uuid.uuid4()
-        standard_header = {
+
+        standard_headers = {
             "correlation-id": correlation_id,
             "tshoot-destination": queue,
             # RabbitMQ
@@ -52,26 +68,52 @@ class Publisher:
             "x-dead-letter-routing-key": create_dlq_destination_from_another_destination(queue),
             "x-dead-letter-exchange": "",
         }
-        if headers:
-            standard_header.update(headers)
-        if persistent:
-            standard_header = self._add_persistent_messaging_header(standard_header)
 
-        send_params = {
+        if headers:
+            standard_headers.update(headers)
+
+        if persistent:
+            standard_headers = self._add_persistent_messaging_header(standard_headers)
+
+        clean_headers = self._remove_unsafe_or_reserved_for_broker_use_headers(standard_headers)
+
+        return clean_headers
+
+    def _remove_unsafe_or_reserved_for_broker_use_headers(self, headers: Dict) -> Dict:
+        """
+        Removes headers that are used internally by the brokers or that might
+        cause unexpected behaviors.
+        """
+        headers_for_removal = UNSAFE_OR_RESERVED_BROKER_HEADERS
+        clean_headers = {key: headers[key] for key in headers if key not in headers_for_removal}
+
+        return clean_headers
+
+    def _build_send_data(self, queue: str, body: Dict, clean_headers: Dict) -> Dict:
+        """
+        Builds the final data shape required to send messages using the STOMP protocol.
+        """
+        send_data = {
             "destination": queue,
             "body": json.dumps(body, cls=DjangoJSONEncoder),
-            "headers": standard_header,
+            "headers": clean_headers,
             "content_type": self._default_content_type,
             "transaction": getattr(self, "_tmp_transaction_id", None),
         }
-        send_params = clean_dict_with_falsy_or_strange_values(send_params)
+
+        send_data = clean_dict_with_falsy_or_strange_values(send_data)
+        return send_data
+
+    def _send_to_broker(self, send_data: Dict, how_many_attempts: int) -> None:
+        """
+        Sends the actual data to the broker using the STOMP protocol.
+        """
 
         def _internal_send_logic():
             self.start_if_not_open()
-            self.connection.send(**send_params)
+            self.connection.send(**send_data)
 
-        retry(_internal_send_logic, attempt=attempt)
-
+        retry(_internal_send_logic, attempt=how_many_attempts)
 
     @staticmethod
     def _add_persistent_messaging_header(headers: Dict) -> Dict:
