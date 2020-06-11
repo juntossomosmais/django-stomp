@@ -46,8 +46,8 @@ class Publisher:
 
     def send(self, body: dict, queue: str, headers=None, persistent=True, attempt=10):
         """
-        Builds the final message header by adding some valeus and by removing some dangerous ones and
-        constructs the final send data that is sent to the broker via STOMP protocol.
+        Builds the final message headers by adding and removing some dangerous keys. Also, constructs
+        the final send data that and sends it to the broker using the STOMP protocol.
         """
         final_headers = self._build_final_headers(queue, headers, persistent)
         send_data = self._build_send_data(queue, body, final_headers)
