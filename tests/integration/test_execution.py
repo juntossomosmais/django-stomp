@@ -2,6 +2,7 @@ import json
 import logging
 import re
 import threading
+import time
 import uuid
 from time import sleep
 
@@ -582,6 +583,40 @@ def test_should_raise_exception_when_correlation_id_is_required_but_not_received
         assert start_processing(test_destination_one, myself_with_test_callback_one, is_testing=True)
 
 
+def test_should_raise_exception_when_correlation_id_is_not_supplied_and_publish_it_to_dlq(settings, caplog):
+    settings.STOMP_CORRELATION_ID_REQUIRED = True  # required!
+
+    some_body = {"keyOne": 1, "keyTwo": 2}
+    destination_name = "/queue/some-destination"
+    # publishes messages WITHOUT correlation-id header
+    # if NOT persistent, then no messages are saved on ACTIVEMQ (test fails) -- on RabbitMQ it's okay!
+    _test_send_message_without_correlation_id_header(some_body, destination_name, persistent=True)
+
+    consumer = start_processing(
+        destination_name, myself_with_test_callback_standard, is_testing=True, return_listener=True
+    )
+    wait_for_message_in_log(
+        caplog,
+        r"A exception of type <class 'django_stomp\.exceptions\.CorrelationIdNotProvidedException'>.*",
+        message_count_to_wait=1,
+    )
+    consumer.close()
+
+    # removing /queue/
+    *_, source_queue_name = destination_name.split("/")
+    dlq_source_queue_name = f"DLQ.{source_queue_name}"  # asserts that DLQ has a message on it!
+
+    try:
+        # if activemq broker is running
+        dlq_source_queue_status = current_queue_configuration(dlq_source_queue_name)
+    except Exception:
+        # if rabbitmq broker is running
+        dlq_source_queue_status = rabbitmq.current_queue_configuration(dlq_source_queue_name)
+
+    assert dlq_source_queue_status.number_of_pending_messages == 1
+    assert dlq_source_queue_status.number_of_consumers == 0
+
+
 def test_should_consume_message_without_correlation_id_when_it_is_not_required(settings):
     settings.STOMP_CORRELATION_ID_REQUIRED = False
 
@@ -725,8 +760,9 @@ def _test_callback_function_with_another_log_message(payload: Payload):
     payload.ack()
 
 
-def _test_send_message_without_correlation_id_header(body: str, queue: str, attempt=1):
+def _test_send_message_without_correlation_id_header(body: str, queue: str, attempt=1, persistent=True):
     publisher = build_publisher()
+
     standard_header = {
         "tshoot-destination": queue,
         # RabbitMQ
@@ -734,6 +770,9 @@ def _test_send_message_without_correlation_id_header(body: str, queue: str, atte
         "x-dead-letter-routing-key": create_dlq_destination_from_another_destination(queue),
         "x-dead-letter-exchange": "",
     }
+
+    if persistent:
+        standard_header.update({"persistent": "true"})
 
     send_params = {
         "destination": queue,
