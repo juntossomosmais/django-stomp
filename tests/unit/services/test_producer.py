@@ -65,10 +65,10 @@ def test_should_remove_unsafe_headers():
     publisher = build_publisher("test-publisher")
 
     ok_headers = {"hello": "world", "eventType": "goal"}
-    unsafe_heaers = {"eventType": "goal", "message-id": "remove-me-please"}
+    unsafe_headers = {"eventType": "goal", "message-id": "remove-me-please"}
 
     assert publisher._remove_unsafe_or_reserved_for_broker_use_headers(ok_headers) == ok_headers
-    assert publisher._remove_unsafe_or_reserved_for_broker_use_headers(unsafe_heaers) == {"eventType": "goal"}
+    assert publisher._remove_unsafe_or_reserved_for_broker_use_headers(unsafe_headers) == {"eventType": "goal"}
 
 
 def test_should_build_send_data_for_broker():
