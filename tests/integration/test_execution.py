@@ -605,7 +605,7 @@ def test_should_raise_exception_when_correlation_id_is_not_supplied_and_publish_
 
     # removing /queue/
     *_, source_queue_name = destination_name.split("/")
-    dlq_source_queue_name = f"DLQ.{source_queue_name}"  # asserts that DLQ has a message on it!
+    dlq_source_queue_name = f"DLQ.{source_queue_name}"
 
     try:
         # if activemq broker is running
@@ -614,6 +614,7 @@ def test_should_raise_exception_when_correlation_id_is_not_supplied_and_publish_
         # if rabbitmq broker is running
         dlq_source_queue_status = rabbitmq.current_queue_configuration(dlq_source_queue_name)
 
+    # asserts that DLQ has a message on it!
     assert dlq_source_queue_status.number_of_pending_messages == 1
     assert dlq_source_queue_status.number_of_consumers == 0
 
