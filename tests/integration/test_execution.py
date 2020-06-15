@@ -588,8 +588,9 @@ def test_should_raise_exception_when_correlation_id_is_not_supplied_and_publish_
 
     some_body = {"keyOne": 1, "keyTwo": 2}
     destination_name = "/queue/some-destination"
-    # publishes messages WITHOUT correlation-id header
-    # if NOT persistent, then no messages are saved on ACTIVEMQ (test fails) -- on RabbitMQ it's okay!
+
+    # publishes messages WITHOUT correlation-id header, but message must be persistent or won't go to DLQ
+    # https://activemq.apache.org/message-redelivery-and-dlq-handling
     _test_send_message_without_correlation_id_header(some_body, destination_name, persistent=True)
 
     consumer = start_processing(
