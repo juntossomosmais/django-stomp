@@ -11,7 +11,6 @@ from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import retry
 from django_stomp.helpers import slow_down
-from django_stomp.settings import UNSAFE_OR_RESERVED_BROKER_HEADERS
 from request_id_django_log.request_id import current_request_id
 from request_id_django_log.settings import NO_REQUEST_ID
 from stomp import Connection
@@ -21,6 +20,10 @@ logger = logging.getLogger("django_stomp")
 
 
 class Publisher:
+    # headers that must be purged from messages if present
+    # 'message-id': RabbitMQ uses it internally
+    UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL = ["message-id"]
+
     def __init__(self, connection: StompConnection11, connection_configuration: Dict) -> None:
         self._connection_configuration = connection_configuration
         self.connection = connection
@@ -83,8 +86,9 @@ class Publisher:
         Removes headers that are used internally by the brokers or that might
         cause unexpected behaviors (unsafe).
         """
-        headers_for_removal = UNSAFE_OR_RESERVED_BROKER_HEADERS
-        clean_headers = {key: headers[key] for key in headers if key not in headers_for_removal}
+        clean_headers = {
+            key: headers[key] for key in headers if key not in self.UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL
+        }
 
         return clean_headers
 
