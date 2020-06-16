@@ -2,8 +2,11 @@ import json
 import logging
 import re
 import threading
+import time
 import uuid
 from time import sleep
+from unittest import mock
+from uuid import uuid4
 
 import pytest
 import trio
@@ -358,7 +361,8 @@ def test_should_send_to_another_destination(caplog):
     assert message_status.details == some_body
 
 
-def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_than_heartbeat(
+@mock.patch("django_stomp.execution.should_process_msg_on_background", False)
+def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_than_heartbeat_no_background_processing(
     caplog, settings, mocker
 ):
     """
@@ -381,7 +385,6 @@ def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_
 
     settings.STOMP_OUTGOING_HEARTBEAT = 1000
     settings.STOMP_INCOMING_HEARTBEAT = 1000
-    mocker.patch("django_stomp.execution.should_process_msg_on_background", False)
 
     message_consumer = start_processing(
         some_destination,
@@ -572,9 +575,8 @@ def test_shouldnt_process_message_from_virtual_topic_older_than_the_consumer_que
         assert queue_status.messages_dequeued == 0
 
 
+@mock.patch("django_stomp.execution.is_correlation_id_required", True)
 def test_should_raise_exception_when_correlation_id_is_required_but_not_received(settings):
-    settings.STOMP_CORRELATION_ID_REQUIRED = True
-
     some_body = {"keyOne": 1, "keyTwo": 2}
     _test_send_message_without_correlation_id_header(some_body, test_destination_one)
 
@@ -582,29 +584,82 @@ def test_should_raise_exception_when_correlation_id_is_required_but_not_received
         assert start_processing(test_destination_one, myself_with_test_callback_one, is_testing=True)
 
 
-def test_should_consume_message_without_correlation_id_when_it_is_not_required(settings):
-    settings.STOMP_CORRELATION_ID_REQUIRED = False
-
+@mock.patch("django_stomp.execution.is_correlation_id_required", True)
+def test_should_raise_exception_when_correlation_id_is_not_supplied_and_publish_it_to_dlq(settings, caplog):
     some_body = {"keyOne": 1, "keyTwo": 2}
-    _test_send_message_without_correlation_id_header(some_body, test_destination_one)
+    destination_name = "/queue/destination-for-correlation-id-testing-required"
 
-    # Calling what we need to test
-    start_processing(test_destination_one, myself_with_test_callback_one, is_testing=True)
+    # publishes messages WITHOUT correlation-id header, but message must be persistent or won't go to DLQ
+    # https://activemq.apache.org/message-redelivery-and-dlq-handling
+    _test_send_message_without_correlation_id_header(some_body, destination_name, persistent=True)
 
-    evaluation_consumer = build_listener(test_destination_two, is_testing=True)
-    test_listener = evaluation_consumer._test_listener
-    evaluation_consumer.start(wait_forever=False)
+    consumer = start_processing(
+        destination_name, myself_with_test_callback_standard, is_testing=True, return_listener=True
+    )
+    wait_for_message_in_log(
+        caplog,
+        r"A exception of type <class 'django_stomp\.exceptions\.CorrelationIdNotProvidedException'>.*",
+        message_count_to_wait=1,
+    )
+    consumer.close()
 
-    test_listener.wait_for_message()
-    received_message = test_listener.get_latest_message()
+    # removing /queue/
+    *_, source_queue_name = destination_name.split("/")
+    dlq_source_queue_name = f"DLQ.{source_queue_name}"
 
-    assert received_message is not None
-    received_header = received_message[0]
-    assert "correlation-id" in received_header
-    received_body = json.loads(received_message[1])
-    assert received_body == some_body
+    try:
+        # if activemq broker is running
+        dlq_source_queue_status = current_queue_configuration(dlq_source_queue_name)
+    except Exception:
+        # if rabbitmq broker is running
+        dlq_source_queue_status = rabbitmq.current_queue_configuration(dlq_source_queue_name)
+
+    # asserts that DLQ has a message on it!
+    assert dlq_source_queue_status.number_of_pending_messages == 1
+    assert dlq_source_queue_status.number_of_consumers == 0
 
 
+@mock.patch("django_stomp.execution.is_correlation_id_required", False)
+def test_should_consume_message_without_correlation_id_when_it_is_not_required_no_dlq(settings):
+    some_body = {"keyOne": 1, "keyTwo": 2}
+    destination_name = "/queue/destination-for-correlation-id-testing-not-required"
+
+    # publishes messages WITHOUT correlation-id header, but message must be persistent or won't go to DLQ
+    # https://activemq.apache.org/message-redelivery-and-dlq-handling
+    _test_send_message_without_correlation_id_header(some_body, destination_name, persistent=True)
+
+    consumer = start_processing(destination_name, myself_with_test_callback_standard, is_testing=True)
+
+    # removing /queue/
+    *_, source_queue_name = destination_name.split("/")
+    dlq_source_queue_name = f"DLQ.{source_queue_name}"
+
+    try:
+        # if activemq broker is running
+        source_queue_status = current_queue_configuration(source_queue_name)
+    except Exception:
+        # if rabbitmq broker is running
+        source_queue_status = rabbitmq.current_queue_configuration(source_queue_name)
+
+    # normal queue should have ONE dequeued message: no exception was raised!
+    assert source_queue_status.number_of_pending_messages == 0
+    assert source_queue_status.number_of_consumers == 0
+    assert source_queue_status.messages_dequeued == 1
+
+    try:
+        # if activemq broker is running
+        dlq_source_queue_status = current_queue_configuration(dlq_source_queue_name)
+    except Exception:
+        # if rabbitmq broker is running
+        dlq_source_queue_status = rabbitmq.current_queue_configuration(dlq_source_queue_name)
+
+    # DLQ should have NO messages
+    assert dlq_source_queue_status.number_of_pending_messages == 0
+    assert dlq_source_queue_status.number_of_consumers == 0
+    assert dlq_source_queue_status.messages_dequeued == 0
+
+
+@mock.patch("django_stomp.execution.should_process_msg_on_background", True)
 def test_should_use_heartbeat_and_dont_lose_connection_when_using_background_processing(caplog, settings, mocker):
     """
     The listener in this code has a message handler that takes a long time to process a message (see
@@ -725,8 +780,9 @@ def _test_callback_function_with_another_log_message(payload: Payload):
     payload.ack()
 
 
-def _test_send_message_without_correlation_id_header(body: str, queue: str, attempt=1):
+def _test_send_message_without_correlation_id_header(body: str, queue: str, attempt=1, persistent=True):
     publisher = build_publisher()
+
     standard_header = {
         "tshoot-destination": queue,
         # RabbitMQ
@@ -734,6 +790,9 @@ def _test_send_message_without_correlation_id_header(body: str, queue: str, atte
         "x-dead-letter-routing-key": create_dlq_destination_from_another_destination(queue),
         "x-dead-letter-exchange": "",
     }
+
+    if persistent:
+        standard_header.update({"persistent": "true"})
 
     send_params = {
         "destination": queue,

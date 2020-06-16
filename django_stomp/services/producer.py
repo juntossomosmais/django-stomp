@@ -4,11 +4,12 @@ import ssl
 import uuid
 from contextlib import contextmanager
 from typing import Dict
+from typing import List
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
-from django_stomp.helpers import retry
 from django_stomp.helpers import create_dlq_destination_from_another_destination
+from django_stomp.helpers import retry
 from django_stomp.helpers import slow_down
 from request_id_django_log.request_id import current_request_id
 from request_id_django_log.settings import NO_REQUEST_ID
@@ -19,6 +20,10 @@ logger = logging.getLogger("django_stomp")
 
 
 class Publisher:
+    # headers that must be purged from messages if present
+    # 'message-id': RabbitMQ uses it internally
+    UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL = ["message-id"]
+
     def __init__(self, connection: StompConnection11, connection_configuration: Dict) -> None:
         self._connection_configuration = connection_configuration
         self.connection = connection
@@ -43,8 +48,21 @@ class Publisher:
             self.start()
 
     def send(self, body: dict, queue: str, headers=None, persistent=True, attempt=10):
+        """
+        Builds the final message headers/body and sends to the broker with the STOMP protocol.
+        """
+        headers = self._build_final_headers(queue, headers, persistent)
+        send_data = self._build_send_data(queue, body, headers)
+
+        self._send_to_broker(send_data, how_many_attempts=attempt)
+
+    def _build_final_headers(self, queue: str, headers: Dict, persistent: bool):
+        """
+        Builds the message final headers. Removes unsafe or broker-reserved headers.
+        """
         correlation_id = current_request_id() if current_request_id() != NO_REQUEST_ID else uuid.uuid4()
-        standard_header = {
+
+        standard_headers = {
             "correlation-id": correlation_id,
             "tshoot-destination": queue,
             # RabbitMQ
@@ -52,26 +70,53 @@ class Publisher:
             "x-dead-letter-routing-key": create_dlq_destination_from_another_destination(queue),
             "x-dead-letter-exchange": "",
         }
-        if headers:
-            standard_header.update(headers)
-        if persistent:
-            standard_header = self._add_persistent_messaging_header(standard_header)
 
-        send_params = {
+        if headers:
+            standard_headers.update(headers)
+
+        if persistent:
+            standard_headers = self._add_persistent_messaging_header(standard_headers)
+
+        clean_headers = self._remove_unsafe_or_reserved_for_broker_use_headers(standard_headers)
+
+        return clean_headers
+
+    def _remove_unsafe_or_reserved_for_broker_use_headers(self, headers: Dict) -> Dict:
+        """
+        Removes headers that are used internally by the brokers or that might
+        cause unexpected behaviors (unsafe).
+        """
+        clean_headers = {
+            key: headers[key] for key in headers if key not in self.UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL
+        }
+
+        return clean_headers
+
+    def _build_send_data(self, queue: str, body: Dict, headers: Dict) -> Dict:
+        """
+        Builds the final data shape required to send messages using the STOMP protocol.
+        """
+        send_data = {
             "destination": queue,
             "body": json.dumps(body, cls=DjangoJSONEncoder),
-            "headers": standard_header,
+            "headers": headers,
             "content_type": self._default_content_type,
             "transaction": getattr(self, "_tmp_transaction_id", None),
         }
-        send_params = clean_dict_with_falsy_or_strange_values(send_params)
+
+        send_data = clean_dict_with_falsy_or_strange_values(send_data)
+        return send_data
+
+    def _send_to_broker(self, send_data: Dict, how_many_attempts: int) -> None:
+        """
+        Sends the actual data to the broker using the STOMP protocol.
+        """
 
         def _internal_send_logic():
             self.start_if_not_open()
-            self.connection.send(**send_params)
+            self.connection.send(**send_data)
 
-        retry(_internal_send_logic, attempt=attempt)
-
+        retry(_internal_send_logic, attempt=how_many_attempts)
 
     @staticmethod
     def _add_persistent_messaging_header(headers: Dict) -> Dict:
