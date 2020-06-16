@@ -361,7 +361,8 @@ def test_should_send_to_another_destination(caplog):
     assert message_status.details == some_body
 
 
-def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_than_heartbeat(
+@mock.patch("django_stomp.execution.should_process_msg_on_background", False)
+def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_than_heartbeat_no_background_processing(
     caplog, settings, mocker
 ):
     """
@@ -384,7 +385,6 @@ def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_
 
     settings.STOMP_OUTGOING_HEARTBEAT = 1000
     settings.STOMP_INCOMING_HEARTBEAT = 1000
-    mocker.patch("django_stomp.execution.should_process_msg_on_background", False)
 
     message_consumer = start_processing(
         some_destination,
@@ -659,6 +659,7 @@ def test_should_consume_message_without_correlation_id_when_it_is_not_required_n
     assert dlq_source_queue_status.messages_dequeued == 0
 
 
+@mock.patch("django_stomp.execution.should_process_msg_on_background", True)
 def test_should_use_heartbeat_and_dont_lose_connection_when_using_background_processing(caplog, settings, mocker):
     """
     The listener in this code has a message handler that takes a long time to process a message (see
