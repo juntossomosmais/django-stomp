@@ -51,8 +51,8 @@ class Publisher:
         """
         Builds the final message headers/body and sends to the broker with the STOMP protocol.
         """
-        final_headers = self._build_final_headers(queue, headers, persistent)
-        send_data = self._build_send_data(queue, body, final_headers)
+        headers = self._build_final_headers(queue, headers, persistent)
+        send_data = self._build_send_data(queue, body, headers)
 
         self._send_to_broker(send_data, how_many_attempts=attempt)
 
@@ -92,14 +92,14 @@ class Publisher:
 
         return clean_headers
 
-    def _build_send_data(self, queue: str, body: Dict, clean_headers: Dict) -> Dict:
+    def _build_send_data(self, queue: str, body: Dict, headers: Dict) -> Dict:
         """
         Builds the final data shape required to send messages using the STOMP protocol.
         """
         send_data = {
             "destination": queue,
             "body": json.dumps(body, cls=DjangoJSONEncoder),
-            "headers": clean_headers,
+            "headers": headers,
             "content_type": self._default_content_type,
             "transaction": getattr(self, "_tmp_transaction_id", None),
         }
