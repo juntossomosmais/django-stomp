@@ -21,6 +21,7 @@ from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import retry
 from django_stomp.services.consumer import Payload
+from django_stomp.services.producer import Publisher
 from pytest_mock import MockFixture
 from tests.support import rabbitmq
 from tests.support.activemq.connections_details import consumers_details
@@ -58,8 +59,9 @@ def test_should_consume_message_and_publish_to_another_queue_using_same_correlat
     some_body = {"keyOne": 1, "keyTwo": 2}
     publisher.send(some_body, test_destination_one, headers=some_header, attempt=1)
 
-    # Calling what we need to test
-    start_processing(test_destination_one, myself_with_test_callback_one, is_testing=True)
+    # return_listener=True is required to avoid testing_listener.close() on the test's main thread which prematurely closes
+    # the connection to the broker which can compromise the callback's ACK (runs on another thread)
+    start_processing(test_destination_one, myself_with_test_callback_one, is_testing=True, return_listener=True)
 
     evaluation_consumer = build_listener(test_destination_two, is_testing=True)
     test_listener = evaluation_consumer._test_listener
@@ -96,8 +98,9 @@ def test_should_consume_message_and_publish_to_another_queue_using_creating_corr
     some_body = {"keyOne": 1, "keyTwo": 2}
     publisher.send(some_body, test_destination_three, attempt=1)
 
-    # Calling what we need to test
-    start_processing(test_destination_three, myself_with_test_callback_two, is_testing=True)
+    # return_listener=True is required to avoid testing_listener.close() on the test's main thread which prematurely closes
+    # the connection to the broker which can compromise the callback's ACK (runs on another thread)
+    start_processing(test_destination_three, myself_with_test_callback_two, is_testing=True, return_listener=True)
 
     evaluation_consumer = build_listener(test_destination_four, is_testing=True)
     test_listener = evaluation_consumer._test_listener
@@ -850,3 +853,57 @@ def test_should_clean_all_messages_on_a_destination(caplog):
     assert source_queue_status.number_of_consumers == 0
     assert source_queue_status.messages_enqueued == trash_msgs_count  # enqueued the queue with trash!
     assert source_queue_status.messages_dequeued == trash_msgs_count  # cleaned all the trash on the queue!
+
+
+@mock.patch("django_stomp.execution.is_correlation_id_required", True)
+def test_should_clean_problematic_headers_and_publish_it_to_destination_successfully(settings, caplog):
+    destination_name = f"/queue/headers-cleaning-destination-{uuid4()}"
+
+    loyalty_event_body = {
+        "points": 300,
+        "account": "7cdd43af-7e36-40c2-b7e7-e0e0a62fa328",
+        "sponsor": "3591bfff-3241-46e3-8829-2389d56da04c",
+    }
+
+    dangerous_headers = {
+        "subscription": "77625173-42b5-4c62-9c24-1fc4a4668dcc-listener",
+        "destination": "/queue/wrong-destination",
+        "message-id": "T_77625173-42b5-4c62-9c24-1fc4a4668dcc-listener@@session-jSfP4eyH59eKxHaZDv59Cg@@2",
+        "redelivered": "false",
+        "x-dead-letter-routing-key": "DLQ.wrong-destination",
+        "x-dead-letter-exchange": "",
+        "tshoot-destination": "/queue/wrong-destination",
+        "transaction": "11837f0b-f1c5-494f-9b2b-347c636d8ca2",
+        "eventType": "someType",
+        "correlation-id": "6e10903e13ddcde54304883e5df713a5",
+        "persistent": "true",
+        "content-type": "application/json;charset=utf-8",
+        "content-length": "298",
+    }
+
+    # headers such as message-id, transaction are reserved for internal use of RabbitMQ: they should
+    # generate problems if NOT removed
+    with build_publisher("headers-cleaner").auto_open_close_connection() as publisher:
+        publisher.send(loyalty_event_body, destination_name, headers=dangerous_headers, attempt=1)
+
+    # consumes published message
+    evaluation_consumer = build_listener(destination_name, is_testing=True)
+    test_listener = evaluation_consumer._test_listener
+    evaluation_consumer.start(wait_forever=False)
+
+    test_listener.wait_for_message()
+    received_message = test_listener.get_latest_message()
+    message_headers = received_message[0]
+    message_body = json.loads(received_message[1])
+
+    # removing /queue/
+    *_, source_queue_name = destination_name.split("/")
+
+    assert message_headers["tshoot-destination"] == destination_name
+    assert message_headers["x-dead-letter-routing-key"] == f"DLQ.{source_queue_name}"
+    assert message_headers["correlation-id"] == "6e10903e13ddcde54304883e5df713a5"
+    assert message_headers["eventType"] == "someType"
+
+    assert message_body["points"] == 300
+    assert message_body["account"] == "7cdd43af-7e36-40c2-b7e7-e0e0a62fa328"
+    assert message_body["sponsor"] == "3591bfff-3241-46e3-8829-2389d56da04c"
