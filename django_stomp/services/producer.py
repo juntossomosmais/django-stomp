@@ -27,11 +27,11 @@ class Publisher:
     if supplied via the send() method as they cause unexpected behavior/errors. 
     
     Such headers are contained in the UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL class variable and used
-    for sanitizing user headers. 
+    for sanitizing user-supplied headers. 
     """
 
     UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL = [
-        # RabbitMQ problematic headers
+        # RabbitMQ unsafe headers
         "message-id",
         "transaction",
         "redelivered",
@@ -91,14 +91,14 @@ class Publisher:
             "x-dead-letter-exchange": "",
         }
 
-        # safety: standard_headers must override headers values, order matters here
+        # safety: standard_headers must override headers values, so order MATTERS here!
         mixed_headers = {**headers, **standard_headers}
 
         if persistent:
             self._add_persistent_messaging_header(mixed_headers)
 
-        clean_headers = self._remove_unsafe_or_reserved_for_broker_use_headers(mixed_headers)
-        return clean_headers
+        final_headers = self._remove_unsafe_or_reserved_for_broker_use_headers(mixed_headers)
+        return final_headers
 
     def _get_correlation_id(self, headers: Optional[Dict]) -> str:
         """
