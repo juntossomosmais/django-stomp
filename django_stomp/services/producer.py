@@ -22,11 +22,11 @@ logger = logging.getLogger("django_stomp")
 
 class Publisher:
     """
-    Class used for publishing messages to ActiveMQ or RabbitMQ brokers using STOMP. Some headers must be removed
-    if supplied via the send() method as they cause unexpected behavior/errors. 
+    Class used to publish messages to ActiveMQ/RabbitMQ brokers using STOMP protocol. Some headers are removed
+    if they are in the send() method as they cause unexpected behavior/errors. 
     
-    Such headers are contained in the UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL class variable and used
-    for sanitizing user-supplied headers. 
+    Such headers are defined in the UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL class variable which is used
+    for sanitizing the user-supplied headers. 
     """
 
     UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL = [
@@ -101,8 +101,8 @@ class Publisher:
 
     def _get_correlation_id(self, headers: Optional[Dict]) -> str:
         """
-        Gets the correlation id for the message. If 'correlation-id' is supplied via headers, it's returned. 
-        Otherwise, returns current_request_id() or generates a new one as a last resort.
+        Gets the correlation id for the message. If 'correlation-id' is in the headers, this value is used. 
+        Otherwise, the value of current_request_id() is returned or a new one is generated as a last resort.
         """
         if headers and "correlation-id" in headers:
             return headers["correlation-id"]
@@ -112,8 +112,7 @@ class Publisher:
 
     def _remove_unsafe_or_reserved_for_broker_use_headers(self, headers: Dict) -> Dict:
         """
-        Removes headers that are used internally by the brokers or that might
-        cause unexpected behaviors (unsafe).
+        Removes headers that are used internally by the brokers or that might cause unexpected behaviors (unsafe).
         """
         clean_headers = {
             key: headers[key] for key in headers if key not in self.UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL
@@ -138,7 +137,8 @@ class Publisher:
 
     def _send_to_broker(self, send_data: Dict, how_many_attempts: int) -> None:
         """
-        Sends the actual data to the broker using the STOMP protocol.
+        Sends the actual data to the broker using the STOMP protocol with some retry attempts if
+        a connection problem occurs.
         """
 
         def _internal_send_logic():
