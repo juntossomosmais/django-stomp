@@ -29,115 +29,124 @@ from tests.support.activemq.message_details import retrieve_message_published
 from tests.support.activemq.queue_details import current_queue_configuration
 from tests.support.activemq.subscribers_details import offline_durable_subscribers
 from tests.support.activemq.topic_details import current_topic_configuration
+from tests.support.callbacks_for_tests import callback_move_and_ack_path
+from tests.support.callbacks_for_tests import callback_standard_path
+from tests.support.callbacks_for_tests import callback_with_another_log_message_path
+from tests.support.callbacks_for_tests import callback_with_exception_path
+from tests.support.callbacks_for_tests import callback_with_logging_path
+from tests.support.callbacks_for_tests import callback_with_nack_path
+from tests.support.callbacks_for_tests import callback_with_sleep_three_seconds_path
+from tests.support.callbacks_for_tests import callback_with_sleep_three_seconds_while_heartbeat_thread_is_alive_path
+from tests.support.helpers import get_destination_metrics_from_broker
+from tests.support.helpers import get_latest_message_from_destination_using_test_listener
 from tests.support.helpers import is_testing_against_rabbitmq
+from tests.support.helpers import publish_to_destination
+from tests.support.helpers import publish_without_correlation_id_header
 from tests.support.helpers import wait_for_message_in_log
-
-myself_with_test_callback_standard = "tests.integration.test_execution._test_callback_function_standard"
-myself_with_test_callback_nack = "tests.integration.test_execution._test_callback_function_with_nack"
-myself_with_test_callback_exception = "tests.integration.test_execution._test_callback_function_with_exception"
-myself_with_test_callback_sleep_three_seconds_while_heartbeat_is_running = (
-    "tests.integration.test_execution._test_callback_function_with_sleep_three_seconds_while_heartbeat_thread_is_alive"
-)
-myself_with_test_callback_with_log = "tests.integration.test_execution._test_callback_function_with_logging"
-myself_with_test_callback_with_another_log = (
-    "tests.integration.test_execution._test_callback_function_with_another_log_message"
-)
-myself_with_test_callback_sleep_three_seconds = (
-    "tests.integration.test_execution._test_callback_function_with_sleep_three_seconds"
-)
-
-test_destination_one = "/queue/my-test-destination-one"
-test_destination_two = "/queue/my-test-destination-two"
-myself_with_test_callback_one = "tests.integration.test_execution._test_callback_function_one"
 
 
 def test_should_consume_message_and_publish_to_another_queue_using_same_correlation_id():
     # Base environment setup
-    publisher = build_publisher()
+    destination_one = f"/queue/my-test-destination-one-{uuid4()}"
+    destination_two = f"/queue/my-test-destination-two-{uuid4()}"
+    destination_three = f"/queue/my-test-destination-three-{uuid4()}"
+
     some_correlation_id = uuid.uuid4()
     some_header = {"correlation-id": some_correlation_id}
     some_body = {"keyOne": 1, "keyTwo": 2}
-    publisher.send(some_body, test_destination_one, headers=some_header, attempt=1)
+
+    # publishes to destination one
+    publish_to_destination(destination_one, some_body, some_header)
 
     # return_listener=True is required to avoid testing_listener.close() on the test's main thread which prematurely closes
     # the connection to the broker which can compromise the callback's ACK (runs on another thread)
-    start_processing(test_destination_one, myself_with_test_callback_one, is_testing=True, return_listener=True)
+    # consumes from destination_one and publishes to destination_two
+    start_processing(
+        destination_one,
+        callback_move_and_ack_path,
+        param_to_callback=destination_two,
+        is_testing=True,
+        return_listener=True,
+    )
 
-    evaluation_consumer = build_listener(test_destination_two, is_testing=True)
-    test_listener = evaluation_consumer._test_listener
-    evaluation_consumer.start(wait_forever=False)
+    # consumes from destination_two and publishes to destination_three
+    start_processing(
+        destination_two,
+        callback_move_and_ack_path,
+        param_to_callback=destination_three,
+        is_testing=True,
+        return_listener=True,
+    )
 
-    test_listener.wait_for_message()
-    received_message = test_listener.get_latest_message()
+    # asserts that the msg is received on destination three WITH THE SAME correlation-id of destination_one
+    received_message = get_latest_message_from_destination_using_test_listener(destination_three)
 
     assert received_message is not None
     received_header = received_message[0]
+
     assert received_header["correlation-id"] == str(some_correlation_id)
     received_body = json.loads(received_message[1])
+
     assert received_body == some_body
-
-
-def _test_callback_function_one(payload: Payload):
-    publisher = build_publisher()
-    publisher.send(payload.body, test_destination_two, attempt=1)
-    payload.ack()
-
-
-test_destination_three = "/queue/my-test-destination-three"
-test_destination_four = "/queue/my-test-destination-four"
-myself_with_test_callback_two = "tests.integration.test_execution._test_callback_function_two"
 
 
 def test_should_consume_message_and_publish_to_another_queue_using_creating_correlation_id(mocker: MockFixture):
-    # It must be called only once to generate the correlation-id
-    mock_uuid = mocker.patch("django_stomp.services.producer.uuid")
-    uuid_to_publisher, uuid_to_correlation_id, uuid_to_another_publisher = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
-    mock_uuid.uuid4.side_effect = [uuid_to_publisher, uuid_to_correlation_id, uuid_to_another_publisher]
     # Base environment setup
-    publisher = build_publisher()
     some_body = {"keyOne": 1, "keyTwo": 2}
-    publisher.send(some_body, test_destination_three, attempt=1)
 
-    # return_listener=True is required to avoid testing_listener.close() on the test's main thread which prematurely closes
-    # the connection to the broker which can compromise the callback's ACK (runs on another thread)
-    start_processing(test_destination_three, myself_with_test_callback_two, is_testing=True, return_listener=True)
+    destination_three = f"/queue/my-test-destination-again-three-{uuid4()}"
+    destination_four = f"/queue/my-test-destination-again-four-{uuid4()}"
 
-    evaluation_consumer = build_listener(test_destination_four, is_testing=True)
-    test_listener = evaluation_consumer._test_listener
-    evaluation_consumer.start(wait_forever=False)
+    # mocks: It must be called only once to generate the correlation-id
+    mock_uuid = mocker.patch("django_stomp.services.producer.uuid")
 
-    test_listener.wait_for_message()
-    received_message = test_listener.get_latest_message()
+    uuid_to_publisher, uuid_to_correlation_id, uuid_to_another_publisher, uuid_publisher_mover = (
+        uuid.uuid4(),
+        uuid.uuid4(),
+        uuid.uuid4(),
+        uuid.uuid4(),
+    )
+
+    mock_uuid.uuid4.side_effect = [
+        uuid_to_publisher,
+        uuid_to_correlation_id,
+        uuid_to_another_publisher,
+        uuid_publisher_mover,
+    ]
+
+    # publishes to destination three
+    publish_to_destination(destination_three, some_body)
+
+    # consumes from destination three and publishes to destination four
+    start_processing(
+        destination_three,
+        callback_move_and_ack_path,
+        param_to_callback=destination_four,
+        is_testing=True,
+        return_listener=True,
+    )
+
+    # asserts that the msg is received on destination four WITH THE SAME correlation-id of destination_three
+    received_message = get_latest_message_from_destination_using_test_listener(destination_four)
 
     assert received_message is not None
     received_header = received_message[0]
+
     assert received_header["correlation-id"] == str(uuid_to_correlation_id)
     received_body = json.loads(received_message[1])
+
     assert received_body == some_body
-
-
-def _test_callback_function_two(payload: Payload):
-    publisher = build_publisher()
-    publisher.send(payload.body, test_destination_four, attempt=1)
-    payload.ack()
-
-
-test_destination_consumer_one = "/queue/my-test-destination-consumer-one"
 
 
 def test_should_consume_message_and_dequeue_it_using_ack():
     # In order to publish sample data
-    publisher = build_publisher()
     some_body = {"keyOne": 1, "keyTwo": 2}
-    publisher.send(some_body, test_destination_consumer_one, attempt=1)
-
-    start_processing(test_destination_consumer_one, myself_with_test_callback_standard, is_testing=True)
-
+    test_destination_consumer_one = f"/queue/my-test-destination-consumer-one-{uuid4()}"
     *_, queue_name = test_destination_consumer_one.split("/")
-    try:
-        queue_status = current_queue_configuration(queue_name)
-    except Exception:
-        queue_status = rabbitmq.current_queue_configuration(queue_name)
+
+    publish_to_destination(test_destination_consumer_one, some_body)
+    start_processing(test_destination_consumer_one, callback_standard_path, is_testing=True)
+    queue_status = get_destination_metrics_from_broker(queue_name)
 
     assert queue_status.number_of_pending_messages == 0
     assert queue_status.number_of_consumers == 0
@@ -145,29 +154,28 @@ def test_should_consume_message_and_dequeue_it_using_ack():
     assert queue_status.messages_dequeued == 1
 
 
-test_destination_durable_consumer_one = "/topic/my-test-destination-durable-consumer-one"
-
-
 def test_should_create_durable_subscriber_and_receive_standby_messages(mocker: MockFixture, settings):
+    test_destination_durable_consumer_one = f"/topic/my-test-destination-durable-consumer-one-{uuid4()}"
     temp_uuid_listener = str(uuid.uuid4())
+
     mocker.patch("django_stomp.execution.get_listener_client_id", return_value=temp_uuid_listener)
     mocker.patch("django_stomp.execution.durable_topic_subscription", True)
     durable_subscription_id = str(uuid.uuid4())
     settings.STOMP_SUBSCRIPTION_ID = durable_subscription_id
     # Just to create a durable subscription
-    start_processing(test_destination_durable_consumer_one, myself_with_test_callback_standard, is_testing=True)
+    start_processing(test_destination_durable_consumer_one, callback_standard_path, is_testing=True)
     settings.STOMP_SUBSCRIPTION_ID = None
 
     # In order to publish sample data
-    publisher = build_publisher()
     some_body = {"keyOne": 1, "keyTwo": 2}
-    publisher.send(some_body, test_destination_durable_consumer_one, attempt=1)
-    publisher.send(some_body, test_destination_durable_consumer_one, attempt=1)
-    publisher.send(some_body, test_destination_durable_consumer_one, attempt=1)
+
+    publish_to_destination(test_destination_durable_consumer_one, some_body)
+    publish_to_destination(test_destination_durable_consumer_one, some_body)
+    publish_to_destination(test_destination_durable_consumer_one, some_body)
 
     # To recreate a durable subscription
     settings.STOMP_SUBSCRIPTION_ID = durable_subscription_id
-    start_processing(test_destination_durable_consumer_one, myself_with_test_callback_standard, is_testing=True)
+    start_processing(test_destination_durable_consumer_one, callback_standard_path, is_testing=True)
 
     *_, topic_name = test_destination_durable_consumer_one.split("/")
     try:
@@ -192,9 +200,6 @@ def test_should_create_durable_subscriber_and_receive_standby_messages(mocker: M
         assert destination_status.messages_dequeued == 3
 
 
-test_destination_prefetch_consumer_one = "/queue/my-destination-prefetch-consumer-one"
-
-
 async def test_should_configure_prefetch_size_as_one(mocker: MockFixture, settings):
     """
     See more details here: https://activemq.apache.org/stomp.html
@@ -206,6 +211,8 @@ async def test_should_configure_prefetch_size_as_one(mocker: MockFixture, settin
     scripting language like Ruby, say, then this parameter must be set to 1 as there is no notion of a
     client-side message size to be sized. STOMP does not support a value of 0.
     """
+    test_destination_prefetch_consumer_one = f"/queue/my-destination-prefetch-consumer-one-{uuid4()}"
+
     listener_id = str(uuid.uuid4())
     # LISTENER_CLIENT_ID is used by ActiveMQ
     mocker.patch("django_stomp.execution.get_listener_client_id", return_value=listener_id)
@@ -231,7 +238,7 @@ async def test_should_configure_prefetch_size_as_one(mocker: MockFixture, settin
     async def execute_start_processing():
         listener = start_processing(
             test_destination_prefetch_consumer_one,
-            myself_with_test_callback_standard,
+            callback_standard_path,
             is_testing=True,
             testing_disconnect=False,
             return_listener=True,
@@ -244,19 +251,17 @@ async def test_should_configure_prefetch_size_as_one(mocker: MockFixture, settin
         nursery.start_soon(collect_consumer_details)
 
 
-test_destination_dlq_one = f"/queue/my-destination-dql-one-{uuid.uuid4()}"
-
-
 def test_should_publish_to_dql_due_to_explicit_nack():
-    # In order to publish sample data
-    with build_publisher().auto_open_close_connection() as publisher:
-        some_body = {"keyOne": 1, "keyTwo": 2}
-        publisher.send(some_body, test_destination_dlq_one, attempt=1)
-
-    start_processing(test_destination_dlq_one, myself_with_test_callback_nack, is_testing=True)
-
+    test_destination_dlq_one = f"/queue/my-destination-dql-one-{uuid.uuid4()}"
     *_, queue_name = test_destination_dlq_one.split("/")
     dlq_queue_name = f"DLQ.{queue_name}"
+
+    # In order to publish sample data
+    some_body = {"keyOne": 1, "keyTwo": 2}
+    publish_to_destination(test_destination_dlq_one, some_body)
+
+    start_processing(test_destination_dlq_one, callback_with_nack_path, is_testing=True)
+
     try:
         queue_status = current_queue_configuration(dlq_queue_name)
 
@@ -272,19 +277,17 @@ def test_should_publish_to_dql_due_to_explicit_nack():
         assert queue_status.messages_dequeued == 0
 
 
-test_destination_dlq_two = f"/queue/my-destination-dql-two-{uuid.uuid4()}"
-
-
 def test_should_publish_to_dql_due_to_implicit_nack_given_internal_callback_exception():
-    # In order to publish sample data
-    with build_publisher().auto_open_close_connection() as publisher:
-        some_body = {"keyOne": 1, "keyTwo": 2}
-        publisher.send(some_body, test_destination_dlq_two, attempt=1)
-
-    start_processing(test_destination_dlq_two, myself_with_test_callback_exception, is_testing=True)
-
+    test_destination_dlq_two = f"/queue/my-destination-dql-two-{uuid.uuid4()}"
     *_, queue_name = test_destination_dlq_two.split("/")
     dlq_queue_name = f"DLQ.{queue_name}"
+
+    # In order to publish sample data
+    some_body = {"keyOne": 1, "keyTwo": 2}
+    publish_to_destination(test_destination_dlq_two, some_body)
+
+    start_processing(test_destination_dlq_two, callback_with_exception_path, is_testing=True)
+
     try:
         queue_status = current_queue_configuration(dlq_queue_name)
 
@@ -304,9 +307,8 @@ def test_should_save_tshoot_properties_on_header():
     some_destination = f"tshoot-header-{uuid.uuid4()}"
 
     # In order to publish sample data
-    publisher = build_publisher()
     some_body = {"keyOne": 1, "keyTwo": 2}
-    publisher.send(some_body, some_destination, attempt=1)
+    publish_to_destination(some_destination, some_body)
 
     try:
         message_status = retrieve_message_published(some_destination)
@@ -382,16 +384,15 @@ def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_
     some_destination = f"some-lorem-destination-{uuid.uuid4()}"
 
     # In order to publish sample data
-    with build_publisher().auto_open_close_connection() as publisher:
-        some_body = {"keyOne": 1, "keyTwo": 2}
-        publisher.send(some_body, some_destination, attempt=1)
+    some_body = {"keyOne": 1, "keyTwo": 2}
+    publish_to_destination(some_destination, some_body)
 
     settings.STOMP_OUTGOING_HEARTBEAT = 1000
     settings.STOMP_INCOMING_HEARTBEAT = 1000
 
     message_consumer = start_processing(
         some_destination,
-        myself_with_test_callback_sleep_three_seconds_while_heartbeat_is_running,
+        callback_with_sleep_three_seconds_while_heartbeat_thread_is_alive_path,
         is_testing=True,
         return_listener=True,
     )
@@ -421,16 +422,15 @@ def test_should_create_queues_for_virtual_topic_listeners_and_consume_its_messag
     consumers = [
         start_processing(
             f"Consumer.{uuid.uuid4()}.{some_virtual_topic}",
-            myself_with_test_callback_standard,
+            callback_standard_path,
             is_testing=True,
             return_listener=True,
         )
         for _ in range(number_of_consumers)
     ]
 
-    with build_publisher().auto_open_close_connection() as publisher:
-        some_body = {"send": 2, "Virtual": "Topic"}
-        publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
+    some_body = {"send": 2, "Virtual": "Topic"}
+    publish_to_destination(f"/topic/{some_virtual_topic}", some_body)
 
     wait_for_message_in_log(
         caplog, r"Received frame: 'MESSAGE'.*body='{\"send\": 2, \"Virtual\": \"Topic\"}.*'", message_count_to_wait=2
@@ -459,24 +459,22 @@ def test_should_create_queue_for_virtual_topic_consumer_and_process_messages_sen
     some_virtual_topic = f"VirtualTopic.{uuid.uuid4()}"
     virtual_topic_consumer_queue = f"Consumer.{uuid.uuid4()}.{some_virtual_topic}"
     consumer = start_processing(
-        virtual_topic_consumer_queue, myself_with_test_callback_with_log, is_testing=True, return_listener=True
+        virtual_topic_consumer_queue, callback_with_logging_path, is_testing=True, return_listener=True
     )
 
-    with build_publisher().auto_open_close_connection() as publisher:
-        some_body = {"send": 2, "another": "VirtualTopic"}
-        publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
+    some_body = {"send": 2, "another": "VirtualTopic"}
+    publish_to_destination(f"/topic/{some_virtual_topic}", some_body)
 
     wait_for_message_in_log(caplog, r"I'll process the message: {'send': 2, 'another': 'VirtualTopic'}!")
     consumer.close()
 
     # Send message to VirtualTopic with consumers disconnected...
-    with build_publisher().auto_open_close_connection() as publisher:
-        some_body = {"send": "anotherMessage", "2": "VirtualTopic"}
-        publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
+    some_body = {"send": "anotherMessage", "2": "VirtualTopic"}
+    publish_to_destination(f"/topic/{some_virtual_topic}", some_body)
 
     # Start another consumer for the same queue created previously...
     another_consumer = start_processing(
-        virtual_topic_consumer_queue, myself_with_test_callback_with_log, is_testing=True, return_listener=True
+        virtual_topic_consumer_queue, callback_with_logging_path, is_testing=True, return_listener=True
     )
 
     wait_for_message_in_log(caplog, r"I'll process the message: {'send': 'anotherMessage', '2': 'VirtualTopic'}!")
@@ -510,13 +508,10 @@ def test_should_create_queue_for_virtual_topic_and_compete_for_its_messages(capl
 
     consumers = [
         start_processing(
-            virtual_topic_consumer_queue, myself_with_test_callback_with_log, is_testing=True, return_listener=True
+            virtual_topic_consumer_queue, callback_with_logging_path, is_testing=True, return_listener=True
         ),
         start_processing(
-            virtual_topic_consumer_queue,
-            myself_with_test_callback_with_another_log,
-            is_testing=True,
-            return_listener=True,
+            virtual_topic_consumer_queue, callback_with_another_log_message_path, is_testing=True, return_listener=True,
         ),
     ]
 
@@ -561,7 +556,7 @@ def test_shouldnt_process_message_from_virtual_topic_older_than_the_consumer_que
         some_body = {"send": 2, "topicThat": "isVirtual"}
         publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
 
-    start_processing(virtual_topic_consumer_queue, myself_with_test_callback_with_log, is_testing=True)
+    start_processing(virtual_topic_consumer_queue, callback_with_logging_path, is_testing=True)
 
     try:
         queue_status = current_queue_configuration(virtual_topic_consumer_queue)
@@ -580,25 +575,32 @@ def test_shouldnt_process_message_from_virtual_topic_older_than_the_consumer_que
 
 @mock.patch("django_stomp.execution.is_correlation_id_required", True)
 def test_should_raise_exception_when_correlation_id_is_required_but_not_received(settings):
+    test_destination_one = f"/queue/test-correlation-id-required-one-{uuid4()}"
+    test_destination_two = f"/queue/test-correlation-id-required-two-{uuid4()}"
+
     some_body = {"keyOne": 1, "keyTwo": 2}
-    _test_send_message_without_correlation_id_header(some_body, test_destination_one)
+    publish_without_correlation_id_header(test_destination_one, some_body)
 
     with pytest.raises(Exception):
-        assert start_processing(test_destination_one, myself_with_test_callback_one, is_testing=True)
+        assert start_processing(
+            test_destination_one, callback_move_and_ack_path, param_to_callback=test_destination_two, is_testing=True
+        )
 
 
 @mock.patch("django_stomp.execution.is_correlation_id_required", True)
 def test_should_raise_exception_when_correlation_id_is_not_supplied_and_publish_it_to_dlq(settings, caplog):
     some_body = {"keyOne": 1, "keyTwo": 2}
-    destination_name = "/queue/destination-for-correlation-id-testing-required"
+    destination_name = f"/queue/destination-for-correlation-id-testing-required-{uuid4()}"
+
+    # removing /queue/
+    *_, source_queue_name = destination_name.split("/")
+    dlq_source_queue_name = f"DLQ.{source_queue_name}"
 
     # publishes messages WITHOUT correlation-id header, but message must be persistent or won't go to DLQ
     # https://activemq.apache.org/message-redelivery-and-dlq-handling
-    _test_send_message_without_correlation_id_header(some_body, destination_name, persistent=True)
+    publish_without_correlation_id_header(destination_name, some_body, persistent=True)
 
-    consumer = start_processing(
-        destination_name, myself_with_test_callback_standard, is_testing=True, return_listener=True
-    )
+    consumer = start_processing(destination_name, callback_standard_path, is_testing=True, return_listener=True)
     wait_for_message_in_log(
         caplog,
         r"A exception of type <class 'django_stomp\.exceptions\.CorrelationIdNotProvidedException'>.*",
@@ -606,16 +608,7 @@ def test_should_raise_exception_when_correlation_id_is_not_supplied_and_publish_
     )
     consumer.close()
 
-    # removing /queue/
-    *_, source_queue_name = destination_name.split("/")
-    dlq_source_queue_name = f"DLQ.{source_queue_name}"
-
-    try:
-        # if activemq broker is running
-        dlq_source_queue_status = current_queue_configuration(dlq_source_queue_name)
-    except Exception:
-        # if rabbitmq broker is running
-        dlq_source_queue_status = rabbitmq.current_queue_configuration(dlq_source_queue_name)
+    dlq_source_queue_status = get_destination_metrics_from_broker(dlq_source_queue_name)
 
     # asserts that DLQ has a message on it!
     assert dlq_source_queue_status.number_of_pending_messages == 1
@@ -625,36 +618,26 @@ def test_should_raise_exception_when_correlation_id_is_not_supplied_and_publish_
 @mock.patch("django_stomp.execution.is_correlation_id_required", False)
 def test_should_consume_message_without_correlation_id_when_it_is_not_required_no_dlq(settings):
     some_body = {"keyOne": 1, "keyTwo": 2}
-    destination_name = "/queue/destination-for-correlation-id-testing-not-required"
-
-    # publishes messages WITHOUT correlation-id header, but message must be persistent or won't go to DLQ
-    # https://activemq.apache.org/message-redelivery-and-dlq-handling
-    _test_send_message_without_correlation_id_header(some_body, destination_name, persistent=True)
-
-    consumer = start_processing(destination_name, myself_with_test_callback_standard, is_testing=True)
+    destination_name = f"/queue/destination-for-correlation-id-testing-not-required-{uuid4()}"
 
     # removing /queue/
     *_, source_queue_name = destination_name.split("/")
     dlq_source_queue_name = f"DLQ.{source_queue_name}"
 
-    try:
-        # if activemq broker is running
-        source_queue_status = current_queue_configuration(source_queue_name)
-    except Exception:
-        # if rabbitmq broker is running
-        source_queue_status = rabbitmq.current_queue_configuration(source_queue_name)
+    # publishes messages WITHOUT correlation-id header, but message must be persistent or won't go to DLQ
+    # https://activemq.apache.org/message-redelivery-and-dlq-handling
+    publish_without_correlation_id_header(destination_name, some_body, persistent=True)
+
+    consumer = start_processing(destination_name, callback_standard_path, is_testing=True)
+
+    source_queue_status = get_destination_metrics_from_broker(source_queue_name)
 
     # normal queue should have ONE dequeued message: no exception was raised!
     assert source_queue_status.number_of_pending_messages == 0
     assert source_queue_status.number_of_consumers == 0
     assert source_queue_status.messages_dequeued == 1
 
-    try:
-        # if activemq broker is running
-        dlq_source_queue_status = current_queue_configuration(dlq_source_queue_name)
-    except Exception:
-        # if rabbitmq broker is running
-        dlq_source_queue_status = rabbitmq.current_queue_configuration(dlq_source_queue_name)
+    dlq_source_queue_status = get_destination_metrics_from_broker(dlq_source_queue_name)
 
     # DLQ should have NO messages
     assert dlq_source_queue_status.number_of_pending_messages == 0
@@ -674,15 +657,14 @@ def test_should_use_heartbeat_and_dont_lose_connection_when_using_background_pro
     some_destination = f"some-lorem-destination-{uuid.uuid4()}"
 
     # In order to publish sample data
-    with build_publisher().auto_open_close_connection() as publisher:
-        some_body = {"keyOne": 1, "keyTwo": 2}
-        publisher.send(some_body, some_destination, attempt=1)
+    some_body = {"keyOne": 1, "keyTwo": 2}
+    publish_to_destination(some_destination, some_body)
 
     settings.STOMP_OUTGOING_HEARTBEAT = 1000
     settings.STOMP_INCOMING_HEARTBEAT = 1000
 
     message_consumer = start_processing(
-        some_destination, myself_with_test_callback_sleep_three_seconds, is_testing=True, return_listener=True
+        some_destination, callback_with_sleep_three_seconds_path, is_testing=True, return_listener=True
     )
 
     wait_for_message_in_log(caplog, f"{some_body} sucessfully processed!", message_count_to_wait=1)
@@ -704,10 +686,13 @@ def test_should_use_heartbeat_and_dont_lose_connection_when_using_background_pro
 @pytest.mark.skipif(is_testing_against_rabbitmq(), reason="RabbitMQ doesn't holds the concept of a durable subscriber")
 def test_shouldnt_create_a_durable_subscriber_when_dealing_with_virtual_topics():
     all_offline_subscribers_before_the_virtual_topic_connection = list(offline_durable_subscribers("localhost"))
+    destination_two = f"/queue/testing-for-durable-subscriber-with-virtual-topics-{uuid4()}"
 
     some_virtual_topic = f"VirtualTopic.{uuid.uuid4()}"
     virtual_topic_consumer_queue = f"Consumer.{uuid.uuid4()}.{some_virtual_topic}"
-    start_processing(virtual_topic_consumer_queue, myself_with_test_callback_one, is_testing=True)
+    start_processing(
+        virtual_topic_consumer_queue, callback_move_and_ack_path, param_to_callback=destination_two, is_testing=True
+    )
 
     all_offline_subscribers_after_the_virtual_topic_connection = list(offline_durable_subscribers("localhost"))
 
@@ -716,148 +701,10 @@ def test_shouldnt_create_a_durable_subscriber_when_dealing_with_virtual_topics()
     )
 
 
-def test_should_connect_with_a_queue_created_without_the_durable_header(caplog):
-    caplog.set_level(logging.DEBUG)
-
-    some_destination = f"/queue/some-queue-{uuid.uuid4()}"
-    listener = build_listener(some_destination)
-    listener._subscription_configuration.pop("durable")
-    listener.start(wait_forever=False)
-    listener.close()
-
-    send_frames_with_durable_true_regex = re.compile(r"^Sending frame:.*durable:true.*")
-
-    assert all(not send_frames_with_durable_true_regex.match(m) for m in caplog.messages)
-
-    publisher = build_publisher()
-    some_correlation_id = uuid.uuid4()
-    some_header = {"correlation-id": some_correlation_id}
-    some_body = {"keyOne": 1, "keyTwo": 2}
-    publisher.send(some_body, some_destination, headers=some_header, attempt=1)
-
-    # Calling what we need to test
-    message_consumer = start_processing(
-        some_destination, myself_with_test_callback_with_log, is_testing=True, return_listener=True
-    )
-
-    wait_for_message_in_log(caplog, r"Sending frame: \[b'ACK'.*", message_count_to_wait=1)
-    message_consumer.close()
-
-    consumer_log_message_regex = re.compile(f"I'll process the message: {some_body}!")
-
-    assert any(send_frames_with_durable_true_regex.match(m) for m in caplog.messages)
-    assert any(consumer_log_message_regex.match(m) for m in caplog.messages)
-
-
-def _test_callback_function_standard(payload: Payload):
-    # Should dequeue the message
-    payload.ack()
-
-
-def _test_callback_function_with_nack(payload: Payload):
-    payload.nack()
-
-
-def _test_callback_function_with_exception(payload: Payload):
-    raise Exception("Lambe Sal")
-
-
-def _test_callback_function_with_sleep_three_seconds_while_heartbeat_thread_is_alive(payload: Payload):
-    heartbeat_threads = [thread for thread in threading.enumerate() if "StompHeartbeatThread" in thread.name]
-    while True:
-        sleep(3)
-        heartbeat_threads = filter(lambda thread: "StompHeartbeatThread" in thread.name, threading.enumerate())
-        if all(not thread.is_alive() for thread in heartbeat_threads):
-            break
-
-
-def _test_callback_function_with_logging(payload: Payload):
-    logger = logging.getLogger(__name__)
-    logger.info("I'll process the message: %s!", payload.body)
-    payload.ack()
-
-
-def _test_callback_function_with_another_log_message(payload: Payload):
-    logger = logging.getLogger(__name__)
-    logger.info("%s is the message that I'll process!", payload.body)
-    payload.ack()
-
-
-def _test_send_message_without_correlation_id_header(body: str, queue: str, attempt=1, persistent=True):
-    publisher = build_publisher()
-
-    standard_header = {
-        "tshoot-destination": queue,
-        # RabbitMQ
-        # These two parameters must be set on consumer side as well, otherwise you'll get precondition_failed
-        "x-dead-letter-routing-key": create_dlq_destination_from_another_destination(queue),
-        "x-dead-letter-exchange": "",
-    }
-
-    if persistent:
-        standard_header.update({"persistent": "true"})
-
-    send_params = {
-        "destination": queue,
-        "body": json.dumps(body, cls=DjangoJSONEncoder),
-        "headers": standard_header,
-        "content_type": "application/json;charset=utf-8",
-        "transaction": getattr(publisher, "_tmp_transaction_id", None),
-    }
-    send_params = clean_dict_with_falsy_or_strange_values(send_params)
-
-    def _internal_send_logic():
-        publisher.start_if_not_open()
-        publisher.connection.send(**send_params)
-
-    retry(_internal_send_logic, attempt=attempt)
-
-
-def _test_callback_function_with_sleep_three_seconds(payload: Payload):
-    sleep(3)
-    payload.ack()
-    logger = logging.getLogger(__name__)
-    logger.info("%s sucessfully processed!", payload.body)
-
-
-def test_should_clean_all_messages_on_a_destination(caplog):
-    caplog.set_level(logging.DEBUG)
-
-    some_source_destination = f"/queue/flood-this-queue-with-trash"
-    trash_msgs_count = 10
-
-    # publishes trash to a destination
-    with build_publisher().auto_open_close_connection() as publisher:
-        some_body = {"some": "trash"}
-        some_headers = {"some": "header"}
-
-        for i in range(0, trash_msgs_count):
-            publisher.send(some_body, some_source_destination, some_headers, attempt=1)
-
-    # # command invocation
-    consumer = clean_messages_on_destination_by_acking(some_source_destination, is_testing=True, return_listener=True)
-    wait_for_message_in_log(caplog, r"Message has been removed!", message_count_to_wait=trash_msgs_count)
-    consumer.close()
-
-    # removing /queue/
-    *_, source_queue_name = some_source_destination.split("/")
-
-    try:
-        # if activemq broker is running
-        source_queue_status = current_queue_configuration(source_queue_name)
-    except Exception:
-        # if rabbitmq broker is running
-        source_queue_status = rabbitmq.current_queue_configuration(source_queue_name)
-
-    assert source_queue_status.number_of_pending_messages == 0
-    assert source_queue_status.number_of_consumers == 0
-    assert source_queue_status.messages_enqueued == trash_msgs_count  # enqueued the queue with trash!
-    assert source_queue_status.messages_dequeued == trash_msgs_count  # cleaned all the trash on the queue!
-
-
 @mock.patch("django_stomp.execution.is_correlation_id_required", True)
 def test_should_clean_problematic_headers_and_publish_it_to_destination_successfully(settings, caplog):
     destination_name = f"/queue/headers-cleaning-destination-{uuid4()}"
+    *_, source_queue_name = destination_name.split("/")
 
     loyalty_event_body = {
         "points": 300,
@@ -883,21 +730,12 @@ def test_should_clean_problematic_headers_and_publish_it_to_destination_successf
 
     # headers such as message-id, transaction are reserved for internal use of RabbitMQ: they should
     # generate problems if NOT removed
-    with build_publisher("headers-cleaner").auto_open_close_connection() as publisher:
-        publisher.send(loyalty_event_body, destination_name, headers=dangerous_headers, attempt=1)
+    publish_to_destination(destination_name, loyalty_event_body, dangerous_headers)
 
-    # consumes published message
-    evaluation_consumer = build_listener(destination_name, is_testing=True)
-    test_listener = evaluation_consumer._test_listener
-    evaluation_consumer.start(wait_forever=False)
-
-    test_listener.wait_for_message()
-    received_message = test_listener.get_latest_message()
+    # published message assertions
+    received_message = get_latest_message_from_destination_using_test_listener(destination_name)
     message_headers = received_message[0]
     message_body = json.loads(received_message[1])
-
-    # removing /queue/
-    *_, source_queue_name = destination_name.split("/")
 
     assert message_headers["tshoot-destination"] == destination_name
     assert message_headers["x-dead-letter-routing-key"] == f"DLQ.{source_queue_name}"
