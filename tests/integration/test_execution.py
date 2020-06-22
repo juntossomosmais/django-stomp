@@ -741,8 +741,9 @@ def test_should_clean_all_messages_on_a_destination(caplog):
     some_body = {"some": "trash"}
     some_headers = {"some": "header"}
 
-    for i in range(0, trash_msgs_count):
-        publish_to_destination(some_source_destination, some_body, some_headers)
+    with build_publisher().auto_open_close_connection() as publisher:
+        for i in range(0, trash_msgs_count):
+            publisher.send(some_body, some_source_destination, some_headers, attempt=1)
 
     # # command invocation
     consumer = clean_messages_on_destination_by_acking(some_source_destination, is_testing=True, return_listener=True)
@@ -750,7 +751,7 @@ def test_should_clean_all_messages_on_a_destination(caplog):
     consumer.close()
 
     # asserts that messages were acked
-    sleep(15)  # takes some time to ack all messages, specially on the pipeline
+    sleep(5)  # takes some time to ack all messages
     source_queue_status = get_destination_metrics_from_broker(source_queue_name)
 
     assert source_queue_status.number_of_pending_messages == 0
