@@ -22,7 +22,7 @@ logger = logging.getLogger("django_stomp")
 
 class Publisher:
     """
-    Class used to publish messages to ActiveMQ/RabbitMQ brokers using STOMP protocol. Some headers are removed
+    Class used to publish messages to brokers using the STOMP protocol. Some headers are removed
     if they are in the send() method as they cause unexpected behavior/errors. 
     
     Such headers are defined in the UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL class variable which is used
@@ -73,7 +73,7 @@ class Publisher:
 
         self._send_to_broker(send_data, how_many_attempts=attempt)
 
-    def _build_final_headers(self, queue: str, headers: Dict, persistent: bool) -> Dict:
+    def _build_final_headers(self, queue: str, headers: Optional[Dict], persistent: bool) -> Dict:
         """
         Builds the message final headers. Removes unsafe or broker-reserved headers.
         Standard headers values override headers values to reduce possible errors.
