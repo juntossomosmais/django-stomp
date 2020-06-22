@@ -701,6 +701,64 @@ def test_shouldnt_create_a_durable_subscriber_when_dealing_with_virtual_topics()
     )
 
 
+def test_should_connect_with_a_queue_created_without_the_durable_header(caplog):
+    caplog.set_level(logging.DEBUG)
+    some_destination = f"/queue/some-queue-without-durable-headers-{uuid.uuid4()}"
+
+    listener = build_listener(some_destination)
+    listener._subscription_configuration.pop("durable")
+    listener.start(wait_forever=False)
+    listener.close()
+
+    send_frames_with_durable_true_regex = re.compile(r"^Sending frame:.*durable:true.*")
+
+    assert all(not send_frames_with_durable_true_regex.match(m) for m in caplog.messages)
+
+    some_header = {"correlation-id": uuid.uuid4()}
+    some_body = {"keyOne": 1, "keyTwo": 2}
+    publish_to_destination(some_destination, some_body, some_header)
+
+    # Calling what we need to test
+    message_consumer = start_processing(
+        some_destination, callback_with_logging_path, is_testing=True, return_listener=True
+    )
+
+    wait_for_message_in_log(caplog, r"Sending frame: \[b'ACK'.*", message_count_to_wait=1)
+    message_consumer.close()
+
+    consumer_log_message_regex = re.compile(f"I'll process the message: {some_body}!")
+
+    assert any(send_frames_with_durable_true_regex.match(m) for m in caplog.messages)
+    assert any(consumer_log_message_regex.match(m) for m in caplog.messages)
+
+
+def test_should_clean_all_messages_on_a_destination(caplog):
+    caplog.set_level(logging.DEBUG)
+    trash_msgs_count = 10
+    some_source_destination = f"/queue/flood-this-queue-with-trash-{uuid4()}"
+    *_, source_queue_name = some_source_destination.split("/")
+
+    some_body = {"some": "trash"}
+    some_headers = {"some": "header"}
+
+    for i in range(0, trash_msgs_count):
+        publish_to_destination(some_source_destination, some_body, some_headers)
+
+    # # command invocation
+    consumer = clean_messages_on_destination_by_acking(some_source_destination, is_testing=True, return_listener=True)
+    wait_for_message_in_log(caplog, r"Message has been removed!", message_count_to_wait=trash_msgs_count)
+    consumer.close()
+
+    # asserts that messages were acked
+    sleep(5)  # takes some time to ack all messages
+    source_queue_status = get_destination_metrics_from_broker(source_queue_name)
+
+    assert source_queue_status.number_of_pending_messages == 0
+    assert source_queue_status.number_of_consumers == 0
+    assert source_queue_status.messages_enqueued == trash_msgs_count  # enqueued the queue with trash!
+    assert source_queue_status.messages_dequeued == trash_msgs_count  # cleaned all the trash on the queue!
+
+
 @mock.patch("django_stomp.execution.is_correlation_id_required", True)
 def test_should_clean_problematic_headers_and_publish_it_to_destination_successfully(settings, caplog):
     destination_name = f"/queue/headers-cleaning-destination-{uuid4()}"
