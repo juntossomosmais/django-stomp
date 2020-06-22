@@ -750,7 +750,7 @@ def test_should_clean_all_messages_on_a_destination(caplog):
     consumer.close()
 
     # asserts that messages were acked
-    sleep(5)  # takes some time to ack all messages
+    sleep(15)  # takes some time to ack all messages, specially on the pipeline
     source_queue_status = get_destination_metrics_from_broker(source_queue_name)
 
     assert source_queue_status.number_of_pending_messages == 0
