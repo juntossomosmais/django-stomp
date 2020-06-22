@@ -5,6 +5,7 @@ import uuid
 from contextlib import contextmanager
 from typing import Dict
 from typing import List
+from typing import Optional
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
@@ -20,9 +21,25 @@ logger = logging.getLogger("django_stomp")
 
 
 class Publisher:
-    # headers that must be purged from messages if present
-    # 'message-id': RabbitMQ uses it internally
-    UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL = ["message-id"]
+    """
+    Class used to publish messages to brokers using the STOMP protocol. Some headers are removed
+    if they are in the send() method as they cause unexpected behavior/errors. 
+    
+    Such headers are defined in the UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL class variable which is used
+    for sanitizing the user-supplied headers. 
+    """
+
+    UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL = [
+        # RabbitMQ unsafe headers
+        "message-id",
+        "transaction",
+        "redelivered",
+        "subscription",
+        # Unsafe in a way that only django-stomp/broker should create
+        "destination",
+        "content-length",
+        "content-type",
+    ]
 
     def __init__(self, connection: StompConnection11, connection_configuration: Dict) -> None:
         self._connection_configuration = connection_configuration
@@ -56,14 +73,16 @@ class Publisher:
 
         self._send_to_broker(send_data, how_many_attempts=attempt)
 
-    def _build_final_headers(self, queue: str, headers: Dict, persistent: bool):
+    def _build_final_headers(self, queue: str, headers: Optional[Dict], persistent: bool) -> Dict:
         """
         Builds the message final headers. Removes unsafe or broker-reserved headers.
+        Standard headers values override headers values to reduce possible errors.
         """
-        correlation_id = current_request_id() if current_request_id() != NO_REQUEST_ID else uuid.uuid4()
+        if headers is None:
+            headers = {}
 
         standard_headers = {
-            "correlation-id": correlation_id,
+            "correlation-id": self._get_correlation_id(headers),
             "tshoot-destination": queue,
             # RabbitMQ
             # These two parameters must be set on consumer side as well, otherwise you'll get precondition_failed
@@ -71,20 +90,29 @@ class Publisher:
             "x-dead-letter-exchange": "",
         }
 
-        if headers:
-            standard_headers.update(headers)
+        # safety: standard_headers must override headers values, so order MATTERS here!
+        mixed_headers = {**headers, **standard_headers}
 
         if persistent:
-            standard_headers = self._add_persistent_messaging_header(standard_headers)
+            self._add_persistent_messaging_header(mixed_headers)
 
-        clean_headers = self._remove_unsafe_or_reserved_for_broker_use_headers(standard_headers)
+        final_headers = self._remove_unsafe_or_reserved_for_broker_use_headers(mixed_headers)
+        return final_headers
 
-        return clean_headers
+    def _get_correlation_id(self, headers: Optional[Dict]) -> str:
+        """
+        Gets the correlation id for the message. If 'correlation-id' is in the headers, this value is used. 
+        Otherwise, the value of current_request_id() is returned or a new one is generated as a last resort.
+        """
+        if headers and "correlation-id" in headers:
+            return headers["correlation-id"]
+
+        correlation_id = current_request_id() if current_request_id() != NO_REQUEST_ID else uuid.uuid4()
+        return correlation_id
 
     def _remove_unsafe_or_reserved_for_broker_use_headers(self, headers: Dict) -> Dict:
         """
-        Removes headers that are used internally by the brokers or that might
-        cause unexpected behaviors (unsafe).
+        Removes headers that are used internally by the brokers or that might cause unexpected behaviors (unsafe).
         """
         clean_headers = {
             key: headers[key] for key in headers if key not in self.UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL
@@ -109,7 +137,8 @@ class Publisher:
 
     def _send_to_broker(self, send_data: Dict, how_many_attempts: int) -> None:
         """
-        Sends the actual data to the broker using the STOMP protocol.
+        Sends the actual data to the broker using the STOMP protocol with some retry attempts if
+        a connection problem occurs.
         """
 
         def _internal_send_logic():
