@@ -14,14 +14,14 @@ from django.core.management import call_command
 from django.core.serializers.json import DjangoJSONEncoder
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
-from django_stomp.execution import clean_messages_on_destination_by_acking
-from django_stomp.execution import send_message_from_one_destination_to_another
-from django_stomp.execution import start_processing
 from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import retry
 from django_stomp.services.consumer import Payload
 from django_stomp.services.producer import Publisher
+from django_stomp.start import clean_messages_on_destination_by_acking
+from django_stomp.start import send_message_from_one_destination_to_another
+from django_stomp.start import start_processing
 from pytest_mock import MockFixture
 from tests.support import rabbitmq
 from tests.support.activemq.connections_details import consumers_details
