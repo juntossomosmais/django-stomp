@@ -23,7 +23,6 @@ from django_stomp.services.consumer import Payload
 from django_stomp.subscriptions import create_dlq_queue
 from django_stomp.subscriptions import create_routing_key_bindings
 from django_stomp.subscriptions import start_subscription
-from django_stomp.subscriptions import subscribe
 from request_id_django_log import local_threading
 
 logger = logging.getLogger("django_stomp")
@@ -91,7 +90,7 @@ def send_message_from_one_destination_to_another(
         callback_function,
         is_testing=is_testing,
         testing_disconnect=testing_disconnect,
-        param_to_callback=target_destination,
+        param_to_callback=target_destination,  # type: ignore
         return_listener=return_listener,
         execute_workaround_to_deal_with_rabbit_mq=False,
         broker_host_to_consume_messages=custom_stomp_server_host,

@@ -14,6 +14,8 @@ from django_stomp.helpers import is_destination_from_virtual_topic
 from django_stomp.services.consumer import Listener
 from django_stomp.services.consumer import Payload
 from request_id_django_log import local_threading
+from tenacity import retry
+from tenacity.wait import wait_fixed
 
 logger = logging.getLogger(__name__)
 
@@ -76,79 +78,46 @@ def create_routing_key_bindings(destination_name: str, listener_client_id: str) 
         logger.info("Created/Refreshed queue to consume from topic in case of RabbitMQ...")
 
 
-def subscribe(
-    listener: Listener, callback: Callable, wait_forever: bool = True, wait_before_reconnect: float = 10
-) -> None:
+def subscribe_forever(listener: Listener, callback: Callable, wait_before_reconnect: float = 10) -> None:
     """
     Subscription for testing or forever.
     """
-    keep_subscription_alive = True
-
-    while keep_subscription_alive:
+    while True:
         try:
-            listener.start(callback, wait_forever=wait_forever)  # callback subscription (execution on another thread)
+            # callback subscription (execution on another thread)
+            listener.start(callback, wait_forever=True)
 
         except BaseException as e:
             logger.exception(f"A exception of type {type(e)} was captured during listener logic")
 
         finally:
-            keep_subscription_alive = should_keep_subscription_alive(listener, wait_forever, wait_before_reconnect)
+            logger.info(f"Trying to close listener...")
+
+            if listener.is_open():
+                listener.close()
+
+            logger.info(f"Waiting {wait_before_reconnect} seconds before trying to connect again...")
+            sleep(wait_before_reconnect)
 
 
-def should_keep_subscription_alive(listener: Listener, wait_forever: bool, wait_before_reconnect: float) -> bool:
-    if wait_forever:
-        logger.info(f"Trying to close listener...")
-
-        if listener.is_open():
-            listener.close()
-
-        logger.info(f"Waiting {wait_before_reconnect} seconds before trying to connect again...")
-        sleep(wait_before_reconnect)
-
-    return wait_forever
-
-
+@retry(stop=3, wait=wait_fixed(0.2))
 def subscribe_for_testing(
     listener: Listener, callback: Callable, testing_disconnect: bool = False, wait_before_reconnect: float = 0.2,
 ) -> None:
     """
-    Subscription for testing only.
+    Subscription for testing only. In case of exceptions, 3 retries are attempted.
     """
-    # max_tries = 3
-    # tries = 0
+    listener.start(callback, wait_forever=False)  # callback subscription (execution on another thread)
 
-    # while True:
-
-    #     if tries == 0:
-    #         subscribe(listener, callback, wait_forever=False, wait_before_reconnect=wait_before_reconnect)
-    #         tries += 1
-
-    #     elif tries >= max_tries:
-    #         if testing_disconnect is True:
-    #             listener.close()
-    #         break
-
-    #     else:
-    #         sleep(wait_before_reconnect)
-    #         tries += 1
-    testing_subscription_attempts = 3
-
-    while testing_subscription_attempts >= 0:
-        try:
-
-            listener.start(callback, wait_forever=False)  # callback subscription (execution on another thread)
-            break
-
-        except BaseException as e:
-            logger.exception(f"A exception of type {type(e)} was captured during listener logic")
-            testing_subscription_attempts -= 1
+    if testing_disconnect and listener.is_open():
+        listener.close()
 
 
 def start_subscription(
     listener: Listener,
     callback: Callable,
     is_testing: bool = False,
-    testing_disconnect: bool = False,
+    testing_disconnect: bool = True,
     wait_before_reconnect: float = 10,
 ) -> None:
     """
@@ -158,4 +127,4 @@ def start_subscription(
         subscribe_for_testing(listener, callback, testing_disconnect)
 
     else:
-        subscribe(listener, callback, wait_forever=True)  # must loop forever trying to reconnect
+        subscribe_forever(listener, callback)  # must loop forever trying to reconnect
