@@ -21,3 +21,11 @@ services:
       - 15672:15672
     volumes:
       - ./tests/resources/custom-rabbitmq-conf:/etc/rabbitmq/
+  integration-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/django-stomp-lib
+    command: >
+      sh -c "pip install tox && tox"
