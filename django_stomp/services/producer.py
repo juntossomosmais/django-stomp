@@ -3,8 +3,8 @@ import logging
 import ssl
 import uuid
 from contextlib import contextmanager
+from time import time
 from typing import Dict
-from typing import List
 from typing import Optional
 
 from django.core.serializers.json import DjangoJSONEncoder
@@ -83,6 +83,7 @@ class Publisher:
 
         standard_headers = {
             "correlation-id": self._get_correlation_id(headers),
+            "timestamp": str(time()),
             "tshoot-destination": queue,
             # RabbitMQ
             # These two parameters must be set on consumer side as well, otherwise you'll get precondition_failed
