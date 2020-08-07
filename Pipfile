@@ -16,6 +16,7 @@ parsel = "*"
 requests = "*"
 trio = "*"
 pytest-trio = "*"
+freezegun = "*"
 
 [packages]
 django = "~=2.2"
