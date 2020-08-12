@@ -832,7 +832,6 @@ def test_should_not_publish_any_messages_if_connection_drops_when_using_transact
     queue_status = get_destination_metrics_from_broker(queue_name)
 
     # no messages should have been published ahead
-    assert queue_status.messages_enqueued == None
     assert queue_status.number_of_pending_messages == 0
 
 
