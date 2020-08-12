@@ -66,13 +66,15 @@ class Publisher:
 
     def send(self, body: dict, queue: str, headers=None, persistent=True, attempt=10):
         """
-        Builds the final message headers/body and sends to the broker with the STOMP protocol.
+        Builds the final message headers/body and sends to the broker with the STOMP protocol. Attempt retries
+        are ignored if the publisher is currently being used in a transaction in order to avoid already closed
+        transactions errors due to the STOMP protocol behavior.
         """
         headers = self._build_final_headers(queue, headers, persistent)
         send_data = self._build_send_data(queue, body, headers)
 
         if self._is_publisher_in_transaction():
-            self._send_to_broker_without_reconnect_attempts(send_data)
+            self._send_to_broker_without_retry_attempts(send_data)
         else:
             self._send_to_broker(send_data, how_many_attempts=attempt)
 
@@ -150,7 +152,7 @@ class Publisher:
 
         retry(_internal_send_logic, attempt=how_many_attempts)
 
-    def _send_to_broker_without_reconnect_attempts(self, send_data: Dict) -> None:
+    def _send_to_broker_without_retry_attempts(self, send_data: Dict) -> None:
         """
         Sends the actual data to the broker using the STOMP protocol WITHOUT any retry attempts as reconnecting to the broker
         while a transaction was previously created will lead to 'bad transaction' errors because STOMP 1.1 protocol closes any
