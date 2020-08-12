@@ -71,7 +71,10 @@ class Publisher:
         headers = self._build_final_headers(queue, headers, persistent)
         send_data = self._build_send_data(queue, body, headers)
 
-        self._send_to_broker(send_data, how_many_attempts=attempt)
+        if self._is_publisher_in_transaction():
+            self._send_to_broker_without_reconnect_attempts(send_data)
+        else:
+            self._send_to_broker(send_data, how_many_attempts=attempt)
 
     def _build_final_headers(self, queue: str, headers: Optional[Dict], persistent: bool) -> Dict:
         """
@@ -146,6 +149,25 @@ class Publisher:
             self.connection.send(**send_data)
 
         retry(_internal_send_logic, attempt=how_many_attempts)
+
+    def _send_to_broker_without_reconnect_attempts(self, send_data: Dict) -> None:
+        """
+        Sends the actual data to the broker using the STOMP protocol WITHOUT any retry attempts as reconnecting to the broker
+        while a transaction was previously created will lead to 'bad transaction' errors because STOMP 1.1 protocol closes any
+        transactions if the producer had TCP connection problems or sends a DISCONNECT frame.
+        
+        Hence, when a producer sends a BEGIN frame, all subsequent SEND frames (messages) must always use the SAME connection that
+        was used to start the transaction.
+
+        -> STOMP 1.1 specification: https://stomp.github.io/stomp-specification-1.1.html#BEGIN
+        """
+        self.connection.send(**send_data)  # bare sending without retries
+
+    def _is_publisher_in_transaction(self) -> bool:
+        """
+        Checks if the publisher is currently being used in a transaction.
+        """
+        return hasattr(self, "_tmp_transaction_id")  # attribute set by do_inside_transaction contextmanager
 
     @staticmethod
     def _add_persistent_messaging_header(headers: Dict) -> Dict:
