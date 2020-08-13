@@ -197,7 +197,7 @@ def test_should_create_durable_subscriber_and_receive_standby_messages(mocker: M
                 break
             assert all_offline_subscribers[index] != all_offline_subscribers[-1]
     except Exception:
-        destination_status = rabbitmq.current_topic_configuration(topic_name)
+        destination_status = rabbitmq.current_topic_configuration(topic_name)  # type: ignore
         assert destination_status.number_of_consumers == 0
         assert destination_status.messages_enqueued == 3
         assert destination_status.messages_dequeued == 3
@@ -878,6 +878,8 @@ def test_should_publish_messages_if_connection_drops_when_not_transactions():
     publisher.close()  # simulates a closed connection/timeout/broken pipe/etc
     publisher.send(some_body, queue=destination_one, headers=some_header)
 
+    # some sleep to give some time for RabbitMQ Console
+    sleep(2)
     queue_status = get_destination_metrics_from_broker(queue_name)
 
     # the two message should have been published due to retry (but no transactions involved)
