@@ -97,7 +97,7 @@ def retry(function: Callable, attempt=10, *args, **kwargs):
     retry_configuration = tenacity.Retrying(
         stop=tenacity.stop_after_attempt(attempt),
         wait=tenacity.wait_fixed(3) + tenacity.wait_random(0, 2),
-        after=tenacity.after_log(logger, logger.level) if logger else None,
+        after=tenacity.after_log(logger, logging.WARNING) if logger else None,
         reraise=True,
     )
     return retry_configuration(function, *args, **kwargs)

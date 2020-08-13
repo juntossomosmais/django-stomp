@@ -12,17 +12,8 @@ import pytest
 import trio
 from django.core.management import call_command
 from django.core.serializers.json import DjangoJSONEncoder
-from django_stomp.builder import build_listener
-from django_stomp.builder import build_publisher
-from django_stomp.execution import clean_messages_on_destination_by_acking
-from django_stomp.execution import send_message_from_one_destination_to_another
-from django_stomp.execution import start_processing
-from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
-from django_stomp.helpers import create_dlq_destination_from_another_destination
-from django_stomp.helpers import retry
-from django_stomp.services.consumer import Payload
-from django_stomp.services.producer import Publisher
 from pytest_mock import MockFixture
+from stomp.exception import NotConnectedException
 from tests.support import rabbitmq
 from tests.support.activemq.connections_details import consumers_details
 from tests.support.activemq.message_details import retrieve_message_published
@@ -43,6 +34,18 @@ from tests.support.helpers import is_testing_against_rabbitmq
 from tests.support.helpers import publish_to_destination
 from tests.support.helpers import publish_without_correlation_id_header
 from tests.support.helpers import wait_for_message_in_log
+
+from django_stomp.builder import build_listener
+from django_stomp.builder import build_publisher
+from django_stomp.execution import clean_messages_on_destination_by_acking
+from django_stomp.execution import send_message_from_one_destination_to_another
+from django_stomp.execution import start_processing
+from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
+from django_stomp.helpers import create_dlq_destination_from_another_destination
+from django_stomp.helpers import retry
+from django_stomp.services.consumer import Payload
+from django_stomp.services.producer import Publisher
+from django_stomp.services.producer import do_inside_transaction
 
 
 def test_should_consume_message_and_publish_to_another_queue_using_same_correlation_id():
@@ -804,3 +807,79 @@ def test_should_clean_problematic_headers_and_publish_it_to_destination_successf
     assert message_body["points"] == 300
     assert message_body["account"] == "7cdd43af-7e36-40c2-b7e7-e0e0a62fa328"
     assert message_body["sponsor"] == "3591bfff-3241-46e3-8829-2389d56da04c"
+
+
+def test_should_not_publish_any_messages_if_connection_drops_when_using_transactions():
+    # Base environment setup
+    destination_one = f"/queue/no-retrying-destination-one-{uuid4()}"
+    *_, queue_name = destination_one.split("/")
+    some_correlation_id = uuid.uuid4()
+    some_header = {"correlation-id": some_correlation_id}
+    some_body = {"please": "no errors 1"}
+    some_body = {"please": "no errors 2"}
+
+    # creates destination and publishes to it
+    start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True,).close()
+    publisher = build_publisher(f"random-publisher-{uuid4()}")
+
+    with pytest.raises(NotConnectedException):
+        # transaction with connection errors: everything should be aborted and no messages published
+        with do_inside_transaction(publisher):
+            publisher.send(some_body, queue=destination_one, headers=some_header)
+            publisher.close()  # simulates a closed connection/timeout/broken pipe/etc IN A TRANSACTION
+            publisher.send(some_body, queue=destination_one, headers=some_header)
+
+    queue_status = get_destination_metrics_from_broker(queue_name)
+
+    # no messages should have been published ahead
+    assert queue_status.number_of_pending_messages == 0
+
+
+def test_should_publish_many_messages_if_no_connection_problems_happen_when_using_transactions():
+    # Base environment setup
+    destination_one = f"/queue/no-retrying-destination-one-{uuid4()}"
+    *_, queue_name = destination_one.split("/")
+    some_correlation_id = uuid.uuid4()
+    some_header = {"correlation-id": some_correlation_id}
+    some_body = {"please": "no errors 1"}
+    some_body = {"please": "no errors 2"}
+
+    # creates destination and publishes to it
+    start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True,).close()
+    publisher = build_publisher(f"random-publisher-{uuid4()}")
+
+    # no connection errors inside this transaction
+    with do_inside_transaction(publisher):
+        publisher.send(some_body, queue=destination_one, headers=some_header)
+        publisher.send(some_body, queue=destination_one, headers=some_header)
+
+    queue_status = get_destination_metrics_from_broker(queue_name)
+
+    # two messages should have been published (no connection/errors on send)
+    assert queue_status.messages_enqueued == 2
+    assert queue_status.number_of_pending_messages == 2
+
+
+def test_should_publish_messages_if_connection_drops_when_not_transactions():
+    # Base environment setup
+    destination_one = f"/queue/yes-retrying-destination-one-{uuid4()}"
+    *_, queue_name = destination_one.split("/")
+    some_correlation_id = uuid.uuid4()
+    some_header = {"correlation-id": some_correlation_id}
+    some_body = {"please": "no errors 1"}
+    some_body = {"please": "no errors 2"}
+
+    # creates destination and publishes to it
+    start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True,).close()
+    publisher = build_publisher(f"random-publisher-{uuid4()}")
+
+    # no transaction
+    publisher.send(some_body, queue=destination_one, headers=some_header)
+    publisher.close()  # simulates a closed connection/timeout/broken pipe/etc
+    publisher.send(some_body, queue=destination_one, headers=some_header)
+
+    queue_status = get_destination_metrics_from_broker(queue_name)
+
+    # the two message should have been published due to retry (but no transactions involved)
+    assert queue_status.messages_enqueued == 2
+    assert queue_status.number_of_pending_messages == 2
