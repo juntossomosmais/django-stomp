@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from django_stomp.execution import start_processing
+from django_stomp.start import start_processing
 
 
 class Command(BaseCommand):

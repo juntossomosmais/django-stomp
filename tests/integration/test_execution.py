@@ -1,8 +1,6 @@
 import json
 import logging
 import re
-import threading
-import time
 import uuid
 from time import sleep
 from unittest import mock
@@ -10,15 +8,8 @@ from uuid import uuid4
 
 import pytest
 import trio
-from django.core.management import call_command
-from django.core.serializers.json import DjangoJSONEncoder
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
-from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
-from django_stomp.helpers import create_dlq_destination_from_another_destination
-from django_stomp.helpers import retry
-from django_stomp.services.consumer import Payload
-from django_stomp.services.producer import Publisher
 from django_stomp.start import clean_messages_on_destination_by_acking
 from django_stomp.start import send_message_from_one_destination_to_another
 from django_stomp.start import start_processing
@@ -158,8 +149,8 @@ def test_should_create_durable_subscriber_and_receive_standby_messages(mocker: M
     test_destination_durable_consumer_one = f"/topic/my-test-destination-durable-consumer-one-{uuid4()}"
     temp_uuid_listener = str(uuid.uuid4())
 
-    mocker.patch("django_stomp.execution.get_listener_client_id", return_value=temp_uuid_listener)
-    mocker.patch("django_stomp.execution.durable_topic_subscription", True)
+    mocker.patch("django_stomp.start.get_listener_client_id", return_value=temp_uuid_listener)
+    mocker.patch("django_stomp.start.durable_topic_subscription", True)
     durable_subscription_id = str(uuid.uuid4())
     settings.STOMP_SUBSCRIPTION_ID = durable_subscription_id
     # Just to create a durable subscription
@@ -215,7 +206,7 @@ async def test_should_configure_prefetch_size_as_one(mocker: MockFixture, settin
 
     listener_id = str(uuid.uuid4())
     # LISTENER_CLIENT_ID is used by ActiveMQ
-    mocker.patch("django_stomp.execution.get_listener_client_id", return_value=listener_id)
+    mocker.patch("django_stomp.start.get_listener_client_id", return_value=listener_id)
     # SUBSCRIPTION_ID is used by RabbitMQ to identify a consumer through a tag
     subscription_id = str(uuid.uuid4())
     settings.STOMP_SUBSCRIPTION_ID = subscription_id
@@ -366,7 +357,7 @@ def test_should_send_to_another_destination(caplog):
     assert message_status.details == some_body
 
 
-@mock.patch("django_stomp.execution.should_process_msg_on_background", False)
+@mock.patch("django_stomp.start.should_process_msg_on_background", False)
 def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_than_heartbeat_no_background_processing(
     caplog, settings, mocker
 ):
@@ -573,7 +564,7 @@ def test_shouldnt_process_message_from_virtual_topic_older_than_the_consumer_que
         assert queue_status.messages_dequeued == 0
 
 
-@mock.patch("django_stomp.execution.is_correlation_id_required", True)
+@mock.patch("django_stomp.start.is_correlation_id_required", True)
 def test_should_raise_exception_when_correlation_id_is_required_but_not_received(settings):
     test_destination_one = f"/queue/test-correlation-id-required-one-{uuid4()}"
     test_destination_two = f"/queue/test-correlation-id-required-two-{uuid4()}"
@@ -587,7 +578,7 @@ def test_should_raise_exception_when_correlation_id_is_required_but_not_received
         )
 
 
-@mock.patch("django_stomp.execution.is_correlation_id_required", True)
+@mock.patch("django_stomp.start.is_correlation_id_required", True)
 def test_should_raise_exception_when_correlation_id_is_not_supplied_and_publish_it_to_dlq(settings, caplog):
     some_body = {"keyOne": 1, "keyTwo": 2}
     destination_name = f"/queue/destination-for-correlation-id-testing-required-{uuid4()}"
@@ -615,7 +606,7 @@ def test_should_raise_exception_when_correlation_id_is_not_supplied_and_publish_
     assert dlq_source_queue_status.number_of_consumers == 0
 
 
-@mock.patch("django_stomp.execution.is_correlation_id_required", False)
+@mock.patch("django_stomp.start.is_correlation_id_required", False)
 def test_should_consume_message_without_correlation_id_when_it_is_not_required_no_dlq(settings):
     some_body = {"keyOne": 1, "keyTwo": 2}
     destination_name = f"/queue/destination-for-correlation-id-testing-not-required-{uuid4()}"
@@ -645,7 +636,7 @@ def test_should_consume_message_without_correlation_id_when_it_is_not_required_n
     assert dlq_source_queue_status.messages_dequeued == 0
 
 
-@mock.patch("django_stomp.execution.should_process_msg_on_background", True)
+@mock.patch("django_stomp.start.should_process_msg_on_background", True)
 def test_should_use_heartbeat_and_dont_lose_connection_when_using_background_processing(caplog, settings, mocker):
     """
     The listener in this code has a message handler that takes a long time to process a message (see
@@ -760,7 +751,7 @@ def test_should_clean_all_messages_on_a_destination(caplog):
     assert source_queue_status.messages_dequeued == trash_msgs_count  # cleaned all the trash on the queue!
 
 
-@mock.patch("django_stomp.execution.is_correlation_id_required", True)
+@mock.patch("django_stomp.start.is_correlation_id_required", True)
 def test_should_clean_problematic_headers_and_publish_it_to_destination_successfully(settings, caplog):
     destination_name = f"/queue/headers-cleaning-destination-{uuid4()}"
     *_, source_queue_name = destination_name.split("/")

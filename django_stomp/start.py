@@ -2,28 +2,18 @@
 Module for subscribing to destinations.
 """
 import logging
-import uuid
-from time import sleep
+
 from typing import Optional
 
 from django.conf import settings
 from django.utils.module_loading import import_string
 from django_stomp.builder import build_listener
-from django_stomp.builder import build_publisher
 from django_stomp.callbacks import callback_factory
-from django_stomp.exceptions import CorrelationIdNotProvidedException
-from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import eval_str_as_boolean
 from django_stomp.helpers import get_listener_client_id
-from django_stomp.helpers import get_subscription_destination
-from django_stomp.helpers import is_destination_from_virtual_topic
-from django_stomp.helpers import remove_key_from_dict
 from django_stomp.services.consumer import Listener
-from django_stomp.services.consumer import Payload
-from django_stomp.subscriptions import create_dlq_queue
+from django_stomp.subscriptions import create_dlq_queue, subscribe_for_testing, subscribe_forever
 from django_stomp.subscriptions import create_routing_key_bindings
-from django_stomp.subscriptions import start_subscription
-from request_id_django_log import local_threading
 
 logger = logging.getLogger("django_stomp")
 
@@ -45,7 +35,7 @@ def start_processing(
     execute_workaround_to_deal_with_rabbit_mq: bool = True,
     broker_host_to_consume_messages: Optional[str] = None,
     broker_port_to_consume_messages: Optional[int] = None,
-) -> Optional[Listener]:
+):
     """
     Starts processing messages from a STOMP subscription.
     """
@@ -66,12 +56,12 @@ def start_processing(
     )
 
     wrapped_callback = callback_factory(listener, callback_function, param_to_callback, is_correlation_id_required)
-    start_subscription(listener, wrapped_callback, is_testing, testing_disconnect, wait_to_connect)
 
-    if return_listener:
+    if is_testing:
+        subscribe_for_testing(listener, wrapped_callback, disconnect_after_tests=testing_disconnect)
         return listener
 
-    return None
+    subscribe_forever(listener, wrapped_callback)
 
 
 def send_message_from_one_destination_to_another(

@@ -99,16 +99,23 @@ def start_processing(
         while True:
             main_logic()
     else:
+
+        # is_testing = True -> testing_disconnect (if true => closes after max_retries), return_listener (if true => main_logic just once)
         max_tries = 3
         tries = 0
         testing_listener = None
         while True:
             if tries == 0:
+
+                # if return_listener, main_logic just once
                 testing_listener = main_logic()
                 if return_listener:
                     return testing_listener
                 tries += 1
+
             elif tries >= max_tries:
+
+                # if testing_disconnec: close on the end of the tests the listener conn
                 if testing_disconnect is True:
                     testing_listener.close()
                 break
@@ -126,7 +133,7 @@ def send_message_from_one_destination_to_another(
     custom_stomp_server_host: Optional[str] = None,
     custom_stomp_server_port: Optional[int] = None,
 ) -> Listener:
-    callback_function = "django_stomp.execution._callback_send_to_another_destination"
+    callback_function = "django_stomp.callbacks.callback_send_to_another_destination"
 
     return start_processing(
         source_destination,
@@ -147,7 +154,7 @@ def clean_messages_on_destination_by_acking(
     """
     Cleans a queue by acking all messages on it (no queue purging or deleting).
     """
-    ack_only_callback_path = "django_stomp.execution._callback_for_cleaning_queues"
+    ack_only_callback_path = "django_stomp.callbacks.callback_for_cleaning_queues"
 
     return start_processing(
         source_destination,

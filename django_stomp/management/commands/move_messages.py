@@ -1,6 +1,6 @@
 from django.core.management import CommandError
 from django.core.management.base import BaseCommand
-from django_stomp.execution import send_message_from_one_destination_to_another
+from django_stomp.start import send_message_from_one_destination_to_another
 
 
 class Command(BaseCommand):
