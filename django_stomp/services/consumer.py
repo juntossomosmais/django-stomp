@@ -103,11 +103,12 @@ class Listener(stomp.ConnectionListener):
     def is_open(self):
         return self._connection.is_connected()
 
-    def start(self, callback: Callable = None, wait_forever=True, subscription_duration: float = 2.0):
+    def start(self, callback: Callable = None, wait_forever=True, subscription_duration: float = 0.4):
         logger.info(f"Starting listener with name: {self._listener_id}")
         logger.info(f"Subscribe/Listener auto-generated ID: {self._subscription_id}")
 
         if self._is_testing:
+            # used by some test helper functions: get_latest_message_from_destination_using_test_listener
             self._connection.set_listener("TESTING", self._test_listener)
         else:
             # sets this class itself as a listener (satisfies the listener protocol)
@@ -123,7 +124,7 @@ class Listener(stomp.ConnectionListener):
 
         # locks main_thread forever with reconnection if possible
         if wait_forever:
-            logger.info("Connected! Subscribedforever...")
+            logger.info("Connected! Subscribed forever...")
 
             while True:
                 if not self.is_open():
@@ -131,9 +132,10 @@ class Listener(stomp.ConnectionListener):
                     self.start(self._callback, wait_forever=False)
                 time.sleep(1)
 
-        # locks main_thread for some time
-        logger.info(f"Subscribing for {subscription_duration} seconds...")
-        time.sleep(subscription_duration)
+        # # locks main_thread for some time
+        # logger.info(f"Subscribing for {subscription_duration} seconds...")
+        # attempts = 5
+        time.sleep(2)
 
     def close(self):
         disconnect_receipt = str(uuid.uuid4())

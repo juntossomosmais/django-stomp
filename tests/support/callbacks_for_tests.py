@@ -4,8 +4,6 @@ Module with testing callbacks used for the tests.
 import logging
 import threading
 from time import sleep
-from typing import Callable
-from uuid import uuid4
 
 from django_stomp.builder import build_publisher
 from django_stomp.services.consumer import Payload

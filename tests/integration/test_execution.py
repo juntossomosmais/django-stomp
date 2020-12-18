@@ -410,25 +410,33 @@ def test_should_create_queues_for_virtual_topic_listeners_and_consume_its_messag
     number_of_consumers = 2
 
     some_virtual_topic = f"VirtualTopic.{uuid.uuid4()}"
-    consumers = [
-        start_processing(
-            f"Consumer.{uuid.uuid4()}.{some_virtual_topic}",
-            callback_standard_path,
-            is_testing=True,
-            return_listener=True,
-        )
-        for _ in range(number_of_consumers)
-    ]
+
+    consumer_1 = f"Consumer.{uuid.uuid4()}.{some_virtual_topic}"
+    consumer_2 = f"Consumer.{uuid.uuid4()}.{some_virtual_topic}"
+
+    # creates two consumer queues
+    start_processing(
+        consumer_1, callback_standard_path, is_testing=True, return_listener=True,
+    )
+    start_processing(
+        consumer_2, callback_standard_path, is_testing=True, return_listener=True,
+    )
 
     some_body = {"send": 2, "Virtual": "Topic"}
     publish_to_destination(f"/topic/{some_virtual_topic}", some_body)
 
+    # # starts consumers
+    start_processing(
+        consumer_1, callback_standard_path, is_testing=True, return_listener=True,
+    )
+
+    start_processing(
+        consumer_2, callback_standard_path, is_testing=True, return_listener=True,
+    )
+
     wait_for_message_in_log(
         caplog, r"Received frame: 'MESSAGE'.*body='{\"send\": 2, \"Virtual\": \"Topic\"}.*'", message_count_to_wait=2
     )
-
-    for consumer in consumers:
-        consumer.close()
 
     received_frame_log_messages = [
         message

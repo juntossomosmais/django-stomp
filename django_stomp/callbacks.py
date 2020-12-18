@@ -3,23 +3,16 @@ Module with callback-related definitions used on SUBSCRIPTIONS.
 """
 import logging
 import uuid
-from time import sleep
 from typing import Any
 from typing import Callable
-from typing import Optional
 
-from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
-from django_stomp.exceptions import CorrelationIdNotProvidedException
-from django_stomp.helpers import create_dlq_destination_from_another_destination
-from django_stomp.helpers import get_listener_client_id
-from django_stomp.helpers import get_subscription_destination
-from django_stomp.helpers import is_destination_from_virtual_topic
 from django_stomp.helpers import remove_key_from_dict
-from django_stomp.services.consumer import Listener
 from django_stomp.services.consumer import Payload
 from django_stomp.subscriptions import get_or_create_correlation_id
 from request_id_django_log import local_threading
+
+publisher_name = "django-stomp-another-target"
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +34,7 @@ def callback_factory(
             else:
                 execution_callback(payload)
 
-        except BaseException as e:
+        except Exception as e:
 
             logger.exception(f"A exception of type {type(e)} was captured during callback logic")
             logger.warning("Trying to do NACK explicitly sending the message to DLQ...")
