@@ -4,8 +4,11 @@ import time
 import uuid
 from typing import Callable
 from typing import Dict
+from typing import Optional
 
 import tenacity
+
+from django_stomp.services.settings_scanner import DjangoStompSettings
 
 logger = logging.getLogger("django_stomp")
 
@@ -115,3 +118,33 @@ def is_heartbeat_enabled(outgoing_heartbeat: int, incoming_heartbeat: int):
     More on: https://stomp.github.io/stomp-specification-1.1.html#Heart-beating
     """
     return outgoing_heartbeat > 0 and incoming_heartbeat > 0
+
+
+def display_heartbeat_warning_if_necessary(settings: DjangoStompSettings):
+    """
+    Displays heartbeat warning if the user has a possible misconfigured settings.
+    """
+    if (
+        is_heartbeat_enabled(settings.outgoing_heartbeat, settings.incoming_heartbeat)
+        and not settings.should_process_msg_on_background
+    ):
+        logger.warning(
+            "STOMP heartbeat enabled while message processing on background is disable! "
+            "This could potentially lead to a false positive heartbeat timeout!"
+        )
+
+
+def build_final_client_id(listener_client_id: Optional[str], is_durable_topic_subscription: bool) -> str:
+    """
+    Generates a new client id for listener when needed. If a client_id is supplied, then it's respected, unless
+    it's not for a durable topic subscription where a final uuid is appended.
+    """
+    # not durable and exists client_id -> append uuid to avoid problems
+    if not is_durable_topic_subscription and listener_client_id is not None:
+        return f"{listener_client_id}-{uuid.uuid4().hex}"
+
+    # durable or not-durable without client_id
+    if listener_client_id is None:
+        listener_client_id = str(uuid.uuid4())
+
+    return listener_client_id

@@ -11,11 +11,12 @@ from typing import Dict
 from typing import Optional
 
 import stomp
+from stomp import connect
+
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import is_heartbeat_enabled
 from django_stomp.helpers import only_destination_name
 from django_stomp.settings import STOMP_PROCESS_MSG_WORKERS
-from stomp import connect
 
 logger = logging.getLogger("django_stomp")
 
@@ -186,14 +187,18 @@ def build_listener(
     )
     client_id = connection_params.get("client_id", uuid.uuid4())
     routing_key = routing_key or destination_name
+
+    # --- for StompSubscriptionDetailsRabbitMQ / ActiveMQ
     subscription_configuration = {
         "destination": routing_key,
         "ack": ack_type.value,
         # RabbitMQ
-        "x-queue-name": only_destination_name(destination_name),
+        "x-queue-name": only_destination_name(destination_name),  # topics and exchanges
         "auto-delete": "false",
         "durable": "true",
     }
+
+    # --- for StompConnectFrameSettings
     header_setup = {
         # ActiveMQ
         "client-id": f"{client_id}-listener",
