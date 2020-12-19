@@ -203,21 +203,6 @@ class ListenerRabbitMQ(BaseStompListener):
         self.start()
 
 
-def build_stomp_subscription_details(destination_name: str, settings: DjangoStompSettings):
-    hosts = [(settings.stomp_server_host, settings.stomp_server_port)]
-
-    if settings.stomp_server_standby_host and settings.stomp_server_standby_port:
-        hosts.append((settings.stomp_server_standby_host, settings.stomp_server_standby_port))
-
-    logger.info(
-        f"Use SSL? {settings.use_ssl}. Version: {settings.ssl_version}. Outgoing/Ingoing heartbeat: "
-        f"{settings.outgoing_heartbeat}/{settings.incoming_heartbeat}. "
-        f"Background? {settings.should_process_msg_on_background}"
-    )
-
-    display_heartbeat_warning_if_necessary(settings)
-
-
 def build_stomp_connection_settings(settings: DjangoStompSettings) -> StompConnectionSettings:
     hosts_and_ports = [(settings.stomp_server_host, settings.stomp_server_port)]
 

@@ -24,9 +24,13 @@ def create_listener_rabbitmq(
     """
     Builds a stomp listener for RabbitMQ broker.
     """
+    stomp_client_id = settings.client_id
+    stomp_subscription_id = settings.subscription_id
+
     x_dead_letter_routing_key = create_dlq_destination_from_another_destination(destination_name)
     x_dead_letter_exchange = ""
     x_queue_name = only_destination_name(destination_name)
+
     auto_delete = False
     durable = True
 
@@ -44,6 +48,6 @@ def create_listener_rabbitmq(
         stomp_connection_settings,
         stomp_connect_frame_settings,
         stomp_subscription_details,
-        settings.client_id,
-        settings.subscription_id,
+        stomp_client_id,
+        stomp_subscription_id,
     )
