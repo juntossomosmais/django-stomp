@@ -7,7 +7,7 @@ from typing import Callable
 
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import only_destination_name
-from django_stomp.infra.base_listener import ListenerRabbitMQ
+from django_stomp.services.listener import StompListener11
 from django_stomp.services.settings_scanner import DjangoStompSettings
 from django_stomp.settings import build_connection_headers_rabbitmq
 from django_stomp.settings import build_subscription_headers_rabbitmq
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 def create_listener_rabbitmq(
     callback: Callable, destination_name: str, settings: DjangoStompSettings
-) -> ListenerRabbitMQ:
+) -> StompListener11:
     """
     Builds a stomp listener for RabbitMQ broker.
     """
@@ -50,6 +50,6 @@ def create_listener_rabbitmq(
         subscription_headers_rabbitmq,
     )
 
-    return ListenerRabbitMQ(
+    return StompListener11(
         callback, stomp_connection_settings, stomp_connection_settings_details, stomp_subscription_settings,
     )
