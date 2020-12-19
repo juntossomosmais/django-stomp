@@ -7,47 +7,49 @@ from typing import Callable
 
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import only_destination_name
-from django_stomp.infra.base_listener import BaseStompListener
 from django_stomp.infra.base_listener import ListenerRabbitMQ
-from django_stomp.infra.base_listener import build_connection_headers_rabbitmq
-from django_stomp.infra.base_listener import build_stomp_connect_frame_settings
-from django_stomp.infra.base_listener import build_stomp_connection_settings
-from django_stomp.infra.base_listener import build_subscription_details_rabbitmq
 from django_stomp.services.settings_scanner import DjangoStompSettings
+from django_stomp.settings import build_connection_headers_rabbitmq
+from django_stomp.settings import build_subscription_headers_rabbitmq
+from django_stomp.settings import parse_stomp_connection_settings
+from django_stomp.settings import parse_stomp_connection_settings_details
+from django_stomp.settings import parse_subscription_settings
 
 logger = logging.getLogger(__name__)
 
 
 def create_listener_rabbitmq(
     callback: Callable, destination_name: str, settings: DjangoStompSettings
-) -> BaseStompListener:
+) -> ListenerRabbitMQ:
     """
     Builds a stomp listener for RabbitMQ broker.
     """
-    stomp_client_id = settings.client_id
-    stomp_subscription_id = settings.subscription_id
-
+    # rabbitmq settings
     x_dead_letter_routing_key = create_dlq_destination_from_another_destination(destination_name)
     x_dead_letter_exchange = ""
     x_queue_name = only_destination_name(destination_name)
-
     auto_delete = False
     durable = True
 
-    stomp_connection_settings = build_stomp_connection_settings(settings)
+    # rabbitmq headers
     stomp_connection_headers_rabbitmq = build_connection_headers_rabbitmq(
         x_dead_letter_routing_key, x_dead_letter_exchange
     )
-    stomp_connect_frame_settings = build_stomp_connect_frame_settings(stomp_connection_headers_rabbitmq, settings)
-    stomp_subscription_details = build_subscription_details_rabbitmq(
-        settings.ack_type.value, destination_name, x_queue_name, auto_delete, durable
+    subscription_headers_rabbitmq = build_subscription_headers_rabbitmq(x_queue_name, auto_delete, durable)
+
+    # stomp settings
+    stomp_connection_settings = parse_stomp_connection_settings(settings)
+    stomp_connection_settings_details = parse_stomp_connection_settings_details(
+        settings, stomp_connection_headers_rabbitmq
+    )
+    stomp_subscription_settings = parse_subscription_settings(
+        settings.listener_client_id,
+        settings.subscription_id,
+        settings.ack_type,
+        destination_name,
+        subscription_headers_rabbitmq,
     )
 
     return ListenerRabbitMQ(
-        callback,
-        stomp_connection_settings,
-        stomp_connect_frame_settings,
-        stomp_subscription_details,
-        stomp_client_id,
-        stomp_subscription_id,
+        callback, stomp_connection_settings, stomp_connection_settings_details, stomp_subscription_settings,
     )

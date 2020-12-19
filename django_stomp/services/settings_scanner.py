@@ -2,11 +2,6 @@
 Service used to read user settings.
 """
 import uuid
-from dataclasses import dataclass
-from enum import Enum
-from typing import Optional
-
-from django.conf import LazySettings
 
 from django_stomp.helpers import build_final_client_id
 from django_stomp.infra.env import get_config_as_bool_or_default
@@ -22,47 +17,11 @@ from django_stomp.settings import STOMP_PROCESS_MSG_ON_BACKGROUND_DEFAULT
 from django_stomp.settings import STOMP_SSL_VERSION_DEFAULT
 from django_stomp.settings import STOMP_USE_SSL_DEFAULT
 from django_stomp.settings import STOMP_WAIT_TO_CONNECT_DEFAULT
+from django_stomp.settings import AcknowledgementType
+from django_stomp.settings import DjangoStompSettings
 
 
-class AcknowledgementType(Enum):
-    """
-    Ack types.
-    """
-
-    CLIENT = "client"
-    CLIENT_INDIVIDUAL = "client-individual"
-    AUTO = "auto"
-
-
-@dataclass(frozen=True)
-class DjangoStompSettings:
-    """
-    Django stomp settings.
-    """
-
-    client_id: str
-    publisher_name: str
-    durable_topic_subscription: bool
-    is_correlation_id_required: bool
-    should_process_msg_on_background: bool
-    ack_type: AcknowledgementType
-
-    stomp_server_user: str
-    stomp_server_password: str
-    stomp_server_host: str
-    stomp_server_port: int
-    stomp_server_standby_host: str
-    stomp_server_standby_port: int
-    wait_to_connect: int
-    outgoing_heartbeat: int
-    incoming_heartbeat: int
-    subscription_id: str
-    vhost: str
-    use_ssl: bool
-    ssl_version: int
-
-
-def scan_django_settings(django_settings: LazySettings) -> DjangoStompSettings:
+def scan_django_settings() -> DjangoStompSettings:
     """
     Reads all required settings from users' django settings.
     """
