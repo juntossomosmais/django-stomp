@@ -7,8 +7,9 @@ from typing import Callable
 
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import only_destination_name
+from django_stomp.services.listener import StompContext11
 from django_stomp.services.listener import StompListener11
-from django_stomp.services.settings_scanner import DjangoStompSettings
+from django_stomp.settings import DjangoStompSettings
 from django_stomp.settings import build_connection_headers_rabbitmq
 from django_stomp.settings import build_subscription_headers_rabbitmq
 from django_stomp.settings import parse_stomp_connection_settings
@@ -50,6 +51,8 @@ def create_listener_rabbitmq(
         subscription_headers_rabbitmq,
     )
 
-    return StompListener11(
-        callback, stomp_connection_settings, stomp_connection_settings_details, stomp_subscription_settings,
+    stomp_context = StompContext(
+        stomp_connection_settings, stomp_connection_settings_details, stomp_subscription_settings
     )
+
+    return StompListener11(callback, stomp_context)

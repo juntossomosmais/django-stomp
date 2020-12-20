@@ -8,7 +8,7 @@ from typing import Optional
 
 import tenacity
 
-from django_stomp.services.settings_scanner import DjangoStompSettings
+from django_stomp.settings.django_stomp import DjangoStompSettings
 
 logger = logging.getLogger("django_stomp")
 
