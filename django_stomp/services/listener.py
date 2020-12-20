@@ -14,9 +14,8 @@ from stomp.listener import TestListener
 from stomp.utils import Frame
 
 from django_stomp.services.consumer import Payload
-from django_stomp.settings import StompConnectionSettings
-from django_stomp.settings import StompConnectionSettingsDetails
-from django_stomp.settings import StompSubscriptionSettings
+from django_stomp.settings.types import StompConnectionSettings
+from django_stomp.settings.types import StompSubscriptionSettings
 
 logger = logging.getLogger(__name__)
 
@@ -26,19 +25,16 @@ class StompContext11:
     Stomp's connection and subscription context based on STOMP 1.1 protocol.
     """
 
-    stomp_connection_settings: StompConnectionSettings
-    stomp_connection_settings_details: StompConnectionSettingsDetails
-    stomp_subscription_settings: StompSubscriptionSettings
+    stomp_connection_settings = StompConnectionSettings
+    stomp_subscription_settings = StompSubscriptionSettings
     stomp_connection: StompConnection11
 
     def __init__(
         self,
         stomp_connection_settings: StompConnectionSettings,
-        stomp_connection_settings_details: StompConnectionSettingsDetails,
         stomp_subscription_settings: StompSubscriptionSettings,
     ):
         self.stomp_connection_settings = stomp_connection_settings
-        self.stomp_connection_settings_details = stomp_connection_settings_details
         self.stomp_subscription_settings = stomp_subscription_settings
         self.stomp_connection = self._create_stomp_connection()
 
@@ -57,7 +53,7 @@ class StompContext11:
         return conn
 
 
-class ContextSubscriberListener11:
+class ContextSubscriber11:
     """
     Adds subscription behavior to stomp listeners according to a stomp context (server settings, etc.) based on
     STOMP 1.1 protocol.
@@ -73,8 +69,6 @@ class ContextSubscriberListener11:
         Uses the listener connection to connect and subscribe the listener with its event-driven methods
         to handle messages.
         """
-        assert self.stomp_context is not None, "stomp_context has not been set!"
-
         logger.info(
             f"Listener ID: {self.stomp_context.stomp_subscription_settings.listener_client_id} "
             f"Subscription ID: {self.stomp_context.stomp_subscription_settings.subscription_id}"
@@ -87,17 +81,17 @@ class ContextSubscriberListener11:
 
         logger.info("Connecting and subscribing listener on separate receiver thread...")
         self.stomp_context.stomp_connection.connect(
-            username=self.stomp_context.stomp_connection_settings_details.username,
-            passcode=self.stomp_context.stomp_connection_settings_details.passcode,
-            wait=self.stomp_context.stomp_connection_settings_details.wait,
-            headers=self.stomp_context.stomp_connection_settings_details.headers,
+            username=self.stomp_context.stomp_connection_settings.username,
+            passcode=self.stomp_context.stomp_connection_settings.passcode,
+            wait=self.stomp_context.stomp_connection_settings.wait,
+            headers=self.stomp_context.stomp_connection_settings.headers,
         )
 
         self.stomp_context.stomp_connection.subscribe(
             destination=self.stomp_context.stomp_subscription_settings.destination,
             id=self.stomp_context.stomp_subscription_settings.subscription_id,
             ack=self.stomp_context.stomp_subscription_settings.ack_type.value,
-            headers=self.stomp_context.stomp_connection_settings_details.headers,  # TODO: review this later
+            headers=self.stomp_context.stomp_connection_settings.headers,  # TODO: review this later
             **self.stomp_context.stomp_subscription_settings.headers,
         )
 
@@ -111,7 +105,7 @@ class ContextSubscriberListener11:
             time.sleep(1)
 
 
-class StompListener11(ContextSubscriberListener11):
+class StompListener11(ContextSubscriber11):
     """
     Event-driven listener that implements methods to react upon some events. Based
     on the STOMP 1.1 protocol and connection classes from stomp.py.
@@ -120,7 +114,7 @@ class StompListener11(ContextSubscriberListener11):
     stomp_listener_callback: Any
 
     def __init__(self, stomp_listener_callback: Callable, stomp_context: StompContext11) -> None:
-        ContextSubscriberListener11.__init__(self, stomp_context)
+        ContextSubscriber11.__init__(self, stomp_context)
         self.stomp_listener_callback = stomp_listener_callback
 
     def on_message(self, headers: Dict, message_body: bytes) -> None:
@@ -156,11 +150,11 @@ class StompListener11(ContextSubscriberListener11):
         self.subscribe(block_main_thread=False)
 
 
-class TestListener11(TestListener, ContextSubscriberListener11):
+class TestListener11(TestListener, ContextSubscriber11):
     """
     Test listener for STOMP 1.1.
     """
 
     def __init__(self, stomp_context: StompContext11, receipt=None, print_to_log=None):
         TestListener.__init__(self, receipt, print_to_log)
-        ContextSubscriberListener11.__init__(self, stomp_context)
+        ContextSubscriber11.__init__(self, stomp_context)

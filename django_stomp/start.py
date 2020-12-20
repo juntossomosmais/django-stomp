@@ -2,18 +2,20 @@
 Module for subscribing to destinations.
 """
 import logging
-
 from typing import Optional
 
 from django.conf import settings
 from django.utils.module_loading import import_string
+
 from django_stomp.builder import build_listener
 from django_stomp.callbacks import callback_factory
 from django_stomp.helpers import eval_str_as_boolean
 from django_stomp.helpers import get_listener_client_id
 from django_stomp.services.consumer import Listener
-from django_stomp.subscriptions import create_dlq_queue, subscribe_for_testing, subscribe_forever
+from django_stomp.subscriptions import create_dlq_queue
 from django_stomp.subscriptions import create_routing_key_bindings
+from django_stomp.subscriptions import subscribe_for_testing
+from django_stomp.subscriptions import subscribe_forever
 
 logger = logging.getLogger("django_stomp")
 

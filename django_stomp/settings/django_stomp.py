@@ -41,6 +41,19 @@ from django_stomp.settings.types import StompSubscriptionSettings
 logger = logging.getLogger(__name__)
 
 
+def _build_connection_headers_activemq(listener_client_id: str, prefetch_size: int = 1) -> ConnectionHeadersActiveMQ:
+    return {
+        "client-id": listener_client_id,
+        "activemq.prefetchSize": str(prefetch_size),
+        "activemq.subscriptionName": f"{listener_client_id}-listener",
+        "activemq.subcriptionName": f"{listener_client_id}-listener",  # yes, it's like this
+    }
+
+
+def _build_subscription_headers_activemq() -> StompSubscriptionHeadersActiveMQ:
+    return {}  # none so far
+
+
 def _build_connection_headers_rabbitmq(
     x_dead_letter_routing_key: str, x_dead_letter_exchange: str, prefetch_count: int = 1
 ) -> ConnectionHeadersRabbitMQ:
@@ -106,6 +119,9 @@ def compile_django_stomp_settings(destination_name: str) -> DjangoStompSettings:
     """
     Compiles all required django stomp settings into a single useful data type: DjangoStompSettings.
     """
+    connection_headers: Union[ConnectionHeadersRabbitMQ, ConnectionHeadersActiveMQ]
+    subscription_headers: Union[StompSubscriptionHeadersRabbitMQ, StompSubscriptionHeadersActiveMQ]
+
     if BROKER_TYPE == BrokerType.RABBITMQ:
         x_dead_letter_routing_key = create_dlq_destination_from_another_destination(destination_name)
         x_dead_letter_exchange = ""
@@ -117,12 +133,13 @@ def compile_django_stomp_settings(destination_name: str) -> DjangoStompSettings:
             x_dead_letter_routing_key, x_dead_letter_exchange, prefetch_count=1
         )
         subscription_headers = _build_subscription_headers_rabbitmq(x_queue_name, auto_delete, durable)
+    elif BROKER_TYPE == BrokerType.ACTIVEMQ:
+        connection_headers = _build_connection_headers_activemq(LISTENER_CLIENT_ID, prefetch_size=1)
+        subscription_headers = _build_subscription_headers_activemq()
     else:
-        # TODO: work with activemq
-        raise DjangoStompImproperlyConfigured
+        raise DjangoStompImproperlyConfigured(f"Unsupported broker vendor: {BROKER_TYPE}!")
 
     connection_settings = _compile_stomp_connection_settings(connection_headers)
     subscription_settings = _compile_subscription_settings(destination_name, subscription_headers)
-    broker_type = BROKER_TYPE
 
-    return DjangoStompSettings(broker_type, connection_settings, subscription_settings)
+    return DjangoStompSettings(BROKER_TYPE, connection_settings, subscription_settings)

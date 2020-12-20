@@ -4,18 +4,18 @@ import ssl
 import uuid
 from contextlib import contextmanager
 from typing import Dict
-from typing import List
 from typing import Optional
 
 from django.core.serializers.json import DjangoJSONEncoder
-from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
-from django_stomp.helpers import create_dlq_destination_from_another_destination
-from django_stomp.helpers import retry
-from django_stomp.helpers import slow_down
 from request_id_django_log.request_id import current_request_id
 from request_id_django_log.settings import NO_REQUEST_ID
 from stomp import Connection
 from stomp.connect import StompConnection11
+
+from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
+from django_stomp.helpers import create_dlq_destination_from_another_destination
+from django_stomp.helpers import retry
+from django_stomp.helpers import slow_down
 
 logger = logging.getLogger("django_stomp")
 
