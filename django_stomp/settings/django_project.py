@@ -3,6 +3,7 @@ Django-stomp variables extracted from the django project that's using it.
 """
 
 import uuid
+from typing import Optional
 
 from django_stomp.helpers import build_final_client_id
 from django_stomp.settings.default_values import STOMP_CORRELATION_ID_REQUIRED_DEFAULT
@@ -17,6 +18,7 @@ from django_stomp.settings.support import get_config_as_bool_or_default
 from django_stomp.settings.support import get_config_or_default
 from django_stomp.settings.support import get_config_or_default_any
 from django_stomp.settings.support import get_config_or_exception
+from django_stomp.settings.support import get_config_without_empty_str_or_default_any
 from django_stomp.settings.types import AcknowledgementType
 from django_stomp.settings.types import BrokerType
 
@@ -39,8 +41,8 @@ BROKER_TYPE: BrokerType = get_config_or_default_any("STOMP_BROKER_TYPE", BrokerT
 ACK_TYPE = AcknowledgementType.CLIENT
 
 # connection settings
-STOMP_SERVER_USER = get_config_or_exception("STOMP_SERVER_USER")
-STOMP_SERVER_PASSWORD = get_config_or_exception("STOMP_SERVER_PASSWORD")
+STOMP_SERVER_USER: Optional[str] = get_config_without_empty_str_or_default_any("STOMP_SERVER_USER", None)
+STOMP_SERVER_PASSWORD: Optional[str] = get_config_without_empty_str_or_default_any("STOMP_SERVER_PASSWORD", None)
 
 STOMP_SERVER_HOST = get_config_or_exception("STOMP_SERVER_HOST")
 STOMP_SERVER_PORT = int(get_config_or_exception("STOMP_SERVER_PORT"))
@@ -60,4 +62,4 @@ SUBSCRIPTION_ID: str = get_config_or_default("STOMP_SUBSCRIPTION_ID", str(uuid.u
 SERVER_VHOST = get_config_or_default_any("STOMP_SERVER_VHOST", None)
 
 USE_SSL = get_config_as_bool_or_default("STOMP_USE_SSL", STOMP_USE_SSL_DEFAULT)
-SSL_VERSION = int(get_config_or_default("STOMP_SSL_VERSION", STOMP_SSL_VERSION_DEFAULT))
+SSL_VERSION = int(get_config_or_default_any("STOMP_SSL_VERSION", STOMP_SSL_VERSION_DEFAULT))

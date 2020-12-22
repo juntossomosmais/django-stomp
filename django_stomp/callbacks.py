@@ -6,11 +6,12 @@ import uuid
 from typing import Any
 from typing import Callable
 
+from request_id_django_log import local_threading
+
 from django_stomp.builder import build_publisher
 from django_stomp.helpers import remove_key_from_dict
 from django_stomp.services.consumer import Payload
 from django_stomp.subscriptions import get_or_create_correlation_id
-from request_id_django_log import local_threading
 
 publisher_name = "django-stomp-another-target"
 

@@ -16,7 +16,7 @@ from stomp import connect
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import is_heartbeat_enabled
 from django_stomp.helpers import only_destination_name
-from django_stomp.settings import STOMP_PROCESS_MSG_WORKERS
+from django_stomp.settings.default_values import STOMP_PROCESS_MSG_WORKERS
 
 logger = logging.getLogger("django_stomp")
 

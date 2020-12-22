@@ -1,7 +1,11 @@
 import logging
 import uuid
+from typing import Any
 from typing import Callable
 from typing import Optional
+
+from django.utils.module_loading import import_string
+from request_id_django_log import local_threading
 
 from django_stomp.builder import build_listener
 from django_stomp.exceptions import CorrelationIdNotProvidedException
@@ -9,7 +13,11 @@ from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import get_listener_client_id
 from django_stomp.helpers import get_subscription_destination
 from django_stomp.helpers import is_destination_from_virtual_topic
-from django_stomp.services.consumer import Listener
+from django_stomp.services.consumer import Payload
+from django_stomp.services.listener import StompContext11
+from django_stomp.services.listener import StompListener11
+from django_stomp.settings.django_stomp import compile_django_stomp_settings
+from django_stomp.settings.types import BrokerType
 
 logger = logging.getLogger(__name__)
 
@@ -73,24 +81,63 @@ def create_routing_key_bindings(destination_name: str, listener_client_id: str) 
         logger.info("Created/Refreshed queue to consume from topic in case of RabbitMQ...")
 
 
-def subscribe_forever(listener: Listener, callback: Callable) -> None:
+def listener_callback_factory(
+    stomp_context: StompContext11,
+    execution_callback: Callable,
+    param_to_callback: Any,
+    is_correlation_id_required: bool,
+) -> Callable[[Payload], None]:
     """
-    Subscribes forever. Uses stomp.py to append the listener argument to STOMP connection which is run, forever,
-    on a secondary thread. This main thread is locked forever with a forever true loop that attempts to reconnect
-    if the listener becomes offline for some reason.
+    Factory used to wrap user callbacks with some extra logic.
     """
-    listener.start(callback, wait_forever=True)
+    # closure: defined in a lexical scope where listener and other vars are defined
+    def _callback_closure(payload: Payload) -> None:
+        try:
+
+            local_threading.request_id = get_or_create_correlation_id(payload.headers, is_correlation_id_required)
+
+            if param_to_callback:
+                execution_callback(payload, param_to_callback)
+            else:
+                execution_callback(payload)
+
+        except Exception as e:
+
+            logger.exception(f"A exception of type {type(e)} was captured during callback logic")
+            logger.warning("Trying to do NACK explicitly sending the message to DLQ...")
+
+            if stomp_context.stomp_connection.is_connected():
+                payload.nack()
+                logger.warning("Done!")
+            raise e
+
+        finally:
+            local_threading.request_id = None
+
+    return _callback_closure
 
 
-def subscribe_for_testing(
-    listener: Listener, callback: Callable, subscription_duration: float = 0.4, disconnect_after_tests: bool = True
+def subscribe_listener(
+    destination_name: str, callback_import_path: str, param_to_callback: Any, subscription_period: Optional[int]
 ) -> None:
     """
-    Subscribes to a destination for a fixed period of time. Used by test cases where subscription should last for
-    some time and then finish. The subscription, as usual, occurs on another thread, but is sustained by the main
-    main thread for 'subscription_duration' seconds.
+    Subscribes listener forever to its destination by blocking the main thread.
     """
-    listener.start(callback, wait_forever=False, subscription_duration=subscription_duration)
 
-    if listener.is_open() and disconnect_after_tests:  # TODO: check this later
-        listener.close()
+    settings = compile_django_stomp_settings(destination_name)
+    callback_function = import_string(callback_import_path)
+
+    if settings.broker_type == BrokerType.RABBITMQ:
+        create_dlq_queue(destination_name, settings.subscription_settings.listener_client_id)
+        create_routing_key_bindings(destination_name, settings.subscription_settings.listener_client_id)
+
+    stomp_context = StompContext11(settings.connection_settings, settings.subscription_settings)
+    wrapped_callback = listener_callback_factory(
+        stomp_context, callback_function, param_to_callback, settings.subscription_settings.is_correlation_id_required,
+    )
+    listener = StompListener11(wrapped_callback, stomp_context)
+
+    if subscription_period is not None:
+        listener.subscribe(block_main_thread=True, block_main_thread_period=subscription_period)
+    else:
+        listener.subscribe(block_main_thread=True)

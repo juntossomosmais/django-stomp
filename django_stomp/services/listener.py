@@ -11,7 +11,6 @@ from typing import Dict
 
 from stomp.connect import StompConnection11
 from stomp.listener import TestListener
-from stomp.utils import Frame
 
 from django_stomp.services.consumer import Payload
 from django_stomp.settings.types import StompConnectionSettings
@@ -136,11 +135,12 @@ class StompListener11(ContextSubscriber11):
         payload = Payload(_ack_logic_closure, _nack_logic_closure, headers, json.loads(message_body))
         self.stomp_listener_callback(payload)  # TODO: workpool for heartbeat
 
-    def on_error(self, frame: Frame) -> None:
+    def on_error(self, headers: Dict, message_body: bytes) -> None:
         """
         Handles error frames received by the broker.
         """
-        pass
+        print(headers)
+        print(message_body)
 
     def on_disconnected(self) -> None:
         """

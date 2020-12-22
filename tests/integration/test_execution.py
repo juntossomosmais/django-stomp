@@ -8,12 +8,14 @@ from uuid import uuid4
 
 import pytest
 import trio
+from pytest_mock import MockFixture
+
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
 from django_stomp.start import clean_messages_on_destination_by_acking
 from django_stomp.start import send_message_from_one_destination_to_another
 from django_stomp.start import start_processing
-from pytest_mock import MockFixture
+from django_stomp.subscriptions import subscribe_listener
 from tests.support import rabbitmq
 from tests.support.activemq.connections_details import consumers_details
 from tests.support.activemq.message_details import retrieve_message_published
@@ -30,6 +32,7 @@ from tests.support.callbacks_for_tests import callback_with_sleep_three_seconds_
 from tests.support.callbacks_for_tests import callback_with_sleep_three_seconds_while_heartbeat_thread_is_alive_path
 from tests.support.helpers import get_destination_metrics_from_broker
 from tests.support.helpers import get_latest_message_from_destination_using_test_listener
+from tests.support.helpers import get_latest_message_from_destination_using_test_listener_2
 from tests.support.helpers import is_testing_against_rabbitmq
 from tests.support.helpers import publish_to_destination
 from tests.support.helpers import publish_without_correlation_id_header
@@ -71,6 +74,39 @@ def test_should_consume_message_and_publish_to_another_queue_using_same_correlat
 
     # asserts that the msg is received on destination three WITH THE SAME correlation-id of destination_one
     received_message = get_latest_message_from_destination_using_test_listener(destination_three)
+
+    assert received_message is not None
+    received_header = received_message[0]
+
+    assert received_header["correlation-id"] == str(some_correlation_id)
+    received_body = json.loads(received_message[1])
+
+    assert received_body == some_body
+
+
+def test_should_consume_message_and_publish_to_another_queue_using_same_correlation_id_2():
+    # Base environment setup
+    destination_one = f"/queue/my-test-destination-one-{uuid4()}"
+    destination_two = f"/queue/my-test-destination-two-{uuid4()}"
+    destination_three = f"/queue/my-test-destination-three-{uuid4()}"
+
+    some_correlation_id = uuid.uuid4()
+    some_header = {"correlation-id": some_correlation_id}
+    some_body = {"keyOne": 1, "keyTwo": 2}
+
+    # publishes to destination one
+    publish_to_destination(destination_one, some_body, some_header)
+
+    subscribe_listener(
+        destination_one, callback_move_and_ack_path, param_to_callback=destination_two, subscription_period=2
+    )
+
+    subscribe_listener(
+        destination_two, callback_move_and_ack_path, param_to_callback=destination_three, subscription_period=2
+    )
+
+    # asserts that the msg is received on destination three WITH THE SAME correlation-id of destination_one
+    received_message = get_latest_message_from_destination_using_test_listener_2(destination_three)
 
     assert received_message is not None
     received_header = received_message[0]

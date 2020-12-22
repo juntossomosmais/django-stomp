@@ -14,8 +14,6 @@ from django_stomp.helpers import get_listener_client_id
 from django_stomp.services.consumer import Listener
 from django_stomp.subscriptions import create_dlq_queue
 from django_stomp.subscriptions import create_routing_key_bindings
-from django_stomp.subscriptions import subscribe_for_testing
-from django_stomp.subscriptions import subscribe_forever
 
 logger = logging.getLogger("django_stomp")
 
@@ -57,13 +55,13 @@ def start_processing(
         custom_stomp_server_port=broker_port_to_consume_messages,
     )
 
-    wrapped_callback = callback_factory(listener, callback_function, param_to_callback, is_correlation_id_required)
+    callback_factory(listener, callback_function, param_to_callback, is_correlation_id_required)
 
-    if is_testing:
-        subscribe_for_testing(listener, wrapped_callback, disconnect_after_tests=testing_disconnect)
-        return listener
+    # if is_testing:
+    #     subscribe_for_testing(listener, wrapped_callback, disconnect_after_tests=testing_disconnect)
+    #     return listener
 
-    subscribe_forever(listener, wrapped_callback)
+    # subscribe_forever(listener, wrapped_callback)
 
 
 def send_message_from_one_destination_to_another(

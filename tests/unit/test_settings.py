@@ -1,7 +1,8 @@
 import pytest
+
 from django_stomp.exceptions import DjangoStompImproperlyConfigured
-from django_stomp.settings import eval_as_int_if_provided_value_is_not_none_otherwise_none
-from django_stomp.settings import eval_settings_otherwise_raise_exception
+from django_stomp.helpers import eval_as_int_if_provided_value_is_not_none_otherwise_none
+from django_stomp.settings.default_values import eval_settings_otherwise_raise_exception
 
 
 def test_should_raise_improperly_configured_when_settings_is_not_correct_configured(mocker):

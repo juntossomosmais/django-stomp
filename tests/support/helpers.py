@@ -1,17 +1,20 @@
 import json
 import re
-import threading
 from time import sleep
 from typing import Dict
 from typing import Optional
 from uuid import uuid4
 
 from django.core.serializers.json import DjangoJSONEncoder
+
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
 from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import retry
+from django_stomp.services.listener import StompContext11
+from django_stomp.services.listener import TestListener11
+from django_stomp.settings.django_stomp import compile_django_stomp_settings
 from tests.support import rabbitmq
 from tests.support.activemq.queue_details import current_queue_configuration
 from tests.support.dtos import CurrentDestinationStatus
@@ -83,6 +86,25 @@ def get_latest_message_from_destination_using_test_listener(destination: str) ->
     evaluation_consumer = build_listener(destination, is_testing=True)
     test_listener = evaluation_consumer._test_listener
     evaluation_consumer.start(wait_forever=False)
+
+    # may wait forever if the msg never arrives
+    test_listener.wait_for_message()
+    received_message = test_listener.get_latest_message()
+
+    return received_message
+
+
+def get_latest_message_from_destination_using_test_listener_2(destination: str) -> Dict:
+    """
+    Gets the latest message using the test listener utility. It does not ack the message
+    on the destination queue.
+
+    [!]: It makes a test hang forever if a message never arrives at the destination.
+    """
+    settings = compile_django_stomp_settings(destination)
+    stomp_context = StompContext11(settings.connection_settings, settings.subscription_settings)
+    test_listener = TestListener11(stomp_context)
+    test_listener.subscribe(block_main_thread=False)
 
     # may wait forever if the msg never arrives
     test_listener.wait_for_message()

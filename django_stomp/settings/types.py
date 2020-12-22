@@ -8,6 +8,7 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import List
+from typing import Optional
 from typing import Tuple
 from typing import Union
 
@@ -69,8 +70,8 @@ class StompConnectionSettings:
     vhost: str
 
     # credentials and headers
-    username: str
-    passcode: str
+    username: Optional[str]
+    passcode: Optional[str]
     wait: bool
     headers: Union[ConnectionHeadersRabbitMQ, ConnectionHeadersActiveMQ]
     should_process_msg_on_background: bool

@@ -13,6 +13,18 @@ from django_stomp.exceptions import DjangoStompImproperlyConfigured
 logger = logging.getLogger(__name__)
 
 
+def get_config_without_empty_str_or_default_any(env_name: str, default_value: Any) -> Any:
+    """
+    Gets an env variable or returns a default value.
+    """
+    env_value = getattr(settings, env_name, None)
+
+    if env_value is None or env_value == "":
+        return default_value
+
+    return env_value
+
+
 def get_config_or_default_any(env_name: str, default_value: Any) -> Any:
     """
     Gets an env variable or returns a default value.
@@ -55,4 +67,4 @@ def get_config_as_bool_or_default(env_name: str, default_value: str) -> bool:
     """
     env_var = get_config_or_default(env_name, default_value)
 
-    return strtobool(env_var)
+    return bool(strtobool(env_var))
