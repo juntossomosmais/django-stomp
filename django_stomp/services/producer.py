@@ -23,10 +23,10 @@ logger = logging.getLogger("django_stomp")
 class Publisher:
     """
     Class used to publish messages to brokers using the STOMP protocol. Some headers are removed
-    if they are in the send() method as they cause unexpected behavior/errors. 
-    
+    if they are in the send() method as they cause unexpected behavior/errors.
+
     Such headers are defined in the UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL class variable which is used
-    for sanitizing the user-supplied headers. 
+    for sanitizing the user-supplied headers.
     """
 
     UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL = [

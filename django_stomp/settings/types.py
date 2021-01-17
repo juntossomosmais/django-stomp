@@ -7,10 +7,10 @@ Headers must be typed dicts due to hyphened keys!
 import logging
 from dataclasses import dataclass
 from enum import Enum
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
-from typing import Union
 
 from typing_extensions import TypedDict
 
@@ -34,6 +34,16 @@ class BrokerType(Enum):
 
     RABBITMQ: str = "rabbitmq"
     ACTIVEMQ: str = "activemq"
+
+
+class StompProtocolVersion(Enum):
+    """
+    Supported STOMP versions.
+    """
+
+    VERSION_10: str = "1.0"
+    VERSION_11: str = "1.1"
+    VERSION_12: str = "1.2"
 
 
 # Subscription Headers
@@ -68,13 +78,16 @@ class StompConnectionSettings:
     ssl_version: int
     heartbeats: Tuple[int, int]
     vhost: str
+    listener_client_id: str
+    stomp_protocol_version: StompProtocolVersion
 
     # credentials and headers
     username: Optional[str]
     passcode: Optional[str]
     wait: bool
-    headers: Union[ConnectionHeadersRabbitMQ, ConnectionHeadersActiveMQ]
-    should_process_msg_on_background: bool
+
+    # extra custom setup
+    extra_headers: Dict
 
 
 @dataclass(frozen=True)
@@ -84,22 +97,25 @@ class StompSubscriptionSettings:
     """
 
     destination: str
-    listener_client_id: str
     subscription_id: str
     ack_type: AcknowledgementType
-    headers: Union[StompSubscriptionHeadersRabbitMQ, StompSubscriptionHeadersActiveMQ]
+    process_msg_background: bool
 
     durable_topic_subscription: bool
     is_correlation_id_required: bool
     publisher_broker_mover_name: str  # TODO: review later
 
+    # extra setup
+    busy_wait_sleep_amount: int
+    extra_headers: Dict
+
 
 @dataclass(frozen=True)
-class DjangoStompSettings:
+class StompSettings:
     """
-    All settings required to run django-stomp.
+    All required settings.
     """
 
     broker_type: BrokerType
-    connection_settings: StompConnectionSettings
-    subscription_settings: StompSubscriptionSettings
+    connection: StompConnectionSettings
+    subscription: StompSubscriptionSettings

@@ -2,28 +2,28 @@ from django.conf import settings as django_settings
 from django.core.management.base import BaseCommand
 from django.utils.module_loading import import_string
 
-from django_stomp.exceptions import DjangoStompIncorrectUse
 from django_stomp.services.stomp11.subscription import subscribe_forever
 from django_stomp.settings.parsers.django import parse_settings
 
 
 class Command(BaseCommand):
-    help = "Cleans a destination by acking all messages on it!"
+    help = "Subscribes to a destination using STOMP 1.1 protocol version."
 
     def add_arguments(self, parser):
-        parser.add_argument("destination_to_clean", type=str, help="Destination to be cleaned from all messages")
+        parser.add_argument("destination", type=str, help="Source destination used to consume messages")
+        parser.add_argument(
+            "callback_path",
+            type=str,
+            help="Entire module path with its function to process messages from source destination",
+        )
 
     def handle(self, *args, **options):
         self.stdout.write(f"Provided parameters: {options}")
-
-        callback_path = "django_stomp.callbacks.callback_for_cleaning_queues"
-        destination_to_clean = options.get("destination_to_clean")
-
-        if not destination_to_clean:
-            raise DjangoStompIncorrectUse("No destination_to_clean was supplied! Nothing to clean!")
+        destination = options["source_destination"]
+        callback_path = options["callback_function"]
 
         self.stdout.write("Using django as the settings provider...")
-        settings = parse_settings(destination_to_clean, django_settings)
+        settings = parse_settings(destination, django_settings)
 
         self.stdout.write("Locating the subscription's callback...")
         callback_function = import_string(callback_path)

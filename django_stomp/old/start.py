@@ -25,43 +25,43 @@ should_process_msg_on_background = eval_str_as_boolean(getattr(settings, "STOMP_
 publisher_name = "django-stomp-another-target"
 
 
-def start_processing(
-    destination_name: str,
-    callback_str: str,
-    is_testing: bool = False,
-    testing_disconnect: bool = True,
-    param_to_callback: bool = None,
-    return_listener: bool = False,
-    execute_workaround_to_deal_with_rabbit_mq: bool = True,
-    broker_host_to_consume_messages: Optional[str] = None,
-    broker_port_to_consume_messages: Optional[int] = None,
-):
-    """
-    Starts processing messages from a STOMP subscription.
-    """
-    callback_function = import_string(callback_str)
-    client_id = get_listener_client_id(durable_topic_subscription, listener_client_id)
+# def start_processing(
+#     destination_name: str,
+#     callback_str: str,
+#     is_testing: bool = False,
+#     testing_disconnect: bool = True,
+#     param_to_callback: bool = None,
+#     return_listener: bool = False,
+#     execute_workaround_to_deal_with_rabbit_mq: bool = True,
+#     broker_host_to_consume_messages: Optional[str] = None,
+#     broker_port_to_consume_messages: Optional[int] = None,
+# ):
+#     """
+#     Starts processing messages from a STOMP subscription.
+#     """
+#     callback_function = import_string(callback_str)
+#     client_id = get_listener_client_id(durable_topic_subscription, listener_client_id)
 
-    if execute_workaround_to_deal_with_rabbit_mq:
-        create_dlq_queue(destination_name, listener_client_id)
-        create_routing_key_bindings(destination_name, listener_client_id)
+#     if execute_workaround_to_deal_with_rabbit_mq:
+#         create_dlq_queue(destination_name, listener_client_id)
+#         create_routing_key_bindings(destination_name, listener_client_id)
 
-    listener = build_listener(
-        destination_name,
-        durable_topic_subscription,
-        client_id=client_id,
-        should_process_msg_on_background=should_process_msg_on_background,
-        custom_stomp_server_host=broker_host_to_consume_messages,
-        custom_stomp_server_port=broker_port_to_consume_messages,
-    )
+#     listener = build_listener(
+#         destination_name,
+#         durable_topic_subscription,
+#         client_id=client_id,
+#         should_process_msg_on_background=should_process_msg_on_background,
+#         custom_stomp_server_host=broker_host_to_consume_messages,
+#         custom_stomp_server_port=broker_port_to_consume_messages,
+#     )
 
-    callback_factory(listener, callback_function, param_to_callback, is_correlation_id_required)
+#     callback_factory(listener, callback_function, param_to_callback, is_correlation_id_required)
 
-    # if is_testing:
-    #     subscribe_for_testing(listener, wrapped_callback, disconnect_after_tests=testing_disconnect)
-    #     return listener
+#     # if is_testing:
+#     #     subscribe_for_testing(listener, wrapped_callback, disconnect_after_tests=testing_disconnect)
+#     #     return listener
 
-    # subscribe_forever(listener, wrapped_callback)
+#     # subscribe_forever(listener, wrapped_callback)
 
 
 def send_message_from_one_destination_to_another(

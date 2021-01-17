@@ -18,39 +18,6 @@ publisher_name = "django-stomp-another-target"
 logger = logging.getLogger(__name__)
 
 
-def callback_factory(
-    listener, execution_callback: Callable, param_to_callback: Any, is_correlation_id_required: bool
-) -> Callable[[Payload], None]:
-    """
-    Factory used to wrap user callbacks with some extra logic.
-    """
-    # closure: defined in a lexical scope where listener and other vars are defined
-    def _callback_closure(payload: Payload) -> None:
-        try:
-
-            local_threading.request_id = get_or_create_correlation_id(payload.headers, is_correlation_id_required)
-
-            if param_to_callback:
-                execution_callback(payload, param_to_callback)
-            else:
-                execution_callback(payload)
-
-        except Exception as e:
-
-            logger.exception(f"A exception of type {type(e)} was captured during callback logic")
-            logger.warning("Trying to do NACK explicitly sending the message to DLQ...")
-
-            if listener.is_open():
-                payload.nack()
-                logger.warning("Done!")
-            raise e
-
-        finally:
-            local_threading.request_id = None
-
-    return _callback_closure
-
-
 def callback_for_cleaning_queues(payload: Payload):
     """
     Callback that just acks all messages on a queue for cleaning it.

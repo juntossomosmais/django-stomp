@@ -8,6 +8,10 @@ from typing import Optional
 
 import tenacity
 
+from django_stomp.settings.types import AcknowledgementType
+from django_stomp.settings.types import BrokerType
+from django_stomp.settings.types import StompProtocolVersion
+
 logger = logging.getLogger("django_stomp")
 
 
@@ -146,3 +150,39 @@ def build_final_client_id(listener_client_id: Optional[str], is_durable_topic_su
         listener_client_id = str(uuid.uuid4())
 
     return listener_client_id
+
+
+def parse_broker_type(settings_value: str) -> BrokerType:
+    """
+    Parses settings string into a broker type.
+    """
+    if settings_value == "rabbitmq":
+        return BrokerType.RABBITMQ
+
+    return BrokerType.ACTIVEMQ
+
+
+def parse_ack_type(settings_value: str) -> AcknowledgementType:
+    """
+    Parses settings string into an ack type.
+    """
+    if settings_value == "client":
+        return AcknowledgementType.CLIENT
+
+    if settings_value == "client-individual":
+        return AcknowledgementType.CLIENT_INDIVIDUAL
+
+    return AcknowledgementType.AUTO
+
+
+def parse_stomp_protocol_version(settings_value: str) -> StompProtocolVersion:
+    """
+    Parses settings string into a stomp protocol version.
+    """
+    if settings_value == "1.0":
+        return StompProtocolVersion.VERSION_10
+
+    if settings_value == "1.1":
+        return StompProtocolVersion.VERSION_11
+
+    return StompProtocolVersion.VERSION_12
