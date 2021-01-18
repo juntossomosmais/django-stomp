@@ -9,7 +9,7 @@ from typing import Optional
 
 from django_stomp.exceptions import DjangoStompImproperlyConfigured
 from django_stomp.services.stomp11.adapter import BrokerAdapterRabbitMQ
-from django_stomp.services.stomp11.callback_wrapper import subscription_callback_factory
+from django_stomp.services.stomp11.callback import subscription_callback_factory
 from django_stomp.services.stomp11.listener import StompContext11
 from django_stomp.services.stomp11.listener import StompListener11
 from django_stomp.settings.types import BrokerType

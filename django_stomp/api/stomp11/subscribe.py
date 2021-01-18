@@ -1,5 +1,5 @@
 """
-Service used to subscribe to destination by appending STOMP listeners to it.
+Django-stomp's public API for handling subscriptions with STOMP 1.1.
 """
 from typing import Any
 from typing import Callable
