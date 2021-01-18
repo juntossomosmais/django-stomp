@@ -11,8 +11,8 @@ from typing import Dict
 
 from stomp.listener import TestListener
 
-from django_stomp.services.stomp11.context import ContextSubscriber11
-from django_stomp.services.stomp11.context import StompContext11
+from django_stomp.services.subscribe.stomp11.context import ContextSubscriber11
+from django_stomp.services.subscribe.stomp11.context import StompContext11
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ class StompListener11(ContextSubscriber11):
         Gracefully handles disconnections to the broker.
         """
         logger.info("Listener has been disconnected from broker. Restaring...")
-        self.subscribe(block_main_thread=False)
+        self.subscribe()
 
 
 class TestListener11(TestListener, ContextSubscriber11):

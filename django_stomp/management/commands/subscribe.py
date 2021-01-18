@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 from django.utils.module_loading import import_string
 
 from django_stomp.api.conf_reader.django import parse_settings
-from django_stomp.api.stomp11.subscribe import subscribe_forever
+from django_stomp.api.subscribe.stomp11.subscribe import subscribe_forever
 
 
 class Command(BaseCommand):

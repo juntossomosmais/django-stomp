@@ -5,7 +5,7 @@ from typing import Any
 from typing import Callable
 from typing import Optional
 
-from django_stomp.services.stomp11.builder import create_listener_stomp11
+from django_stomp.services.subscribe.stomp11.builder import create_listener_stomp11
 from django_stomp.settings.types import StompSettings
 
 
