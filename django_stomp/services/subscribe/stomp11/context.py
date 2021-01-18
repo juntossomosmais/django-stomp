@@ -6,7 +6,7 @@ import time
 
 from stomp.connect import StompConnection11
 
-from django_stomp.services.stomp11.adapter import BrokerAdapter
+from django_stomp.services.subscribe.stomp11.adapter import BrokerAdapter
 from django_stomp.settings.types import StompSettings
 
 logger = logging.getLogger(__name__)

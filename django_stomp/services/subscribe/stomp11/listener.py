@@ -68,7 +68,7 @@ class StompListener11(ContextSubscriber11):
         Gracefully handles disconnections to the broker.
         """
         logger.info("Listener has been disconnected from broker. Restaring...")
-        self.subscribe()
+        self.subscribe(block_main_thread_period=1)  # 1s just to append listener again to conn
 
 
 class TestListener11(TestListener, ContextSubscriber11):
