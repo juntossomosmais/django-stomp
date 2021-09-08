@@ -139,6 +139,9 @@ class Listener(stomp.ConnectionListener):
     def shutdown_worker_pool(self):
         self._pool_executor.shutdown()
 
+    def on_error(self, frame: StompFrame):
+        logger.warning("Received ERROR frame from broker - headers: %d - body: %d", frame.headers, frame.body)
+
 
 def build_listener(
     destination_name,
