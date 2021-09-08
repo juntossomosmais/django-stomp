@@ -11,11 +11,13 @@ from typing import Dict
 from typing import Optional
 
 import stomp
+from stomp import connect
+from stomp.utils import Frame as StompFrame
+
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import is_heartbeat_enabled
 from django_stomp.helpers import only_destination_name
 from django_stomp.settings import STOMP_PROCESS_MSG_WORKERS
-from stomp import connect
 
 logger = logging.getLogger("django_stomp")
 
@@ -71,7 +73,9 @@ class Listener(stomp.ConnectionListener):
     def _create_new_worker_executor(self):
         return ThreadPoolExecutor(max_workers=STOMP_PROCESS_MSG_WORKERS, thread_name_prefix=self._subscription_id)
 
-    def on_message(self, headers, body):
+    def on_message(self, frame: StompFrame):
+        headers, body = frame.headers, frame.body
+
         message_id = headers["message-id"]
         logger.info(f"Message ID: {message_id}")
         logger.debug("Received headers: %s", headers)
