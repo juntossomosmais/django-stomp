@@ -16,6 +16,7 @@ parsel = "*"
 requests = "*"
 trio = "*"
 pytest-trio = "*"
+psycopg2-binary = "*"
 
 [packages]
 django = "~=2.2"

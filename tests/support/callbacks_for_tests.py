@@ -3,9 +3,11 @@ Module with testing callbacks used for the tests.
 """
 import logging
 import threading
+from time import monotonic
 from time import sleep
-from typing import Callable
-from uuid import uuid4
+
+from django import db
+from tests.support.models import Simple
 
 from django_stomp.builder import build_publisher
 from django_stomp.services.consumer import Payload
@@ -20,6 +22,7 @@ callback_with_logging_path = "tests.support.callbacks_for_tests.callback_with_lo
 callback_with_sleep_three_seconds_path = "tests.support.callbacks_for_tests.callback_with_sleep_three_seconds"
 callback_with_another_log_message_path = "tests.support.callbacks_for_tests.callback_with_another_log_message"
 callback_with_nack_path = "tests.support.callbacks_for_tests.callback_with_nack"
+callback_with_explicit_db_connection_path = "tests.support.callbacks_for_tests.callback_with_explicit_db_connection"
 
 
 def callback_move_and_ack(payload: Payload, destination: str):
@@ -74,3 +77,8 @@ def callback_with_sleep_three_seconds(payload: Payload):
     payload.ack()
     logger = logging.getLogger(__name__)
     logger.info("%s sucessfully processed!", payload.body)
+
+
+def callback_with_explicit_db_connection(payload: Payload):
+    Simple.objects.create()
+    payload.ack()

@@ -2,7 +2,6 @@ import json
 import logging
 import re
 import threading
-import time
 import uuid
 from time import sleep
 from unittest import mock
@@ -10,8 +9,8 @@ from uuid import uuid4
 
 import pytest
 import trio
-from django.core.management import call_command
-from django.core.serializers.json import DjangoJSONEncoder
+from django import db
+from django.db.backends.signals import connection_created
 from pytest_mock import MockFixture
 from stomp.exception import NotConnectedException
 from tests.support import rabbitmq
@@ -24,6 +23,7 @@ from tests.support.callbacks_for_tests import callback_move_and_ack_path
 from tests.support.callbacks_for_tests import callback_standard_path
 from tests.support.callbacks_for_tests import callback_with_another_log_message_path
 from tests.support.callbacks_for_tests import callback_with_exception_path
+from tests.support.callbacks_for_tests import callback_with_explicit_db_connection_path
 from tests.support.callbacks_for_tests import callback_with_logging_path
 from tests.support.callbacks_for_tests import callback_with_nack_path
 from tests.support.callbacks_for_tests import callback_with_sleep_three_seconds_path
@@ -40,11 +40,6 @@ from django_stomp.builder import build_publisher
 from django_stomp.execution import clean_messages_on_destination_by_acking
 from django_stomp.execution import send_message_from_one_destination_to_another
 from django_stomp.execution import start_processing
-from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
-from django_stomp.helpers import create_dlq_destination_from_another_destination
-from django_stomp.helpers import retry
-from django_stomp.services.consumer import Payload
-from django_stomp.services.producer import Publisher
 from django_stomp.services.producer import do_inside_transaction
 
 
@@ -514,7 +509,7 @@ def test_should_create_queue_for_virtual_topic_and_compete_for_its_messages(capl
             virtual_topic_consumer_queue, callback_with_logging_path, is_testing=True, return_listener=True
         ),
         start_processing(
-            virtual_topic_consumer_queue, callback_with_another_log_message_path, is_testing=True, return_listener=True,
+            virtual_topic_consumer_queue, callback_with_another_log_message_path, is_testing=True, return_listener=True
         ),
     ]
 
@@ -819,7 +814,7 @@ def test_should_not_publish_any_messages_if_connection_drops_when_using_transact
     some_body = {"please": "no errors 2"}
 
     # creates destination and publishes to it
-    start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True,).close()
+    start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True).close()
     publisher = build_publisher(f"random-publisher-{uuid4()}")
 
     with pytest.raises(NotConnectedException):
@@ -845,7 +840,7 @@ def test_should_publish_many_messages_if_no_connection_problems_happen_when_usin
     some_body = {"please": "no errors 2"}
 
     # creates destination and publishes to it
-    start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True,).close()
+    start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True).close()
     publisher = build_publisher(f"random-publisher-{uuid4()}")
 
     # no connection errors inside this transaction
@@ -870,7 +865,7 @@ def test_should_publish_messages_if_connection_drops_when_not_transactions():
     some_body = {"please": "no errors 2"}
 
     # creates destination and publishes to it
-    start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True,).close()
+    start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True).close()
     publisher = build_publisher(f"random-publisher-{uuid4()}")
 
     # no transaction
@@ -885,3 +880,65 @@ def test_should_publish_messages_if_connection_drops_when_not_transactions():
     # the two message should have been published due to retry (but no transactions involved)
     assert queue_status.messages_enqueued == 2
     assert queue_status.number_of_pending_messages == 2
+
+
+@pytest.mark.django_db
+def test_should_open_a_new_db_connection_when_previous_connection_is_obsolete_or_unusable(settings, caplog):
+    caplog.set_level(logging.DEBUG)
+
+    # Arrange - listen for db connection created signal with mocked function
+    new_db_connection_callback = mock.MagicMock(return_value=None)
+    connection_created.connect(new_db_connection_callback)
+
+    # Arrange - settings CONN_MAX_AGE to zero, forcing connection renewal for every new message
+    settings.DATABASES["default"]["CONN_MAX_AGE"] = 0
+
+    # Arrange - random destination and fake arbitrary message body
+    destination = f"/queue/new-connections-{uuid4()}"
+    body = {"key": "value"}
+    arbitrary_number_of_msgs = 5
+
+    # Act - start listening random destination queue and publish arbitrary number of messages to it
+    listener = start_processing(
+        destination, callback_with_explicit_db_connection_path, is_testing=True, return_listener=True
+    )
+
+    with build_publisher(f"random-publisher-{uuid4()}").auto_open_close_connection() as publisher:
+        for _ in range(arbitrary_number_of_msgs):
+            publisher.send(body, destination)
+
+    sleep(1)  # some sleep to give enough time to process the messages
+    listener.close()
+
+    # Assert - for every new message a new db connection is created
+    assert new_db_connection_callback.call_count == arbitrary_number_of_msgs
+
+
+@pytest.mark.django_db
+def test_shouldnt_open_a_new_db_connection_when_there_is_one_still_usable(settings):
+    # Arrange - listen for db connection created signal with mocked function
+    new_db_connection_callback = mock.MagicMock(return_value=None)
+    connection_created.connect(new_db_connection_callback)
+
+    # Arrange - settings CONN_MAX_AGE to 86400s or 1 day
+    settings.DATABASES["default"]["CONN_MAX_AGE"] = 86400
+
+    # Arrange - random destination and fake arbitrary message body
+    destination = f"/queue/no-new-connections-{uuid4()}"
+    body = {"key": "value"}
+    arbitrary_number_of_msgs = 5
+
+    # Act - start listening random destination queue and publish arbitrary number of messages to it
+    listener = start_processing(
+        destination, callback_with_explicit_db_connection_path, is_testing=True, return_listener=True
+    )
+
+    with build_publisher(f"random-publisher-{uuid4()}").auto_open_close_connection() as publisher:
+        for _ in range(arbitrary_number_of_msgs):
+            publisher.send(body, destination)
+
+    sleep(1)  # some sleep to give enough time to process the messages
+    listener.close()
+
+    # Assert - only one connection is estabilished
+    assert new_db_connection_callback.call_count == 1
