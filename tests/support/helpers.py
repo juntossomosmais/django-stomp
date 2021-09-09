@@ -3,7 +3,6 @@ import re
 import threading
 from time import sleep
 from typing import Dict
-from typing import Optional
 from uuid import uuid4
 
 from django.core.serializers.json import DjangoJSONEncoder
@@ -30,7 +29,7 @@ def get_destination_metrics_from_broker(destination_name: str) -> CurrentDestina
     return destination_metrics
 
 
-def publish_without_correlation_id_header(destination: str, body: str, attempt=1, persistent=True):
+def publish_without_correlation_id_header(destination: str, body: Dict, attempt=1, persistent=True):
     """
     Publishes a message without correlation-id on the headers.
     """

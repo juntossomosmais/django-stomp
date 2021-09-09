@@ -3,14 +3,11 @@ Module with testing callbacks used for the tests.
 """
 import logging
 import threading
-from time import monotonic
 from time import sleep
-
-from django import db
-from tests.support.models import Simple
 
 from django_stomp.builder import build_publisher
 from django_stomp.services.consumer import Payload
+from tests.support.models import Simple
 
 callback_move_and_ack_path = "tests.support.callbacks_for_tests.callback_move_and_ack"
 callback_standard_path = "tests.support.callbacks_for_tests.callback_standard"
@@ -52,7 +49,6 @@ def callback_with_exception(payload: Payload):
 
 
 def callback_with_sleep_three_seconds_while_heartbeat_thread_is_alive(payload: Payload):
-    heartbeat_threads = [thread for thread in threading.enumerate() if "StompHeartbeatThread" in thread.name]
     while True:
         sleep(3)
         heartbeat_threads = filter(lambda thread: "StompHeartbeatThread" in thread.name, threading.enumerate())

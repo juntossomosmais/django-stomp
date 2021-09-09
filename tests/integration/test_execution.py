@@ -1,7 +1,6 @@
 import json
 import logging
 import re
-import threading
 import uuid
 from time import sleep
 from unittest import mock
@@ -9,8 +8,13 @@ from uuid import uuid4
 
 import pytest
 import trio
-from django import db
 from django.db.backends.signals import connection_created
+from django_stomp.builder import build_listener
+from django_stomp.builder import build_publisher
+from django_stomp.execution import clean_messages_on_destination_by_acking
+from django_stomp.execution import send_message_from_one_destination_to_another
+from django_stomp.execution import start_processing
+from django_stomp.services.producer import do_inside_transaction
 from pytest_mock import MockFixture
 from stomp.exception import NotConnectedException
 from tests.support import rabbitmq
@@ -34,13 +38,6 @@ from tests.support.helpers import is_testing_against_rabbitmq
 from tests.support.helpers import publish_to_destination
 from tests.support.helpers import publish_without_correlation_id_header
 from tests.support.helpers import wait_for_message_in_log
-
-from django_stomp.builder import build_listener
-from django_stomp.builder import build_publisher
-from django_stomp.execution import clean_messages_on_destination_by_acking
-from django_stomp.execution import send_message_from_one_destination_to_another
-from django_stomp.execution import start_processing
-from django_stomp.services.producer import do_inside_transaction
 
 
 def test_should_consume_message_and_publish_to_another_queue_using_same_correlation_id():
@@ -626,7 +623,7 @@ def test_should_consume_message_without_correlation_id_when_it_is_not_required_n
     # https://activemq.apache.org/message-redelivery-and-dlq-handling
     publish_without_correlation_id_header(destination_name, some_body, persistent=True)
 
-    consumer = start_processing(destination_name, callback_standard_path, is_testing=True)
+    start_processing(destination_name, callback_standard_path, is_testing=True)
 
     source_queue_status = get_destination_metrics_from_broker(source_queue_name)
 
@@ -740,7 +737,7 @@ def test_should_clean_all_messages_on_a_destination(caplog):
     some_headers = {"some": "header"}
 
     with build_publisher().auto_open_close_connection() as publisher:
-        for i in range(0, trash_msgs_count):
+        for _ in range(0, trash_msgs_count):
             publisher.send(some_body, some_source_destination, some_headers, attempt=1)
 
     # # command invocation
@@ -810,8 +807,7 @@ def test_should_not_publish_any_messages_if_connection_drops_when_using_transact
     *_, queue_name = destination_one.split("/")
     some_correlation_id = uuid.uuid4()
     some_header = {"correlation-id": some_correlation_id}
-    some_body = {"please": "no errors 1"}
-    some_body = {"please": "no errors 2"}
+    some_body = {"please": "no errors"}
 
     # creates destination and publishes to it
     start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True).close()
@@ -836,8 +832,7 @@ def test_should_publish_many_messages_if_no_connection_problems_happen_when_usin
     *_, queue_name = destination_one.split("/")
     some_correlation_id = uuid.uuid4()
     some_header = {"correlation-id": some_correlation_id}
-    some_body = {"please": "no errors 1"}
-    some_body = {"please": "no errors 2"}
+    some_body = {"please": "no errors"}
 
     # creates destination and publishes to it
     start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True).close()
@@ -861,8 +856,7 @@ def test_should_publish_messages_if_connection_drops_when_not_transactions():
     *_, queue_name = destination_one.split("/")
     some_correlation_id = uuid.uuid4()
     some_header = {"correlation-id": some_correlation_id}
-    some_body = {"please": "no errors 1"}
-    some_body = {"please": "no errors 2"}
+    some_body = {"please": "no errors"}
 
     # creates destination and publishes to it
     start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True).close()
@@ -907,7 +901,7 @@ def test_should_open_a_new_db_connection_when_previous_connection_is_obsolete_or
         for _ in range(arbitrary_number_of_msgs):
             publisher.send(body, destination)
 
-    sleep(1)  # some sleep to give enough time to process the messages
+    sleep(0.5)  # some sleep to give enough time to process the messages
     listener.close()
 
     # Assert - for every new message a new db connection is created
@@ -937,7 +931,7 @@ def test_shouldnt_open_a_new_db_connection_when_there_is_one_still_usable(settin
         for _ in range(arbitrary_number_of_msgs):
             publisher.send(body, destination)
 
-    sleep(1)  # some sleep to give enough time to process the messages
+    sleep(0.5)  # some sleep to give enough time to process the messages
     listener.close()
 
     # Assert - only one connection is estabilished
