@@ -1,7 +1,7 @@
 # Django Stomp
 
 [![Build Status](https://dev.azure.com/juntos-somos-mais-loyalty/python/_apis/build/status/django-stomp?branchName=master)](https://dev.azure.com/juntos-somos-mais-loyalty/python/_build/latest?definitionId=23&branchName=master)
-[![Maintainability](https://api.codeclimate.com/v1/badges/381136911e038d1a6887/maintainability)](https://codeclimate.com/github/juntossomosmais/django-stomp/maintainability)
+[![Maintainability](https://sonarcloud.io/api/project_badges/measure?project=juntossomosmais_django-stomp&metric=sqale_rating)](https://sonarcloud.io/dashboard?id=juntossomosmais_django-stomp)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/381136911e038d1a6887/test_coverage)](https://codeclimate.com/github/juntossomosmais/django-stomp/test_coverage)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![Downloads](https://pepy.tech/badge/django-stomp)](https://pepy.tech/project/django-stomp)
@@ -167,6 +167,10 @@ Then at last:
     pipenv run tox
 
 
+## Database connection management (applies to version >= 5.0.0)
+
+For every message that a `django-stomp` consumer receives, it opens a new DB connection if it needs to, keeping it open until it exceeds the maximum age defined by `CONN_MAX_AGE` or when the connection becomes unusable.
+
 ## Known limitations
 
 * Currently, we assume that all dead lettered messages are sent to a queue with the same name as its original 
@@ -179,3 +183,4 @@ thread pool to process the message.
 * For the RabbitMQ users: the **django-stomp consumer** always try to connect to a 
 [durable queue](https://www.rabbitmq.com/queues.html#durability), so if your queue is not durable, the RabbitMQ broker 
 will not allow the subscription.
+* **For versions prior to 5.0.0**: Any database connection management in the consumer side is up to its callback. If you have any long-running consumer that relies on a DB connection, be sure that you manage it properly, otherwise if a connection becomes unusable, you'll have to restart the consumer entirely just to setup a new DB connection.
