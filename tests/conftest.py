@@ -1,6 +1,6 @@
 import os
+import uuid
 
-import pytest
 from django.conf import settings
 
 
@@ -30,19 +30,12 @@ def pytest_configure():
         DATABASES={
             "default": {
                 "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.sqlite3"),
-                "NAME": os.getenv("DB_DATABASE", "django_stomp"),
+                "NAME": os.getenv("DB_DATABASE", f"test_db-{uuid.uuid4()}"),
                 "USER": os.getenv("DB_USER"),
                 "HOST": os.getenv("DB_HOST"),
                 "PORT": os.getenv("DB_PORT"),
                 "PASSWORD": os.getenv("DB_PASSWORD"),
+                "TEST": {"NAME": os.getenv("DB_DATABASE", f"test_db-{uuid.uuid4()}")},
             }
         },
     )
-
-
-@pytest.fixture
-def settings_with_test_model(settings):
-    settings.DATABASES = {
-        "default": {"ENGINE": "django.db.backends.sqlite3", "NAME": os.getenv("DB_NAME", "django_stomp")}
-    }
-    return settings

@@ -1,4 +1,4 @@
-version: "2.4"
+version: "3.9"
 services:
   broker-activemq:
     image: rmohr/activemq:latest
@@ -21,7 +21,3 @@ services:
       - 15672:15672
     volumes:
       - ./tests/resources/custom-rabbitmq-conf:/etc/rabbitmq/
-  db:
-    image: postgres:10.1-alpine
-    ports:
-      - 5432:5432
