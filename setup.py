@@ -20,7 +20,7 @@ setup(
     license="MIT",
     url="https://github.com/juntossomosmais/django-stomp",
     packages=find_packages(),
-    install_requires=["request-id-django-log==0.1.1", "stomp.py~=7.0", "tenacity~=6.0"],
+    install_requires=["request-id-django-log==0.1.1", "stomp.py~=7.0", "tenacity~=8.0"],
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.7",
