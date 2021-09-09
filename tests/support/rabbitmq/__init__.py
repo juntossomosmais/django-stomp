@@ -1,4 +1,5 @@
 import json
+import logging
 import urllib.parse
 from time import sleep
 from typing import Generator
@@ -11,6 +12,8 @@ from tests.support.dtos import ConsumerStatus
 from tests.support.dtos import CurrentDestinationStatus
 from tests.support.dtos import MessageStatus
 
+logger = logging.getLogger(__name__)
+
 _queues_details_request_path = "/api/queues"
 _specific_queue_details_request_path = _queues_details_request_path + "/%2F/{queue_name}"
 _bindings_from_queue_request_path = _queues_details_request_path + "/%2F/{queue_name}/bindings"
@@ -22,13 +25,15 @@ _overview_request_path = "/api/overview"
 
 def current_queue_configuration(queue_name, host="localhost", port=15672) -> Optional[CurrentDestinationStatus]:
     result = _do_request(host, port, _specific_queue_details_request_path.format(queue_name=queue_name))
+    logger.debug("RabbitMQ request result: %s", result)
+
     if result.get("error"):
         return None
 
     if result.get("message_stats"):
         message_stats = result["message_stats"]
         messages_dequeued = message_stats.get("deliver_get", 0)
-        messages_enqueued = message_stats["publish"]
+        messages_enqueued = message_stats.get("publish")
     else:
         messages_dequeued = 0
         messages_enqueued = None
