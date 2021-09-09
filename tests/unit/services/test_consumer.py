@@ -62,19 +62,16 @@ def test_should_still_process_message_if_worker_pool_was_explicitly_shutdown():
     listener.shutdown_worker_pool()
 
 
-def test_should_have_only_one_listener_even_if_start_is_called_multiple_times():
+def test_should_have_only_one_django_stomp_listener_even_if_set_listener_is_called_multiple_times():
     # Arrange - build listener to some arbirtrary queue
     django_stomp_listener = builder.build_listener(f"some-destination-{uuid4()}")
 
-    # Act - in sucession, multiples start and close to trigger multiples set_listener call
-    django_stomp_listener.start(wait_forever=False)
-    django_stomp_listener.close()
-    django_stomp_listener.start(wait_forever=False)
-    django_stomp_listener.close()
-    django_stomp_listener.start(wait_forever=False)
-    django_stomp_listener.close()
-    django_stomp_listener.start(wait_forever=False)
-    django_stomp_listener.close()
+    # Act - in sucession, multiples _set_listener call to trigger _connection.set_listener
+    django_stomp_listener._set_listener()
+    django_stomp_listener._set_listener()
+    django_stomp_listener._set_listener()
+    django_stomp_listener._set_listener()
+    django_stomp_listener._set_listener()
 
     # Assert - it has two listeners (protocol-listener, stomp.py defined and the one defined by django-stomp)
     assert len(django_stomp_listener._connection.transport.listeners) == 2

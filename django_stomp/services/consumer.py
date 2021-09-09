@@ -111,10 +111,7 @@ class Listener(stomp.ConnectionListener):
         logger.info(f"Starting listener with name: {self._listener_id}")
         logger.info(f"Subscribe/Listener auto-generated ID: {self._subscription_id}")
 
-        if self._is_testing:
-            self._connection.set_listener("TESTING", self._test_listener)
-        else:
-            self._connection.set_listener(self._listener_id, self)
+        self._set_listener()
 
         self._callback = callback if callback else self._callback
         self._connection.connect(**self._connection_configuration)
@@ -130,6 +127,12 @@ class Listener(stomp.ConnectionListener):
                     logger.info("It is not open. Starting...")
                     self.start(self._callback, wait_forever=False)
                 time.sleep(1)
+
+    def _set_listener(self):
+        if self._is_testing:
+            self._connection.set_listener("TESTING", self._test_listener)
+        else:
+            self._connection.set_listener(self._listener_id, self)
 
     def close(self):
         disconnect_receipt = str(uuid.uuid4())
