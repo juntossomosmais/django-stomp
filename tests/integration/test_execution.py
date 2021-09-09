@@ -879,9 +879,7 @@ def test_should_publish_messages_if_connection_drops_when_not_transactions():
 
 
 @pytest.mark.django_db
-def test_should_open_a_new_db_connection_when_previous_connection_is_obsolete_or_unusable(settings, caplog):
-    caplog.set_level(logging.DEBUG)
-
+def test_should_open_a_new_db_connection_when_previous_connection_is_obsolete_or_unusable(settings):
     # Arrange - listen for db connection created signal with mocked function
     new_db_connection_callback = mock.MagicMock(return_value=None)
     connection_created.connect(new_db_connection_callback)

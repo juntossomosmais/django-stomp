@@ -1,6 +1,7 @@
 import json
 from uuid import uuid4
 
+from django_stomp import builder
 from django_stomp.services.consumer import StompFrame
 from django_stomp.services.consumer import build_listener
 from tests.support.helpers import get_active_threads_name_with_prefix
@@ -59,3 +60,25 @@ def test_should_still_process_message_if_worker_pool_was_explicitly_shutdown():
     assert len(workers_threads_before_pool_shutdown) == 1  # only one worker
 
     listener.shutdown_worker_pool()
+
+
+def test_should_have_only_one_listener_even_if_start_is_called_multiple_times():
+    # Arrange - build listener to some arbirtrary queue
+    django_stomp_listener = builder.build_listener(f"some-destination-{uuid4()}")
+
+    # Act - in sucession, multiples start and close to trigger multiples set_listener call
+    django_stomp_listener.start(wait_forever=False)
+    django_stomp_listener.close()
+    django_stomp_listener.start(wait_forever=False)
+    django_stomp_listener.close()
+    django_stomp_listener.start(wait_forever=False)
+    django_stomp_listener.close()
+    django_stomp_listener.start(wait_forever=False)
+    django_stomp_listener.close()
+
+    # Assert - it has two listeners (protocol-listener, stomp.py defined and the one defined by django-stomp)
+    assert len(django_stomp_listener._connection.transport.listeners) == 2
+    assert django_stomp_listener._connection.get_listener("protocol-listener") is not None
+
+    django_stomp_listener_id = django_stomp_listener._listener_id
+    assert django_stomp_listener._connection.get_listener(django_stomp_listener_id) is not None
