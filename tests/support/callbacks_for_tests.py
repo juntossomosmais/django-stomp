@@ -5,6 +5,7 @@ import logging
 import threading
 from time import sleep
 
+from django import db
 from django_stomp.builder import build_publisher
 from django_stomp.services.consumer import Payload
 from tests.support.models import Simple
@@ -77,4 +78,8 @@ def callback_with_sleep_three_seconds(payload: Payload):
 
 def callback_with_explicit_db_connection(payload: Payload):
     Simple.objects.create()
+
+    thread = threading.current_thread()
+    setattr(thread, "db", db.connections["default"])
+
     payload.ack()
