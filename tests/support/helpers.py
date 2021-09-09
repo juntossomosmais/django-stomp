@@ -6,6 +6,7 @@ from typing import Dict
 from uuid import uuid4
 
 from django.core.serializers.json import DjangoJSONEncoder
+
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
 from django_stomp.helpers import clean_dict_with_falsy_or_strange_values

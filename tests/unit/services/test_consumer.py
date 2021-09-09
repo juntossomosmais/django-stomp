@@ -1,10 +1,9 @@
 import json
 from uuid import uuid4
 
-from tests.support.helpers import get_active_threads_name_with_prefix
-
 from django_stomp.services.consumer import StompFrame
 from django_stomp.services.consumer import build_listener
+from tests.support.helpers import get_active_threads_name_with_prefix
 
 
 def test_should_create_at_most_the_defined_number_of_workers(mocker):

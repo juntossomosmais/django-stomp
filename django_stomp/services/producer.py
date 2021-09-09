@@ -23,10 +23,10 @@ logger = logging.getLogger("django_stomp")
 class Publisher:
     """
     Class used to publish messages to brokers using the STOMP protocol. Some headers are removed
-    if they are in the send() method as they cause unexpected behavior/errors. 
-    
+    if they are in the send() method as they cause unexpected behavior/errors.
+
     Such headers are defined in the UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL class variable which is used
-    for sanitizing the user-supplied headers. 
+    for sanitizing the user-supplied headers.
     """
 
     UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL = [
@@ -106,7 +106,7 @@ class Publisher:
 
     def _get_correlation_id(self, headers: Optional[Dict]) -> str:
         """
-        Gets the correlation id for the message. If 'correlation-id' is in the headers, this value is used. 
+        Gets the correlation id for the message. If 'correlation-id' is in the headers, this value is used.
         Otherwise, the value of current_request_id() is returned or a new one is generated as a last resort.
         """
         if headers and "correlation-id" in headers:
@@ -157,7 +157,7 @@ class Publisher:
         Sends the actual data to the broker using the STOMP protocol WITHOUT any retry attempts as reconnecting to the broker
         while a transaction was previously created will lead to 'bad transaction' errors because STOMP 1.1 protocol closes any
         transactions if the producer had TCP connection problems or sends a DISCONNECT frame.
-        
+
         Hence, when a producer sends a BEGIN frame, all subsequent SEND frames (messages) must always use the SAME connection that
         was used to start the transaction.
 

@@ -41,7 +41,7 @@ def test_should_raise_error_if_essential_parameters_are_missing(mock_send_messag
 
 
 def test_should_call_logic_to_send_one_destination_to_another_given_custom_broker(
-    mock_send_message_from_one_destination_to_another
+    mock_send_message_from_one_destination_to_another,
 ):
     out = StringIO()
     fake_source = "/queue/your-source"
@@ -63,7 +63,7 @@ def test_should_call_logic_to_send_one_destination_to_another_given_custom_broke
 
 
 def test_should_raise_error_given_custom_port_is_not_informed_to_use_custom_broker(
-    mock_send_message_from_one_destination_to_another
+    mock_send_message_from_one_destination_to_another,
 ):
     out = StringIO()
     fake_source = "/queue/your-source"

@@ -6,6 +6,7 @@ import threading
 from time import sleep
 
 from django import db
+
 from django_stomp.builder import build_publisher
 from django_stomp.services.consumer import Payload
 from tests.support.models import Simple

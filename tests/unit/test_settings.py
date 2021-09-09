@@ -1,4 +1,5 @@
 import pytest
+
 from django_stomp.exceptions import DjangoStompImproperlyConfigured
 from django_stomp.settings import eval_as_int_if_provided_value_is_not_none_otherwise_none
 from django_stomp.settings import eval_settings_otherwise_raise_exception

@@ -10,14 +10,15 @@ from uuid import uuid4
 import pytest
 import trio
 from django.db.backends.signals import connection_created
+from pytest_mock import MockFixture
+from stomp.exception import NotConnectedException
+
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
 from django_stomp.execution import clean_messages_on_destination_by_acking
 from django_stomp.execution import send_message_from_one_destination_to_another
 from django_stomp.execution import start_processing
 from django_stomp.services.producer import do_inside_transaction
-from pytest_mock import MockFixture
-from stomp.exception import NotConnectedException
 from tests.support import rabbitmq
 from tests.support.activemq.connections_details import consumers_details
 from tests.support.activemq.message_details import retrieve_message_published
