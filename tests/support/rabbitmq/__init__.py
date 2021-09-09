@@ -12,6 +12,7 @@ from tests.support.dtos import CurrentDestinationStatus
 from tests.support.dtos import MessageStatus
 
 _queues_details_request_path = "/api/queues"
+_specific_queue_details_request_path = _queues_details_request_path + "/%2F/{queue_name}"
 _bindings_from_queue_request_path = _queues_details_request_path + "/%2F/{queue_name}/bindings"
 _get_message_from_queue_request_path = _queues_details_request_path + "/%2F/{queue_name}/get"
 _channels_details_request_path = "/api/channels"
@@ -20,25 +21,24 @@ _overview_request_path = "/api/overview"
 
 
 def current_queue_configuration(queue_name, host="localhost", port=15672) -> Optional[CurrentDestinationStatus]:
-    queues = _do_request(host, port, _queues_details_request_path)
-    results = list(filter(lambda v: v["name"] == queue_name, queues))
-    if len(results) == 1:
-        queue_details = results[0]
-        if queue_details.get("message_stats"):
-            message_stats = queue_details["message_stats"]
-            messages_dequeued = message_stats.get("deliver_get", 0)
-            messages_enqueued = message_stats["publish"]
-        else:
-            messages_dequeued = 0
-            messages_enqueued = None
+    result = _do_request(host, port, _specific_queue_details_request_path.format(queue_name=queue_name))
+    if result.get("error"):
+        return None
 
-        number_of_pending_messages = queue_details["messages"]
-        number_of_consumers = queue_details["consumers"]
+    if result.get("message_stats"):
+        message_stats = result["message_stats"]
+        messages_dequeued = message_stats.get("deliver_get", 0)
+        messages_enqueued = message_stats["publish"]
+    else:
+        messages_dequeued = 0
+        messages_enqueued = None
 
-        return CurrentDestinationStatus(
-            number_of_pending_messages, number_of_consumers, messages_enqueued, messages_dequeued
-        )
-    return None
+    number_of_pending_messages = result["messages"]
+    number_of_consumers = result["consumers"]
+
+    return CurrentDestinationStatus(
+        number_of_pending_messages, number_of_consumers, messages_enqueued, messages_dequeued
+    )
 
 
 def current_topic_configuration(topic_name, host="localhost", port=15672) -> Optional[CurrentDestinationStatus]:
