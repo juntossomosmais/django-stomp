@@ -3,8 +3,11 @@ import uuid
 from time import sleep
 from typing import Optional
 
+from django import db
 from django.conf import settings
 from django.utils.module_loading import import_string
+from request_id_django_log import local_threading
+
 from django_stomp.builder import build_listener
 from django_stomp.builder import build_publisher
 from django_stomp.exceptions import CorrelationIdNotProvidedException
@@ -16,7 +19,6 @@ from django_stomp.helpers import is_destination_from_virtual_topic
 from django_stomp.helpers import remove_key_from_dict
 from django_stomp.services.consumer import Listener
 from django_stomp.services.consumer import Payload
-from request_id_django_log import local_threading
 
 logger = logging.getLogger("django_stomp")
 
@@ -65,6 +67,7 @@ def start_processing(
 
             def _callback(payload: Payload) -> None:
                 try:
+                    db.close_old_connections()
                     local_threading.request_id = _get_or_create_correlation_id(payload.headers)
 
                     if param_to_callback:
@@ -80,6 +83,7 @@ def start_processing(
                     raise e
                 finally:
                     local_threading.request_id = None
+                    db.close_old_connections()
 
             listener.start(_callback, wait_forever=is_testing is False)
 
@@ -142,7 +146,7 @@ def send_message_from_one_destination_to_another(
 
 
 def clean_messages_on_destination_by_acking(
-    source_destination: str, is_testing: bool = False, testing_disconnect: bool = True, return_listener: bool = False,
+    source_destination: str, is_testing: bool = False, testing_disconnect: bool = True, return_listener: bool = False
 ) -> Listener:
     """
     Cleans a queue by acking all messages on it (no queue purging or deleting).

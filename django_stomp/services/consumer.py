@@ -11,11 +11,13 @@ from typing import Dict
 from typing import Optional
 
 import stomp
+from stomp import connect
+from stomp.utils import Frame as StompFrame
+
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import is_heartbeat_enabled
 from django_stomp.helpers import only_destination_name
 from django_stomp.settings import STOMP_PROCESS_MSG_WORKERS
-from stomp import connect
 
 logger = logging.getLogger("django_stomp")
 
@@ -71,7 +73,9 @@ class Listener(stomp.ConnectionListener):
     def _create_new_worker_executor(self):
         return ThreadPoolExecutor(max_workers=STOMP_PROCESS_MSG_WORKERS, thread_name_prefix=self._subscription_id)
 
-    def on_message(self, headers, body):
+    def on_message(self, frame: StompFrame):
+        headers, body = frame.headers, frame.body
+
         message_id = headers["message-id"]
         logger.info(f"Message ID: {message_id}")
         logger.debug("Received headers: %s", headers)
@@ -107,10 +111,7 @@ class Listener(stomp.ConnectionListener):
         logger.info(f"Starting listener with name: {self._listener_id}")
         logger.info(f"Subscribe/Listener auto-generated ID: {self._subscription_id}")
 
-        if self._is_testing:
-            self._connection.set_listener("TESTING", self._test_listener)
-        else:
-            self._connection.set_listener(self._listener_id, self)
+        self._set_listener()
 
         self._callback = callback if callback else self._callback
         self._connection.connect(**self._connection_configuration)
@@ -127,6 +128,12 @@ class Listener(stomp.ConnectionListener):
                     self.start(self._callback, wait_forever=False)
                 time.sleep(1)
 
+    def _set_listener(self):
+        if self._is_testing:
+            self._connection.set_listener("TESTING", self._test_listener)
+        else:
+            self._connection.set_listener(self._listener_id, self)
+
     def close(self):
         disconnect_receipt = str(uuid.uuid4())
         self._connection.disconnect(receipt=disconnect_receipt)
@@ -134,6 +141,9 @@ class Listener(stomp.ConnectionListener):
 
     def shutdown_worker_pool(self):
         self._pool_executor.shutdown()
+
+    def on_error(self, frame: StompFrame):
+        logger.warning("Received ERROR frame from broker - headers: %d - body: %d", frame.headers, frame.body)
 
 
 def build_listener(

@@ -6,10 +6,12 @@ from django.core.management import call_command
 from pytest_mock import MockFixture
 
 
-def test_should_call_logic_to_send_one_destination_to_another(mocker):
-    mock_send_message_from_one_destination_to_another = mocker.patch(
-        "django_stomp.management.commands.move_messages.send_message_from_one_destination_to_another"
-    )
+@pytest.fixture
+def mock_send_message_from_one_destination_to_another(mocker: MockFixture):
+    return mocker.patch("django_stomp.management.commands.move_messages.send_message_from_one_destination_to_another")
+
+
+def test_should_call_logic_to_send_one_destination_to_another(mock_send_message_from_one_destination_to_another):
     out = StringIO()
     fake_source = "/queue/your-source"
     fake_target = "/queue/your-target"
@@ -22,10 +24,7 @@ def test_should_call_logic_to_send_one_destination_to_another(mocker):
     )
 
 
-def test_should_raise_error_if_essential_parameters_are_missing(mocker: MockFixture):
-    mock_send_message_from_one_destination_to_another = mocker.patch(
-        "django_stomp.management.commands.move_messages.send_message_from_one_destination_to_another"
-    )
+def test_should_raise_error_if_essential_parameters_are_missing(mock_send_message_from_one_destination_to_another):
     fake_source = "/queue/your-source"
 
     with pytest.raises(CommandError) as e:
@@ -41,10 +40,9 @@ def test_should_raise_error_if_essential_parameters_are_missing(mocker: MockFixt
     mock_send_message_from_one_destination_to_another.assert_not_called()
 
 
-def test_should_call_logic_to_send_one_destination_to_another_given_custom_broker(mocker: MockFixture):
-    mock_send_message_from_one_destination_to_another = mocker.patch(
-        "django_stomp.management.commands.move_messages.send_message_from_one_destination_to_another"
-    )
+def test_should_call_logic_to_send_one_destination_to_another_given_custom_broker(
+    mock_send_message_from_one_destination_to_another,
+):
     out = StringIO()
     fake_source = "/queue/your-source"
     fake_target = "/queue/your-target"
@@ -64,10 +62,9 @@ def test_should_call_logic_to_send_one_destination_to_another_given_custom_broke
     )
 
 
-def test_should_raise_error_given_custom_port_is_not_informed_to_use_custom_broker(mocker: MockFixture):
-    mock_send_message_from_one_destination_to_another = mocker.patch(
-        "django_stomp.management.commands.move_messages.send_message_from_one_destination_to_another"
-    )
+def test_should_raise_error_given_custom_port_is_not_informed_to_use_custom_broker(
+    mock_send_message_from_one_destination_to_another,
+):
     out = StringIO()
     fake_source = "/queue/your-source"
     fake_target = "/queue/your-target"

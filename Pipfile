@@ -19,9 +19,9 @@ pytest-trio = "*"
 
 [packages]
 django = "~=2.2"
-"stomp.py" = "==6.0.0"
+"stomp.py" = "~=7.0"
 request-id-django-log = "==0.1.1"
-tenacity = "~=6.0"
+tenacity = "~=8.0"
 
 [requires]
 python_version = "3.7"

@@ -2,7 +2,6 @@ import json
 import logging
 import re
 import threading
-import time
 import uuid
 from time import sleep
 from unittest import mock
@@ -10,10 +9,16 @@ from uuid import uuid4
 
 import pytest
 import trio
-from django.core.management import call_command
-from django.core.serializers.json import DjangoJSONEncoder
+from django.db.backends.signals import connection_created
 from pytest_mock import MockFixture
 from stomp.exception import NotConnectedException
+
+from django_stomp.builder import build_listener
+from django_stomp.builder import build_publisher
+from django_stomp.execution import clean_messages_on_destination_by_acking
+from django_stomp.execution import send_message_from_one_destination_to_another
+from django_stomp.execution import start_processing
+from django_stomp.services.producer import do_inside_transaction
 from tests.support import rabbitmq
 from tests.support.activemq.connections_details import consumers_details
 from tests.support.activemq.message_details import retrieve_message_published
@@ -24,6 +29,7 @@ from tests.support.callbacks_for_tests import callback_move_and_ack_path
 from tests.support.callbacks_for_tests import callback_standard_path
 from tests.support.callbacks_for_tests import callback_with_another_log_message_path
 from tests.support.callbacks_for_tests import callback_with_exception_path
+from tests.support.callbacks_for_tests import callback_with_explicit_db_connection_path
 from tests.support.callbacks_for_tests import callback_with_logging_path
 from tests.support.callbacks_for_tests import callback_with_nack_path
 from tests.support.callbacks_for_tests import callback_with_sleep_three_seconds_path
@@ -34,18 +40,6 @@ from tests.support.helpers import is_testing_against_rabbitmq
 from tests.support.helpers import publish_to_destination
 from tests.support.helpers import publish_without_correlation_id_header
 from tests.support.helpers import wait_for_message_in_log
-
-from django_stomp.builder import build_listener
-from django_stomp.builder import build_publisher
-from django_stomp.execution import clean_messages_on_destination_by_acking
-from django_stomp.execution import send_message_from_one_destination_to_another
-from django_stomp.execution import start_processing
-from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
-from django_stomp.helpers import create_dlq_destination_from_another_destination
-from django_stomp.helpers import retry
-from django_stomp.services.consumer import Payload
-from django_stomp.services.producer import Publisher
-from django_stomp.services.producer import do_inside_transaction
 
 
 def test_should_consume_message_and_publish_to_another_queue_using_same_correlation_id():
@@ -224,7 +218,7 @@ async def test_should_configure_prefetch_size_as_one(mocker: MockFixture, settin
     settings.STOMP_SUBSCRIPTION_ID = subscription_id
 
     async def collect_consumer_details():
-        await trio.sleep(0.5)
+        await trio.sleep(2)
         try:
             consumers = list(consumers_details(f"{listener_id}-listener"))
         except Exception:
@@ -514,7 +508,7 @@ def test_should_create_queue_for_virtual_topic_and_compete_for_its_messages(capl
             virtual_topic_consumer_queue, callback_with_logging_path, is_testing=True, return_listener=True
         ),
         start_processing(
-            virtual_topic_consumer_queue, callback_with_another_log_message_path, is_testing=True, return_listener=True,
+            virtual_topic_consumer_queue, callback_with_another_log_message_path, is_testing=True, return_listener=True
         ),
     ]
 
@@ -631,7 +625,7 @@ def test_should_consume_message_without_correlation_id_when_it_is_not_required_n
     # https://activemq.apache.org/message-redelivery-and-dlq-handling
     publish_without_correlation_id_header(destination_name, some_body, persistent=True)
 
-    consumer = start_processing(destination_name, callback_standard_path, is_testing=True)
+    start_processing(destination_name, callback_standard_path, is_testing=True)
 
     source_queue_status = get_destination_metrics_from_broker(source_queue_name)
 
@@ -744,17 +738,17 @@ def test_should_clean_all_messages_on_a_destination(caplog):
     some_body = {"some": "trash"}
     some_headers = {"some": "header"}
 
+    # command invocation
+    consumer = clean_messages_on_destination_by_acking(some_source_destination, is_testing=True, return_listener=True)
+
     with build_publisher().auto_open_close_connection() as publisher:
-        for i in range(0, trash_msgs_count):
+        for _ in range(0, trash_msgs_count):
             publisher.send(some_body, some_source_destination, some_headers, attempt=1)
 
-    # # command invocation
-    consumer = clean_messages_on_destination_by_acking(some_source_destination, is_testing=True, return_listener=True)
     wait_for_message_in_log(caplog, r"Message has been removed!", message_count_to_wait=trash_msgs_count)
     consumer.close()
 
     # asserts that messages were acked
-    sleep(5)  # takes some time to ack all messages
     source_queue_status = get_destination_metrics_from_broker(source_queue_name)
 
     assert source_queue_status.number_of_pending_messages == 0
@@ -815,11 +809,10 @@ def test_should_not_publish_any_messages_if_connection_drops_when_using_transact
     *_, queue_name = destination_one.split("/")
     some_correlation_id = uuid.uuid4()
     some_header = {"correlation-id": some_correlation_id}
-    some_body = {"please": "no errors 1"}
-    some_body = {"please": "no errors 2"}
+    some_body = {"please": "no errors"}
 
     # creates destination and publishes to it
-    start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True,).close()
+    start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True).close()
     publisher = build_publisher(f"random-publisher-{uuid4()}")
 
     with pytest.raises(NotConnectedException):
@@ -841,11 +834,10 @@ def test_should_publish_many_messages_if_no_connection_problems_happen_when_usin
     *_, queue_name = destination_one.split("/")
     some_correlation_id = uuid.uuid4()
     some_header = {"correlation-id": some_correlation_id}
-    some_body = {"please": "no errors 1"}
-    some_body = {"please": "no errors 2"}
+    some_body = {"please": "no errors"}
 
     # creates destination and publishes to it
-    start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True,).close()
+    start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True).close()
     publisher = build_publisher(f"random-publisher-{uuid4()}")
 
     # no connection errors inside this transaction
@@ -866,11 +858,10 @@ def test_should_publish_messages_if_connection_drops_when_not_transactions():
     *_, queue_name = destination_one.split("/")
     some_correlation_id = uuid.uuid4()
     some_header = {"correlation-id": some_correlation_id}
-    some_body = {"please": "no errors 1"}
-    some_body = {"please": "no errors 2"}
+    some_body = {"please": "no errors"}
 
     # creates destination and publishes to it
-    start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True,).close()
+    start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True).close()
     publisher = build_publisher(f"random-publisher-{uuid4()}")
 
     # no transaction
@@ -885,3 +876,75 @@ def test_should_publish_messages_if_connection_drops_when_not_transactions():
     # the two message should have been published due to retry (but no transactions involved)
     assert queue_status.messages_enqueued == 2
     assert queue_status.number_of_pending_messages == 2
+
+
+@pytest.mark.django_db
+def test_should_open_a_new_db_connection_when_previous_connection_is_obsolete_or_unusable(settings):
+    # Arrange - listen for db connection created signal with mocked function
+    new_db_connection_callback = mock.MagicMock(return_value=None)
+    connection_created.connect(new_db_connection_callback)
+
+    # Arrange - settings CONN_MAX_AGE to zero, forcing connection renewal for every new message
+    settings.DATABASES["default"]["CONN_MAX_AGE"] = 0
+
+    # Arrange - random destination and fake arbitrary message body
+    destination = f"/queue/new-connections-{uuid4()}"
+    body = {"key": "value"}
+    arbitrary_number_of_msgs = 5
+
+    # Act - start listening to a random destination queue and publishing an arbitrary number of messages to it
+    listener = start_processing(
+        destination, callback_with_explicit_db_connection_path, is_testing=True, return_listener=True
+    )
+
+    with build_publisher(f"random-publisher-{uuid4()}").auto_open_close_connection() as publisher:
+        for _ in range(arbitrary_number_of_msgs):
+            publisher.send(body, destination)
+
+    sleep(0.5)  # some sleep to give enough time to process the messages
+
+    # Assert - for every new message a new db connection is created
+    assert new_db_connection_callback.call_count == arbitrary_number_of_msgs
+
+    # Assert - all threads that have established a db connection, should have closed them as CONN_MAX_AGE == 0
+    threads_with_db_connections = [t for t in threading.enumerate() if hasattr(t, "db")]
+    assert any(threads_with_db_connections)
+    assert all(t.db.connection is None for t in threads_with_db_connections)
+
+    listener.close()
+
+
+@pytest.mark.django_db
+def test_shouldnt_open_a_new_db_connection_when_there_is_one_still_usable(settings):
+    # Arrange - listen for db connection created signal with mocked function
+    new_db_connection_callback = mock.MagicMock(return_value=None)
+    connection_created.connect(new_db_connection_callback)
+
+    # Arrange - settings CONN_MAX_AGE to 86400s or 1 day
+    settings.DATABASES["default"]["CONN_MAX_AGE"] = 86400
+
+    # Arrange - random destination and fake arbitrary message body
+    destination = f"/queue/no-new-connections-{uuid4()}"
+    body = {"key": "value"}
+    arbitrary_number_of_msgs = 5
+
+    # Act - start listening random destination queue and publish arbitrary number of messages to it
+    listener = start_processing(
+        destination, callback_with_explicit_db_connection_path, is_testing=True, return_listener=True
+    )
+
+    with build_publisher(f"random-publisher-{uuid4()}").auto_open_close_connection() as publisher:
+        for _ in range(arbitrary_number_of_msgs):
+            publisher.send(body, destination)
+
+    sleep(0.5)  # some sleep to give enough time to process the messages
+
+    # Assert - only one connection is estabilished
+    assert new_db_connection_callback.call_count == 1
+
+    # Assert - all threads that have established a db connection, shouldn't have reset them as CONN_MAX_AGE == 1 day
+    threads_with_db_connections = [t for t in threading.enumerate() if hasattr(t, "db")]
+    assert any(threads_with_db_connections)
+    assert all(t.db.connection is not None for t in threads_with_db_connections)
+
+    listener.close()

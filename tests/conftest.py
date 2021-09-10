@@ -1,5 +1,5 @@
 import os
-from logging import Formatter
+import uuid
 
 from django.conf import settings
 
@@ -14,7 +14,7 @@ def pytest_assertrepr_compare(config, op, left, right):
 
 def pytest_configure():
     settings.configure(
-        INSTALLED_APPS=["django_stomp"],
+        INSTALLED_APPS=["django_stomp", "tests.support"],
         STOMP_SERVER_HOST=os.getenv("STOMP_SERVER_HOST"),
         STOMP_SERVER_PORT=os.getenv("STOMP_SERVER_PORT"),
         STOMP_SERVER_STANDBY_HOST=os.getenv("STOMP_SERVER_STANDBY_HOST"),
@@ -27,4 +27,15 @@ def pytest_configure():
         STOMP_PROCESS_MSG_ON_BACKGROUND=os.getenv("STOMP_PROCESS_MSG_ON_BACKGROUND"),
         STOMP_OUTGOING_HEARTBEAT=os.getenv("STOMP_OUTGOING_HEARTBEAT"),
         STOMP_INCOMING_HEARTBEAT=os.getenv("STOMP_INCOMING_HEARTBEAT"),
+        DATABASES={
+            "default": {
+                "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.sqlite3"),
+                "NAME": os.getenv("DB_DATABASE", f"test_db-{uuid.uuid4()}"),
+                "USER": os.getenv("DB_USER"),
+                "HOST": os.getenv("DB_HOST"),
+                "PORT": os.getenv("DB_PORT"),
+                "PASSWORD": os.getenv("DB_PASSWORD"),
+                "TEST": {"NAME": os.getenv("DB_DATABASE", f"test_db-{uuid.uuid4()}")},
+            }
+        },
     )
