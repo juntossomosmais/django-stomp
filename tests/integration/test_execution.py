@@ -892,7 +892,7 @@ def test_should_open_a_new_db_connection_when_previous_connection_is_obsolete_or
     body = {"key": "value"}
     arbitrary_number_of_msgs = 5
 
-    # Act - start listening random destination queue and publish arbitrary number of messages to it
+    # Act - start listening to a random destination queue and publishing an arbitrary number of messages to it
     listener = start_processing(
         destination, callback_with_explicit_db_connection_path, is_testing=True, return_listener=True
     )
@@ -907,7 +907,8 @@ def test_should_open_a_new_db_connection_when_previous_connection_is_obsolete_or
     assert new_db_connection_callback.call_count == arbitrary_number_of_msgs
 
     # Assert - all threads that have established a db connection, should have closed them as CONN_MAX_AGE == 0
-    threads_with_db_connections = filter(lambda t: hasattr(t, "db"), threading.enumerate())
+    threads_with_db_connections = [t for t in threading.enumerate() if hasattr(t, "db")]
+    assert any(threads_with_db_connections)
     assert all(t.db.connection is None for t in threads_with_db_connections)
 
     listener.close()
@@ -942,7 +943,8 @@ def test_shouldnt_open_a_new_db_connection_when_there_is_one_still_usable(settin
     assert new_db_connection_callback.call_count == 1
 
     # Assert - all threads that have established a db connection, shouldn't have reset them as CONN_MAX_AGE == 1 day
-    threads_with_db_connections = filter(lambda t: hasattr(t, "db"), threading.enumerate())
+    threads_with_db_connections = [t for t in threading.enumerate() if hasattr(t, "db")]
+    assert any(threads_with_db_connections)
     assert all(t.db.connection is not None for t in threads_with_db_connections)
 
     listener.close()
