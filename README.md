@@ -2,7 +2,7 @@
 
 [![Build Status](https://dev.azure.com/juntos-somos-mais-loyalty/python/_apis/build/status/django-stomp?branchName=master)](https://dev.azure.com/juntos-somos-mais-loyalty/python/_build/latest?definitionId=23&branchName=master)
 [![Maintainability](https://sonarcloud.io/api/project_badges/measure?project=juntossomosmais_django-stomp&metric=sqale_rating)](https://sonarcloud.io/dashboard?id=juntossomosmais_django-stomp)
-[![Test Coverage](https://api.codeclimate.com/v1/badges/381136911e038d1a6887/test_coverage)](https://codeclimate.com/github/juntossomosmais/django-stomp/test_coverage)
+[![Test Coverage](https://sonarcloud.io/api/project_badges/measure?project=juntossomosmais_django-stomp&metric=coverage)](https://sonarcloud.io/dashboard?id=juntossomosmais_django-stomp)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![Downloads](https://pepy.tech/badge/django-stomp)](https://pepy.tech/project/django-stomp)
 [![Downloads](https://pepy.tech/badge/django-stomp/month)](https://pepy.tech/project/django-stomp/month)
