@@ -218,7 +218,7 @@ async def test_should_configure_prefetch_size_as_one(mocker: MockFixture, settin
     settings.STOMP_SUBSCRIPTION_ID = subscription_id
 
     async def collect_consumer_details():
-        await trio.sleep(0.5)
+        await trio.sleep(2)
         try:
             consumers = list(consumers_details(f"{listener_id}-listener"))
         except Exception:

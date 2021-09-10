@@ -25,8 +25,8 @@ _overview_request_path = "/api/overview"
 
 def current_queue_configuration(queue_name, host="localhost", port=15672) -> Optional[CurrentDestinationStatus]:
     result = _do_request(host, port, _specific_queue_details_request_path.format(queue_name=queue_name))
-    logger.debug("RabbitMQ request result: %s", result)
 
+    logger.debug("RabbitMQ request result: %s", result)
     if result.get("error"):
         return None
 
@@ -124,7 +124,7 @@ def get_broker_version(host="localhost", port=15672) -> str:
 
 
 def _do_request(host, port, request_path, do_post=False, body=None):
-    sleep(5)
+    sleep(2)
     session = requests.Session()
     session.mount("http://", HTTPAdapter(max_retries=3))
     address, auth = f"http://{host}:{port}{request_path}", ("guest", "guest")
