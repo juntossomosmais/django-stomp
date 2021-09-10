@@ -906,7 +906,7 @@ def test_should_open_a_new_db_connection_when_previous_connection_is_obsolete_or
     # Assert - for every new message a new db connection is created
     assert new_db_connection_callback.call_count == arbitrary_number_of_msgs
 
-    # Assert - all threads that estabilished db connection, reseted it
+    # Assert - all threads that have established a db connection, should have closed them as CONN_MAX_AGE == 0
     threads_with_db_connections = filter(lambda t: hasattr(t, "db"), threading.enumerate())
     assert all(t.db.connection is None for t in threads_with_db_connections)
 
@@ -941,7 +941,7 @@ def test_shouldnt_open_a_new_db_connection_when_there_is_one_still_usable(settin
     # Assert - only one connection is estabilished
     assert new_db_connection_callback.call_count == 1
 
-    # Assert - all threads that estabilished db connection, didn't reseted it
+    # Assert - all threads that have established a db connection, shouldn't have reset them as CONN_MAX_AGE == 1 day
     threads_with_db_connections = filter(lambda t: hasattr(t, "db"), threading.enumerate())
     assert all(t.db.connection is not None for t in threads_with_db_connections)
 
