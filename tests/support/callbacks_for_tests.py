@@ -78,6 +78,19 @@ def callback_with_sleep_three_seconds(payload: Payload):
 
 
 def callback_with_explicit_db_connection(payload: Payload):
+    """
+    This callback do a DB interaction and set a new attribute (`db`) in the thread that it's running
+    so that any test can have a direct access to a `DatabaseWrapper`[1] and make assertions with it. This
+    new attribute was needed due to the way Django works estabilishing a new DB connection for each
+    thread [2].
+
+    Note: The `db.connections` object is a handler (with a dict-like syntax), see [3] for more information
+    on it!
+
+    [1] https://github.com/django/django/blob/ca9872905559026af82000e46cde6f7dedc897b6/django/db/backends/base/base.py#L26
+    [2] https://docs.djangoproject.com/en/3.2/ref/databases/#caveats
+    [3] https://github.com/django/django/blob/ca9872905559026af82000e46cde6f7dedc897b6/django/db/utils.py#L134
+    """
     Simple.objects.create()
 
     thread = threading.current_thread()
