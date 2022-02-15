@@ -1,19 +1,25 @@
 version: "3.9"
+
+# https://docs.docker.com/compose/compose-file/compose-file-v3/#extension-fields
+x-build: &dockerfile-dev-build
+  context: .
+  dockerfile: Dockerfile.dev
+
 services:
   broker-activemq:
     image: rmohr/activemq:latest
-    ports:
-      - 8161:8161
-      - 61613:61613
     volumes:
       - ./tests/resources/custom-activemq-conf:/opt/apache-activemq-5.15.6/conf
+    networks:
+      - django-stomp-network
+
   another-broker-activemq:
     image: rmohr/activemq:latest
-    ports:
-      - 8162:8161
-      - 61614:61613
     volumes:
       - ./tests/resources/custom-activemq-conf:/opt/apache-activemq-5.15.6/conf
+    networks:
+      - django-stomp-network
+
   broker-rabbitmq:
     image: rabbitmq:3-management
     ports:
@@ -21,3 +27,55 @@ services:
       - 15672:15672
     volumes:
       - ./tests/resources/custom-rabbitmq-conf:/etc/rabbitmq/
+    networks:
+      - django-stomp-network
+
+  tests:
+    build: *dockerfile-dev-build
+    env_file: .env
+    volumes:
+      - .:/app
+    command: [
+        "./scripts/wait-for-it.sh",
+        "${STOMP_SERVER_HOST}:${STOMP_SERVER_PORT}",
+        "-t",
+        "120",
+        "--",
+        "./scripts/start-tests.sh"
+    ]
+    networks:
+      - django-stomp-network
+
+  lint-formatter:
+    build: *dockerfile-dev-build
+    volumes:
+      - .:/app
+    command: ["./scripts/start-formatter-lint.sh"]
+    networks:
+      - django-stomp-network
+
+  sonar:
+    container_name: sonar
+    image: sonarqube:8-community
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    ports:
+      - "9000:9000"
+    networks:
+      - django-stomp-network
+
+  sonar-cli:
+    container_name: sonar-cli
+    image: sonarsource/sonar-scanner-cli
+    working_dir: /api
+    environment:
+      - SONAR_LOGIN=admin
+      - SONAR_PASSWORD=test
+    volumes:
+      - .:/app
+    command: ["sonar-scanner", "--debug"]
+    networks:
+      - django-stomp-network
+
+networks:
+  django-stomp-network:

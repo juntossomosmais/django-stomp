@@ -1,11 +1,12 @@
 [run]
 omit =
+    .mypy_cache/*
+    .pytest_cache/*
     .venv/*
     .tox/*
     scripts/*
     tests/*
     */tests/*
-    */migrations/*
 
 [report]
 show_missing = True
