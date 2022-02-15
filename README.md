@@ -171,6 +171,11 @@ Then at last:
 
 For every message that a `django-stomp` consumer receives, it opens a new DB connection if it needs to, keeping it open until it exceeds the maximum age defined by `CONN_MAX_AGE` or when the connection becomes unusable.
 
+## Additional debug package (applies to version >= 5.1.0)
+The `debug` extra argument installs the `debug-toolbar` helper library to help us to know how the database is hit into our callback function.
+
+See readme.md in debug_callback_view to understand how we can use this extra argument
+
 ## Known limitations
 
 * Currently, we assume that all dead lettered messages are sent to a queue with the same name as its original 
