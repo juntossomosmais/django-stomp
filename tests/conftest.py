@@ -17,6 +17,7 @@ def pytest_configure():
         INSTALLED_APPS=["django_stomp", "tests.support"],
         STOMP_SERVER_HOST=os.getenv("STOMP_SERVER_HOST"),
         STOMP_SERVER_PORT=os.getenv("STOMP_SERVER_PORT"),
+        STOMP_SERVER_INTERFACE_PORT=os.getenv("STOMP_SERVER_INTERFACE_PORT"),
         STOMP_SERVER_STANDBY_HOST=os.getenv("STOMP_SERVER_STANDBY_HOST"),
         STOMP_SERVER_STANDBY_PORT=os.getenv("STOMP_SERVER_STANDBY_PORT"),
         STOMP_SERVER_USER=os.getenv("STOMP_SERVER_USER"),

@@ -8,9 +8,13 @@ from parsel import Selector
 from tests.support.dtos import CurrentDestinationStatus
 
 
-def current_queue_configuration(queue_name: str, host: str = settings.STOMP_SERVER_HOST) -> CurrentDestinationStatus:
+def current_queue_configuration(
+    queue_name: str,
+    host: str = settings.STOMP_SERVER_HOST,
+    port: str = settings.STOMP_SERVER_INTERFACE_PORT,
+) -> CurrentDestinationStatus:
     sleep(1)
-    result = requests.get(f"http://{host}:8161/admin/queues.jsp", auth=("admin", "admin"))
+    result = requests.get(f"http://{host}:{port}/admin/queues.jsp", auth=("admin", "admin"))
     selector = Selector(text=str(result.content))
 
     all_queues = selector.xpath('//*[@id="queues"]/tbody/tr').getall()

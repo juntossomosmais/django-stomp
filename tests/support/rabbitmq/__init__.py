@@ -27,9 +27,9 @@ _overview_request_path = "/api/overview"
 
 
 def current_queue_configuration(
-    queue_name: str, host: str = settings.STOMP_SERVER_HOST, port: str = settings.STOMP_SERVER_PORT
+    queue_name: str, host: str = settings.STOMP_SERVER_HOST, port: str = settings.STOMP_SERVER_INTERFACE_PORT
 ) -> Optional[CurrentDestinationStatus]:
-    result = _do_request(host, int(port), _specific_queue_details_request_path.format(queue_name=queue_name))
+    result = _do_request(host, port, _specific_queue_details_request_path.format(queue_name=queue_name))
 
     logger.debug("RabbitMQ request result: %s", result)
     if result.get("error"):
@@ -52,7 +52,7 @@ def current_queue_configuration(
 
 
 def current_topic_configuration(
-    topic_name, host=settings.STOMP_SERVER_HOST, port=15672
+    topic_name, host=settings.STOMP_SERVER_HOST, port: str = settings.STOMP_SERVER_INTERFACE_PORT
 ) -> Optional[CurrentDestinationStatus]:
     queues = _do_request(host, port, _queues_details_request_path + "?name=&use_regex=false")
     for queue_details in queues:
@@ -72,7 +72,7 @@ def current_topic_configuration(
 
 
 def consumers_details(
-    connection_id, host=settings.STOMP_SERVER_HOST, port=15672
+    connection_id, host=settings.STOMP_SERVER_HOST, port: str = settings.STOMP_SERVER_INTERFACE_PORT
 ) -> Generator[ConsumerStatus, None, None]:
     channels = _do_request(host, port, _channels_details_request_path)
     for channel in channels:
@@ -102,7 +102,11 @@ def consumers_details(
                     )
 
 
-def retrieve_message_published(destination_name, host=settings.STOMP_SERVER_HOST, port=15672) -> MessageStatus:
+def retrieve_message_published(
+    destination_name,
+    host=settings.STOMP_SERVER_HOST,
+    port: str = settings.STOMP_SERVER_INTERFACE_PORT,
+) -> MessageStatus:
     body = json.dumps(
         {
             "vhost": "/",
@@ -127,7 +131,7 @@ def retrieve_message_published(destination_name, host=settings.STOMP_SERVER_HOST
     return MessageStatus(None, details, persistent, correlation_id, {**headers, **properties})
 
 
-def get_broker_version(host=settings.STOMP_SERVER_HOST, port=15672) -> str:
+def get_broker_version(host=settings.STOMP_SERVER_HOST, port: str = settings.STOMP_SERVER_INTERFACE_PORT) -> str:
     broker_overview = _do_request(host, port, _overview_request_path)
     return broker_overview["rabbitmq_version"]
 

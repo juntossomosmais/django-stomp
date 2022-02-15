@@ -10,7 +10,11 @@ from django_stomp.helpers import eval_str_as_boolean
 from tests.support.dtos import ConsumerStatus
 
 
-def consumers_details(connection_id: str, host=settings.STOMP_SERVER_HOST) -> Generator[ConsumerStatus, None, None]:
+def consumers_details(
+    connection_id: str,
+    host=settings.STOMP_SERVER_HOST,
+    port: str = settings.STOMP_SERVER_INTERFACE_PORT,
+) -> Generator[ConsumerStatus, None, None]:
     sleep(1)
 
     params = {"connectionID": connection_id}
@@ -24,7 +28,7 @@ def consumers_details(connection_id: str, host=settings.STOMP_SERVER_HOST) -> Ge
         consumer_details_as_selector = Selector(text=consumer_details)
         destination_request_path = consumer_details_as_selector.css("td a::attr(href)").get()
 
-        address_to_destination_details = f"http://{host}:8161/admin/{destination_request_path}"
+        address_to_destination_details = f"http://{host}:{port}/admin/{destination_request_path}"
         destination_name = destination_request_path.split("Destination=")[1]
         session_id = int(consumer_details_as_selector.css("td + td::text").get())
         enqueues = int(consumer_details_as_selector.css("td + td + td::text").get())

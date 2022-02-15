@@ -8,9 +8,13 @@ from parsel import Selector
 from tests.support.dtos import CurrentDestinationStatus
 
 
-def current_topic_configuration(topic_name: str, host: str = settings.STOMP_SERVER_HOST) -> CurrentDestinationStatus:
+def current_topic_configuration(
+    topic_name: str,
+    host: str = settings.STOMP_SERVER_HOST,
+    port: str = settings.STOMP_SERVER_INTERFACE_PORT,
+) -> CurrentDestinationStatus:
     sleep(1)
-    result = requests.get(f"http://{host}:8161/admin/topics.jsp", auth=("admin", "admin"))
+    result = requests.get(f"http://{host}:{port}/admin/topics.jsp", auth=("admin", "admin"))
     selector = Selector(text=str(result.content))
 
     all_topics = selector.xpath('//*[@id="topics"]/tbody/tr').getall()

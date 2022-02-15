@@ -9,9 +9,12 @@ from parsel import Selector
 from tests.support.dtos import SubscriberSetup
 
 
-def offline_durable_subscribers(host: str = settings.STOMP_SERVER_HOST) -> Generator[SubscriberSetup, None, None]:
+def offline_durable_subscribers(
+    host: str = settings.STOMP_SERVER_HOST,
+    port: str = settings.STOMP_SERVER_INTERFACE_PORT,
+) -> Generator[SubscriberSetup, None, None]:
     sleep(1)
-    result = requests.get(f"http://{host}:8161/admin/subscribers.jsp", auth=("admin", "admin"))
+    result = requests.get(f"http://{host}:{port}/admin/subscribers.jsp", auth=("admin", "admin"))
     selector = Selector(text=str(result.content))
 
     all_offline_subscribers = (
@@ -23,7 +26,7 @@ def offline_durable_subscribers(host: str = settings.STOMP_SERVER_HOST) -> Gener
     for _index, column_details in enumerate(all_offline_subscribers):
         column_details_as_selector = Selector(text=column_details)
         client_id_request_path = column_details_as_selector.css("td a::attr(href)").get()
-        address_to_subscriber_details = f"http://{host}:8161/admin/{client_id_request_path}"
+        address_to_subscriber_details = f"http://{host}:{port}/admin/{client_id_request_path}"
         subscriber_id = client_id_request_path.split("connectionID=")[1]
         destination = column_details_as_selector.css("td:nth-child(4) span::text").getall()[1]
         pending_queue_size = int(column_details_as_selector.css("td:nth-child(6)::text").get())

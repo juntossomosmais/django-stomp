@@ -17,6 +17,7 @@ def mock_ack():
 def mock_nack():
     return
 
+
 def debug_callback_view(request: HttpRequest):
     """
     View wrapper to call pubsub logic

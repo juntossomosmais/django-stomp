@@ -10,9 +10,13 @@ from parsel import Selector
 from tests.support.dtos import MessageStatus
 
 
-def retrieve_message_published(destination_name: str, host: str = settings.STOMP_SERVER_HOST) -> MessageStatus:
+def retrieve_message_published(
+    destination_name: str,
+    host: str = settings.STOMP_SERVER_HOST,
+    port: str = settings.STOMP_SERVER_INTERFACE_PORT,
+) -> MessageStatus:
     sleep(1)
-    address = f"http://{host}:8161/admin/browse.jsp?JMSDestination={destination_name}"
+    address = f"http://{host}:{port}/admin/browse.jsp?JMSDestination={destination_name}"
     result = requests.get(address, auth=("admin", "admin"))
     selector = Selector(text=str(result.content))
 
@@ -23,7 +27,7 @@ def retrieve_message_published(destination_name: str, host: str = settings.STOMP
     for _index, message_details in enumerate(all_messages):
         message_details_as_selector = Selector(text=message_details)
         message_id_request_path = message_details_as_selector.css("td a::attr(href)").get()
-        address_to_message = f"http://{host}:8161/admin/{message_id_request_path}"
+        address_to_message = f"http://{host}:{port}/admin/{message_id_request_path}"
         result_all_message_details = requests.get(address_to_message, auth=("admin", "admin"))
         selector_all_message_details = Selector(text=str(result_all_message_details.content))
         return _process_message_details(selector_all_message_details)
