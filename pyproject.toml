@@ -1,3 +1,43 @@
+[tool.poetry]
+name = "django-stomp"
+version = "5.1.0"
+description = "A simple implementation of STOMP with Django"
+authors = ["Juntos Somos Mais <labs@juntossomosmais.com.br>"]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+django = "~=2.2"
+"stomp.py" = "~=7.0"
+request-id-django-log = "==0.1.1"
+tenacity = "~=8.0"
+
+[tool.poetry.dev-dependencies]
+twine = "*"
+wheel = "*"
+tox = "*"
+pytest = "*"
+pytest-mock = "*"
+pytest-cov = "*"
+pytest-env = "*"
+pytest-django = "*"
+parsel = "*"
+requests = "*"
+trio = "*"
+pytest-trio = "*"
+### Format, lint, static type checker, among others
+black = "*"
+mypy = "*"
+isort = "*"
+flake8 = "*"
+flake8-bugbear = "*"
+autoflake = "*"
+pre-commit = "*"
+types-requests = "*"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
 [tool.black]
 line-length = 120
 target-version = ['py36', 'py37', 'py38']
