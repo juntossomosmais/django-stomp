@@ -14,7 +14,6 @@ tenacity = "~=8.0"
 [tool.poetry.dev-dependencies]
 twine = "*"
 wheel = "*"
-tox = "*"
 pytest = "*"
 pytest-mock = "*"
 pytest-cov = "*"
