@@ -161,10 +161,13 @@ In order to execute tests for ActiveMQ, execute the following:
 Or for RabbitMQ:
 
     docker-compose up -d broker-rabbitmq
-    
+
+Change `.env`:
+`STOMP_SERVER_HOST` on `.env` to use `broker-rabbitmq` or `broker-activemq`
+
 Then at last:
 
-    pipenv run tox
+    docker-compose up tests
 
 
 ## Database connection management (applies to version >= 5.0.0)
