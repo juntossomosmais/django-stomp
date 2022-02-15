@@ -7,13 +7,15 @@ from django_stomp.debug_callback_view.views import mock_ack
 from django_stomp.debug_callback_view.views import mock_nack
 from django_stomp.services.consumer import Payload
 
+fake_callback_path = "tests.unit.debug_callback_view.test_views.fake_callback"
+
 
 def fake_callback(payload: Payload):
     return
 
 
 def test_should_return_error_when_method_not_is_post(mocker):
-    mock_fake_callback_function = mocker.patch("tests.unit.debug_callback_view.test_views.fake_callback")
+    mock_fake_callback_function = mocker.patch(fake_callback_path)
 
     mock_request = HttpRequest()
     mock_request.method = "GET"
@@ -27,7 +29,7 @@ def test_should_return_error_when_method_not_is_post(mocker):
 
 
 def test_should_return_error_when_callback_function_path_body_attribute_is_not_provided(mocker):
-    mock_fake_callback_function = mocker.patch("tests.unit.debug_callback_view.test_views.fake_callback")
+    mock_fake_callback_function = mocker.patch(fake_callback_path)
 
     mock_request = HttpRequest()
     mock_request.method = "POST"
@@ -42,7 +44,7 @@ def test_should_return_error_when_callback_function_path_body_attribute_is_not_p
 
 
 def test_should_return_warning_when_callback_function_raise_error(mocker):
-    mock_fake_callback_function = mocker.patch("tests.unit.debug_callback_view.test_views.fake_callback")
+    mock_fake_callback_function = mocker.patch(fake_callback_path)
     mock_fake_callback_function.side_effect = Exception(":careca:")
 
     fake_body = {"fake": "body"}
@@ -52,7 +54,7 @@ def test_should_return_warning_when_callback_function_raise_error(mocker):
     mock_request.method = "POST"
     mock_request._body = json.dumps(
         {
-            "callback_function_path": "tests.unit.debug_callback_view.test_views.fake_callback",
+            "callback_function_path": fake_callback_path,
             "payload_body": fake_body,
             "payload_headers": fake_headers,
         }
