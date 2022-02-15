@@ -2,6 +2,7 @@ import json
 import logging
 import ssl
 import uuid
+
 from contextlib import contextmanager
 from typing import Dict
 from typing import Optional
@@ -154,11 +155,14 @@ class Publisher:
 
     def _send_to_broker_without_retry_attempts(self, send_data: Dict) -> None:
         """
-        Sends the actual data to the broker using the STOMP protocol WITHOUT any retry attempts as reconnecting to the broker
-        while a transaction was previously created will lead to 'bad transaction' errors because STOMP 1.1 protocol closes any
+        Sends the actual data to the broker using the STOMP protocol WITHOUT any retry
+        attempts as reconnecting to the broker
+        while a transaction was previously created will lead to 'bad transaction' errors because STOMP 1.1
+        protocol closes any
         transactions if the producer had TCP connection problems or sends a DISCONNECT frame.
 
-        Hence, when a producer sends a BEGIN frame, all subsequent SEND frames (messages) must always use the SAME connection that
+        Hence, when a producer sends a BEGIN frame, all subsequent SEND frames (messages) must always use
+        the SAME connection that
         was used to start the transaction.
 
         -> STOMP 1.1 specification: https://stomp.github.io/stomp-specification-1.1.html#BEGIN

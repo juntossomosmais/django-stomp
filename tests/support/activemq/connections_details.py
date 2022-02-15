@@ -3,12 +3,14 @@ from typing import Generator
 
 import requests
 
-from django_stomp.helpers import eval_str_as_boolean
+from django.conf import settings
 from parsel import Selector
+
+from django_stomp.helpers import eval_str_as_boolean
 from tests.support.dtos import ConsumerStatus
 
 
-def consumers_details(connection_id, host="localhost") -> Generator[ConsumerStatus, None, None]:
+def consumers_details(connection_id: str, host=settings.STOMP_SERVER_HOST) -> Generator[ConsumerStatus, None, None]:
     sleep(1)
 
     params = {"connectionID": connection_id}
@@ -18,7 +20,7 @@ def consumers_details(connection_id, host="localhost") -> Generator[ConsumerStat
     consumers_table = selector.xpath('//*[@id="messages"]/tbody/tr').getall()
 
     assert len(consumers_table) > 0
-    for index, consumer_details in enumerate(consumers_table):
+    for _index, consumer_details in enumerate(consumers_table):
         consumer_details_as_selector = Selector(text=consumer_details)
         destination_request_path = consumer_details_as_selector.css("td a::attr(href)").get()
 

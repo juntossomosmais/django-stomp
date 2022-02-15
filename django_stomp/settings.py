@@ -3,6 +3,7 @@ from typing import Callable
 from typing import Optional
 
 from django.conf import settings as django_settings
+
 from django_stomp.exceptions import DjangoStompImproperlyConfigured
 from django_stomp.helpers import eval_as_int_if_provided_value_is_not_none_otherwise_none
 

@@ -3,6 +3,7 @@ Module with testing callbacks used for the tests.
 """
 import logging
 import threading
+
 from time import sleep
 
 from django import db
@@ -87,9 +88,9 @@ def callback_with_explicit_db_connection(payload: Payload):
     Note: The `db.connections` object is a handler (with a dict-like syntax), see [3] for more information
     on it!
 
-    [1] https://github.com/django/django/blob/ca9872905559026af82000e46cde6f7dedc897b6/django/db/backends/base/base.py#L26
-    [2] https://docs.djangoproject.com/en/3.2/ref/databases/#caveats
-    [3] https://github.com/django/django/blob/ca9872905559026af82000e46cde6f7dedc897b6/django/db/utils.py#L134
+    1-https://github.com/django/django/blob/ca9872905559026af82000e46cde6f7dedc897b6/django/db/backends/base/base.py#L26
+    2-https://docs.djangoproject.com/en/3.2/ref/databases/#caveats
+    3-https://github.com/django/django/blob/ca9872905559026af82000e46cde6f7dedc897b6/django/db/utils.py#L134
     """
     Simple.objects.create()
 

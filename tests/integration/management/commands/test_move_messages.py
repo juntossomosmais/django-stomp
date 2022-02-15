@@ -1,6 +1,7 @@
 import uuid
 
 import pytest
+
 from django.core.management import call_command
 
 from django_stomp.builder import build_publisher

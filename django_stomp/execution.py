@@ -1,5 +1,6 @@
 import logging
 import uuid
+
 from time import sleep
 from typing import Optional
 
@@ -23,10 +24,10 @@ from django_stomp.services.consumer import Payload
 logger = logging.getLogger("django_stomp")
 
 wait_to_connect = int(getattr(settings, "STOMP_WAIT_TO_CONNECT", 10))
-durable_topic_subscription = eval_str_as_boolean(getattr(settings, "STOMP_DURABLE_TOPIC_SUBSCRIPTION", False))
-listener_client_id = getattr(settings, "STOMP_LISTENER_CLIENT_ID", None)
-is_correlation_id_required = eval_str_as_boolean(getattr(settings, "STOMP_CORRELATION_ID_REQUIRED", True))
-should_process_msg_on_background = eval_str_as_boolean(getattr(settings, "STOMP_PROCESS_MSG_ON_BACKGROUND", True))
+durable_topic_subscription = eval_str_as_boolean(getattr(settings, "STOMP_DURABLE_TOPIC_SUBSCRIPTION", "False"))
+listener_client_id = getattr(settings, "STOMP_LISTENER_CLIENT_ID", "listener")
+is_correlation_id_required = eval_str_as_boolean(getattr(settings, "STOMP_CORRELATION_ID_REQUIRED", "True"))
+should_process_msg_on_background = eval_str_as_boolean(getattr(settings, "STOMP_PROCESS_MSG_ON_BACKGROUND", "True"))
 publisher_name = "django-stomp-another-target"
 
 
@@ -93,7 +94,7 @@ def start_processing(
             logger.exception(f"A exception of type {type(e)} was captured during listener logic")
         finally:
             if is_testing is False:
-                logger.info(f"Trying to close listener...")
+                logger.info("Trying to close listener...")
                 if listener.is_open():
                     listener.close()
                 logger.info(f"Waiting {wait_to_connect} seconds before trying to connect again...")
@@ -129,7 +130,7 @@ def send_message_from_one_destination_to_another(
     return_listener: bool = False,
     custom_stomp_server_host: Optional[str] = None,
     custom_stomp_server_port: Optional[int] = None,
-) -> Listener:
+) -> Optional[Listener]:
     callback_function = "django_stomp.execution._callback_send_to_another_destination"
 
     return start_processing(
@@ -147,7 +148,7 @@ def send_message_from_one_destination_to_another(
 
 def clean_messages_on_destination_by_acking(
     source_destination: str, is_testing: bool = False, testing_disconnect: bool = True, return_listener: bool = False
-) -> Listener:
+) -> Optional[Listener]:
     """
     Cleans a queue by acking all messages on it (no queue purging or deleting).
     """
@@ -176,7 +177,7 @@ def _callback_for_cleaning_queues(payload: Payload):
 
 
 def _callback_send_to_another_destination(payload: Payload, target_destination):
-    logger.info(f"Message received!")
+    logger.info("Message received!")
 
     headers = payload.headers
     body = payload.body

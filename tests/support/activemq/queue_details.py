@@ -1,11 +1,14 @@
 from time import sleep
 
 import requests
+
+from django.conf import settings
 from parsel import Selector
+
 from tests.support.dtos import CurrentDestinationStatus
 
 
-def current_queue_configuration(queue_name, host="localhost") -> CurrentDestinationStatus:
+def current_queue_configuration(queue_name: str, host: str = settings.STOMP_SERVER_HOST) -> CurrentDestinationStatus:
     sleep(1)
     result = requests.get(f"http://{host}:8161/admin/queues.jsp", auth=("admin", "admin"))
     selector = Selector(text=str(result.content))

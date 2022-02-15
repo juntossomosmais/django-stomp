@@ -3,6 +3,7 @@ import logging
 import ssl
 import time
 import uuid
+
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from enum import Enum
@@ -11,6 +12,7 @@ from typing import Dict
 from typing import Optional
 
 import stomp
+
 from stomp import connect
 from stomp.utils import Frame as StompFrame
 
@@ -166,7 +168,9 @@ def build_listener(
     incoming_heartbeat = int(connection_params.get("incomingHeartbeat", 0))
 
     logger.info(
-        f"Use SSL? {use_ssl}. Version: {ssl_version}. Outgoing/Ingoing heartbeat: {outgoing_heartbeat}/{incoming_heartbeat}. Background? {should_process_msg_on_background}"
+        f"Use SSL? {use_ssl}. Version: {ssl_version}. "
+        f"Outgoing/Ingoing heartbeat: {outgoing_heartbeat}/{incoming_heartbeat}. "
+        f"Background? {should_process_msg_on_background}"
     )
 
     if is_heartbeat_enabled(outgoing_heartbeat, incoming_heartbeat) and not should_process_msg_on_background:

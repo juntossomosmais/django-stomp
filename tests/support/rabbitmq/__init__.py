@@ -1,11 +1,14 @@
 import json
 import logging
 import urllib.parse
+
 from time import sleep
 from typing import Generator
 from typing import Optional
 
 import requests
+
+from django.conf import settings
 from requests.adapters import HTTPAdapter
 
 from tests.support.dtos import ConsumerStatus
@@ -23,8 +26,10 @@ _channel_details_from_channel_request_path = _channels_details_request_path + "/
 _overview_request_path = "/api/overview"
 
 
-def current_queue_configuration(queue_name, host="localhost", port=15672) -> Optional[CurrentDestinationStatus]:
-    result = _do_request(host, port, _specific_queue_details_request_path.format(queue_name=queue_name))
+def current_queue_configuration(
+    queue_name: str, host: str = settings.STOMP_SERVER_HOST, port: str = settings.STOMP_SERVER_PORT
+) -> Optional[CurrentDestinationStatus]:
+    result = _do_request(host, int(port), _specific_queue_details_request_path.format(queue_name=queue_name))
 
     logger.debug("RabbitMQ request result: %s", result)
     if result.get("error"):
@@ -46,7 +51,9 @@ def current_queue_configuration(queue_name, host="localhost", port=15672) -> Opt
     )
 
 
-def current_topic_configuration(topic_name, host="localhost", port=15672) -> Optional[CurrentDestinationStatus]:
+def current_topic_configuration(
+    topic_name, host=settings.STOMP_SERVER_HOST, port=15672
+) -> Optional[CurrentDestinationStatus]:
     queues = _do_request(host, port, _queues_details_request_path + "?name=&use_regex=false")
     for queue_details in queues:
         queue_name = queue_details["name"]
@@ -64,7 +71,9 @@ def current_topic_configuration(topic_name, host="localhost", port=15672) -> Opt
     return None
 
 
-def consumers_details(connection_id, host="localhost", port=15672) -> Generator[ConsumerStatus, None, None]:
+def consumers_details(
+    connection_id, host=settings.STOMP_SERVER_HOST, port=15672
+) -> Generator[ConsumerStatus, None, None]:
     channels = _do_request(host, port, _channels_details_request_path)
     for channel in channels:
         channel_name = channel["connection_details"]["name"]
@@ -93,7 +102,7 @@ def consumers_details(connection_id, host="localhost", port=15672) -> Generator[
                     )
 
 
-def retrieve_message_published(destination_name, host="localhost", port=15672) -> MessageStatus:
+def retrieve_message_published(destination_name, host=settings.STOMP_SERVER_HOST, port=15672) -> MessageStatus:
     body = json.dumps(
         {
             "vhost": "/",
@@ -118,7 +127,7 @@ def retrieve_message_published(destination_name, host="localhost", port=15672) -
     return MessageStatus(None, details, persistent, correlation_id, {**headers, **properties})
 
 
-def get_broker_version(host="localhost", port=15672) -> str:
+def get_broker_version(host=settings.STOMP_SERVER_HOST, port=15672) -> str:
     broker_overview = _do_request(host, port, _overview_request_path)
     return broker_overview["rabbitmq_version"]
 
