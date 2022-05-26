@@ -1,8 +1,11 @@
 import logging
 import signal
 import uuid
+from time import time
 from time import sleep
-from typing import Dict, Optional, Tuple
+from typing import Dict
+from typing import Optional
+from typing import Tuple
 
 from django import db
 from django.conf import settings
@@ -28,23 +31,35 @@ durable_topic_subscription = eval_str_as_boolean(getattr(settings, "STOMP_DURABL
 listener_client_id = getattr(settings, "STOMP_LISTENER_CLIENT_ID", None)
 is_correlation_id_required = eval_str_as_boolean(getattr(settings, "STOMP_CORRELATION_ID_REQUIRED", True))
 should_process_msg_on_background = eval_str_as_boolean(getattr(settings, "STOMP_PROCESS_MSG_ON_BACKGROUND", True))
+graceful_wait_seconds = getattr(settings, "STOMP_GRACEFUL_WAIT_SECONDS", 60)
 publisher_name = "django-stomp-another-target"
 
 _listener: Optional[Listener] = None
 _gracefully_shutdown: bool = False
+_is_processing_message: bool = False
 
 
 def _graceful_shutdown(*args: Tuple, **kwargs: Dict) -> None:
-    global _listener, _gracefully_shutdown
+    global _listener, _gracefully_shutdown, _is_processing_message
 
-    if _listener and _listener.is_open():
-        logger.info("Listener %s was found and will now shutdown", _listener)
-        _listener.close()
+    logger.info("Received %s signal... Preparing to shutdown!", signal.Signals(args[0]).name)
 
-    logger.info("Removing request_id from thread and closing old db connections")
-    local_threading.request_id = None
-    db.close_old_connections()
-    _gracefully_shutdown = True
+    start_time = time()
+    while True:
+        if not _is_processing_message or start_time + graceful_wait_seconds:
+            if _listener and _listener.is_open():
+                logger.info("Listener %s was found and will now shutdown", _listener)
+                _listener.close()
+
+            logger.info("Removing request_id from thread and closing old db connections")
+            local_threading.request_id = None
+            db.close_old_connections()
+
+            _gracefully_shutdown = True
+            break
+
+        logger.info("Messages are still being processing, waiting...")
+        sleep(1)
 
     logger.info("Gracefully shutdown successfully")
 
@@ -60,7 +75,7 @@ def start_processing(
     broker_host_to_consume_messages: Optional[str] = None,
     broker_port_to_consume_messages: Optional[int] = None,
 ) -> Optional[Listener]:
-    global _listener, _gracefully_shutdown
+    global _listener, _gracefully_shutdown, _is_processing_message
 
     signal.signal(signal.SIGQUIT, _graceful_shutdown)
     signal.signal(signal.SIGTERM, _graceful_shutdown)
@@ -95,10 +110,15 @@ def start_processing(
                     db.close_old_connections()
                     local_threading.request_id = _get_or_create_correlation_id(payload.headers)
 
+                    _is_processing_message = True
+
                     if param_to_callback:
                         callback_function(payload, param_to_callback)
                     else:
                         callback_function(payload)
+
+                    _is_processing_message = False
+
                 except BaseException as e:
                     logger.exception(f"A exception of type {type(e)} was captured during callback logic")
                     logger.warning("Trying to do NACK explicitly sending the message to DLQ...")
