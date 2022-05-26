@@ -1,7 +1,8 @@
 import logging
+import signal
 import uuid
 from time import sleep
-from typing import Optional
+from typing import Dict, Optional, Tuple
 
 from django import db
 from django.conf import settings
@@ -29,6 +30,24 @@ is_correlation_id_required = eval_str_as_boolean(getattr(settings, "STOMP_CORREL
 should_process_msg_on_background = eval_str_as_boolean(getattr(settings, "STOMP_PROCESS_MSG_ON_BACKGROUND", True))
 publisher_name = "django-stomp-another-target"
 
+_listener: Optional[Listener] = None
+_gracefully_shutdown: bool = False
+
+
+def _graceful_shutdown(*args: Tuple, **kwargs: Dict) -> None:
+    global _listener, _gracefully_shutdown
+
+    if _listener and _listener.is_open():
+        logger.info("Listener %s was found and will now shutdown", _listener)
+        _listener.close()
+
+    logger.info("Removing request_id from thread and closing old db connections")
+    local_threading.request_id = None
+    db.close_old_connections()
+    _gracefully_shutdown = True
+
+    logger.info("Gracefully shutdown successfully")
+
 
 def start_processing(
     destination_name: str,
@@ -41,6 +60,12 @@ def start_processing(
     broker_host_to_consume_messages: Optional[str] = None,
     broker_port_to_consume_messages: Optional[int] = None,
 ) -> Optional[Listener]:
+    global _listener, _gracefully_shutdown
+
+    signal.signal(signal.SIGQUIT, _graceful_shutdown)
+    signal.signal(signal.SIGTERM, _graceful_shutdown)
+    signal.signal(signal.SIGINT, _graceful_shutdown)
+
     callback_function = import_string(callback_str)
 
     if execute_workaround_to_deal_with_rabbit_mq:
@@ -52,7 +77,7 @@ def start_processing(
 
     client_id = get_listener_client_id(durable_topic_subscription, listener_client_id)
 
-    listener = build_listener(
+    _listener = listener = build_listener(
         destination_name,
         durable_topic_subscription,
         client_id=client_id,
@@ -100,13 +125,13 @@ def start_processing(
                 sleep(wait_to_connect)
 
     if is_testing is False:
-        while True:
+        while not _gracefully_shutdown:
             main_logic()
     else:
         max_tries = 3
         tries = 0
         testing_listener = None
-        while True:
+        while not _gracefully_shutdown:
             if tries == 0:
                 testing_listener = main_logic()
                 if return_listener:
