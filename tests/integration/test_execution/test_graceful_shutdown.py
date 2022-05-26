@@ -44,19 +44,42 @@ def test_should_gracefully_shutdown_pubsub_command_when_sigterm(
         return_listener=True,
     )
 
+    assert execution._gracefully_shutdown is True
+    assert execution._is_processing_message is False
+
 
 @mock.patch.object(execution, "get_listener_client_id")
 def test_should_gracefully_shutdown_pubsub_command_when_sigquit(
     mocked_get_listener_client_id: mock.MagicMock, destination: str
 ):
-    ...
+    mocked_get_listener_client_id.side_effect = mocked_sigquit
+
+    start_processing(
+        destination,
+        callback_move_and_ack_path,
+        is_testing=True,
+        return_listener=True,
+    )
+
+    assert execution._gracefully_shutdown is True
+    assert execution._is_processing_message is False
 
 
 @mock.patch.object(execution, "get_listener_client_id")
 def test_should_gracefully_shutdown_pubsub_command_when_sigint(
     mocked_get_listener_client_id: mock.MagicMock, destination: str
 ):
-    ...
+    mocked_get_listener_client_id.side_effect = mocked_sigint
+
+    start_processing(
+        destination,
+        callback_move_and_ack_path,
+        is_testing=True,
+        return_listener=True,
+    )
+
+    assert execution._gracefully_shutdown is True
+    assert execution._is_processing_message is False
 
 
 @mock.patch.object(execution, "get_listener_client_id")

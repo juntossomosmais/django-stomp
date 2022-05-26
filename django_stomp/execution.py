@@ -55,6 +55,7 @@ def _graceful_shutdown(*args: Tuple, **kwargs: Dict) -> None:
             local_threading.request_id = None
             db.close_old_connections()
 
+            _listener = None
             _gracefully_shutdown = True
             break
 
