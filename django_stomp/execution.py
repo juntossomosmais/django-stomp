@@ -46,7 +46,7 @@ def _graceful_shutdown(*args: Tuple, **kwargs: Dict) -> None:
 
     start_time = time()
     while True:
-        if not _is_processing_message or start_time + graceful_wait_seconds:
+        if not _is_processing_message or (time() > start_time + graceful_wait_seconds):
             if _listener and _listener.is_open():
                 logger.info("Listener %s was found and will now shutdown", _listener)
                 _listener.close()
@@ -60,7 +60,7 @@ def _graceful_shutdown(*args: Tuple, **kwargs: Dict) -> None:
             break
 
         logger.info("Messages are still being processing, waiting...")
-        sleep(1)
+        sleep(0.5)
 
     logger.info("Gracefully shutdown successfully")
 
@@ -76,7 +76,7 @@ def start_processing(
     broker_host_to_consume_messages: Optional[str] = None,
     broker_port_to_consume_messages: Optional[int] = None,
 ) -> Optional[Listener]:
-    global _listener, _gracefully_shutdown, _is_processing_message
+    global _listener, _gracefully_shutdown
 
     signal.signal(signal.SIGQUIT, _graceful_shutdown)
     signal.signal(signal.SIGTERM, _graceful_shutdown)
@@ -107,6 +107,8 @@ def start_processing(
             logger.info("Starting listener...")
 
             def _callback(payload: Payload) -> None:
+                global _is_processing_message
+
                 try:
                     db.close_old_connections()
                     local_threading.request_id = _get_or_create_correlation_id(payload.headers)

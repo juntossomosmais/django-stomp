@@ -2,6 +2,9 @@
 Module with testing callbacks used for the tests.
 """
 import logging
+import multiprocessing as mp
+import os
+import signal
 import threading
 from time import sleep
 
@@ -19,6 +22,9 @@ callback_with_sleep_three_seconds_while_heartbeat_thread_is_alive_path = (
 )
 callback_with_logging_path = "tests.support.callbacks_for_tests.callback_with_logging"
 callback_with_sleep_three_seconds_path = "tests.support.callbacks_for_tests.callback_with_sleep_three_seconds"
+callback_with_sleep_three_seconds_with_sigterm_path = (
+    "tests.support.callbacks_for_tests.callback_with_sleep_three_seconds_with_sigterm"
+)
 callback_with_another_log_message_path = "tests.support.callbacks_for_tests.callback_with_another_log_message"
 callback_with_nack_path = "tests.support.callbacks_for_tests.callback_with_nack"
 callback_with_explicit_db_connection_path = "tests.support.callbacks_for_tests.callback_with_explicit_db_connection"
@@ -71,6 +77,25 @@ def callback_with_another_log_message(payload: Payload):
 
 
 def callback_with_sleep_three_seconds(payload: Payload):
+    sleep(3)
+    payload.ack()
+    logger = logging.getLogger(__name__)
+    logger.info("%s sucessfully processed!", payload.body)
+
+
+def callback_with_sleep_three_seconds_with_sigterm(payload: Payload):
+    iteration = 1
+    while True:
+        iteration += 1
+        sleep(1)
+
+        if iteration == 3:
+            p_kill = mp.Process(target=os.kill, args=(os.getpid(), signal.SIGTERM))
+            p_kill.start()
+
+        if iteration == 5:
+            break
+
     sleep(3)
     payload.ack()
     logger = logging.getLogger(__name__)
