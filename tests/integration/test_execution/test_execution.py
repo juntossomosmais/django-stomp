@@ -42,6 +42,9 @@ from tests.support.helpers import publish_without_correlation_id_header
 from tests.support.helpers import wait_for_message_in_log
 
 
+NO_ERRORS_DICT = {"please": "no errors"}
+
+
 @pytest.fixture()
 def sending_frame_pattern() -> re.Pattern:
     return re.compile(r"Sending frame: \[b'ACK'.*")
@@ -816,7 +819,7 @@ def test_should_not_publish_any_messages_if_connection_drops_when_using_transact
     *_, queue_name = destination_one.split("/")
     some_correlation_id = uuid.uuid4()
     some_header = {"correlation-id": some_correlation_id}
-    some_body = {"please": "no errors"}
+    some_body = NO_ERRORS_DICT
 
     # creates destination and publishes to it
     start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True).close()
@@ -841,7 +844,7 @@ def test_should_publish_many_messages_if_no_connection_problems_happen_when_usin
     *_, queue_name = destination_one.split("/")
     some_correlation_id = uuid.uuid4()
     some_header = {"correlation-id": some_correlation_id}
-    some_body = {"please": "no errors"}
+    some_body = NO_ERRORS_DICT
 
     # creates destination and publishes to it
     start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True).close()
@@ -865,7 +868,7 @@ def test_should_publish_messages_if_connection_drops_when_not_transactions():
     *_, queue_name = destination_one.split("/")
     some_correlation_id = uuid.uuid4()
     some_header = {"correlation-id": some_correlation_id}
-    some_body = {"please": "no errors"}
+    some_body = NO_ERRORS_DICT
 
     # creates destination and publishes to it
     start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True).close()
