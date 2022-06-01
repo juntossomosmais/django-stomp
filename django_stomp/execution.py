@@ -46,7 +46,11 @@ def _graceful_shutdown(*args: Tuple, **kwargs: Dict) -> None:
 
     start_time = time()
     while True:
-        if not _is_processing_message or (time() > start_time + graceful_wait_seconds):
+        reached_time_limit = time() > start_time + graceful_wait_seconds
+        if not _is_processing_message or reached_time_limit:
+            if reached_time_limit:
+                logger.info("Reached time limit, forcing shutdown.")
+
             if _listener and _listener.is_open():
                 logger.info("Listener %s was found and will now shutdown", _listener)
                 _listener.close()

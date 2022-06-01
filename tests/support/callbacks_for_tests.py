@@ -2,6 +2,7 @@
 Module with testing callbacks used for the tests.
 """
 import logging
+from math import ceil
 import multiprocessing as mp
 import os
 import signal
@@ -24,6 +25,15 @@ callback_with_logging_path = "tests.support.callbacks_for_tests.callback_with_lo
 callback_with_sleep_three_seconds_path = "tests.support.callbacks_for_tests.callback_with_sleep_three_seconds"
 callback_with_sleep_three_seconds_with_sigterm_path = (
     "tests.support.callbacks_for_tests.callback_with_sleep_three_seconds_with_sigterm"
+)
+callback_with_sleep_a_seconds_with_sigterm_path = (
+    "tests.support.callbacks_for_tests.callback_with_sleep_a_seconds_with_sigterm"
+)
+callback_with_sleep_a_seconds_with_sigint_path = (
+    "tests.support.callbacks_for_tests.callback_with_sleep_a_seconds_with_sigint"
+)
+callback_with_sleep_a_seconds_with_sigquit_path = (
+    "tests.support.callbacks_for_tests.callback_with_sleep_a_seconds_with_sigquit"
 )
 callback_with_another_log_message_path = "tests.support.callbacks_for_tests.callback_with_another_log_message"
 callback_with_nack_path = "tests.support.callbacks_for_tests.callback_with_nack"
@@ -83,23 +93,47 @@ def callback_with_sleep_three_seconds(payload: Payload):
     logger.info("%s sucessfully processed!", payload.body)
 
 
-def callback_with_sleep_three_seconds_with_sigterm(payload: Payload):
-    iteration = 1
-    while True:
-        iteration += 1
-        sleep(1)
+def _callback_with_sleep_n_seconds_with_signal(
+    signal: signal.Signals, wait_time: float = 0.5, iterations: int = 5
+) -> None:
+    def _fn(payload: Payload) -> None:
+        iteration = 1
+        while True:
+            if iteration == ceil(iterations / 2):
+                p_kill = mp.Process(target=os.kill, args=(os.getpid(), signal.SIGTERM))
+                p_kill.start()
 
-        if iteration == 3:
-            p_kill = mp.Process(target=os.kill, args=(os.getpid(), signal.SIGTERM))
-            p_kill.start()
+            if iteration == iterations:
+                break
 
-        if iteration == 5:
-            break
+            iteration += 1
+            sleep(wait_time)
 
-    sleep(3)
-    payload.ack()
-    logger = logging.getLogger(__name__)
-    logger.info("%s sucessfully processed!", payload.body)
+        payload.ack()
+        logger = logging.getLogger(__name__)
+        logger.info("%s sucessfully processed!", payload.body)
+
+    return _fn
+
+
+def callback_with_sleep_a_seconds_with_sigterm(payload: Payload) -> None:
+    fn = _callback_with_sleep_n_seconds_with_signal(signal.SIGTERM, iterations=1)
+    return fn(payload)
+
+
+def callback_with_sleep_a_seconds_with_sigquit(payload: Payload) -> None:
+    fn = _callback_with_sleep_n_seconds_with_signal(signal.SIGQUIT, iterations=1)
+    return fn(payload)
+
+
+def callback_with_sleep_a_seconds_with_sigint(payload: Payload) -> None:
+    fn = _callback_with_sleep_n_seconds_with_signal(signal.SIGINT, iterations=1)
+    return fn(payload)
+
+
+def callback_with_sleep_three_seconds_with_sigterm(payload: Payload) -> None:
+    fn = _callback_with_sleep_n_seconds_with_signal(signal.SIGTERM, 1)
+    return fn(payload)
 
 
 def callback_with_explicit_db_connection(payload: Payload):
