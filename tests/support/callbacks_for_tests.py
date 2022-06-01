@@ -68,6 +68,9 @@ def callback_with_exception(payload: Payload):
 
 
 def callback_with_sleep_three_seconds_while_heartbeat_thread_is_alive(payload: Payload) -> None:
+    logger = logging.getLogger(__name__)
+    logger.info("I'll process the message: %s!", payload.body)
+
     while True:
         sleep(3)
         heartbeat_threads = filter(lambda thread: "StompHeartbeatThread" in thread.name, threading.enumerate())
