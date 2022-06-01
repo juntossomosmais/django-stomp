@@ -2,7 +2,6 @@ import json
 import logging
 import re
 import threading
-from typing import Pattern
 import uuid
 from time import sleep
 from unittest import mock
@@ -44,8 +43,8 @@ from tests.support.helpers import wait_for_message_in_log
 
 
 @pytest.fixture()
-def sending_frame_pattern() -> str:
-    return r"Sending frame: \[b'ACK'.*"
+def sending_frame_pattern() -> re.Pattern:
+    return re.compile(r"Sending frame: \[b'ACK'.*")
 
 
 def test_should_consume_message_and_publish_to_another_queue_using_same_correlation_id():
@@ -418,7 +417,7 @@ def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_
 
 
 def test_should_create_queues_for_virtual_topic_listeners_and_consume_its_messages(
-    caplog: pytest.LogCaptureFixture, sending_frame_pattern: Pattern
+    caplog: pytest.LogCaptureFixture, sending_frame_pattern: re.Pattern
 ):
     caplog.set_level(logging.DEBUG)
     number_of_consumers = 2
@@ -450,16 +449,14 @@ def test_should_create_queues_for_virtual_topic_listeners_and_consume_its_messag
         if re.compile(r"Received frame: 'MESSAGE'.*body='{\"send\": 2, \"Virtual\": \"Topic\"}.*'").match(message)
     ]
 
-    sending_frame_log_messages = [
-        message for message in caplog.messages if re.compile(sending_frame_pattern).match(message)
-    ]
+    sending_frame_log_messages = [message for message in caplog.messages if sending_frame_pattern.match(message)]
 
     assert len(received_frame_log_messages) == number_of_consumers
     assert len(sending_frame_log_messages) == number_of_consumers
 
 
 def test_should_create_queue_for_virtual_topic_consumer_and_process_messages_sent_when_consumer_is_disconnected(
-    caplog: pytest.LogCaptureFixture, sending_frame_pattern: Pattern
+    caplog: pytest.LogCaptureFixture, sending_frame_pattern: re.Pattern
 ):
     caplog.set_level(logging.DEBUG)
 
@@ -498,9 +495,7 @@ def test_should_create_queue_for_virtual_topic_consumer_and_process_messages_sen
         if re.compile(r"I'll process the message: {'send': 'anotherMessage', '2': 'VirtualTopic'}!").match(message)
     ]
 
-    sending_frame_log_messages = [
-        message for message in caplog.messages if re.compile(sending_frame_pattern).match(message)
-    ]
+    sending_frame_log_messages = [message for message in caplog.messages if sending_frame_pattern.match(message)]
 
     assert len(received_first_frame_log_messages) == 1
     assert len(received_second_frame_log_messages) == 1
@@ -508,7 +503,7 @@ def test_should_create_queue_for_virtual_topic_consumer_and_process_messages_sen
 
 
 def test_should_create_queue_for_virtual_topic_and_compete_for_its_messages(
-    caplog: pytest.LogCaptureFixture, sending_frame_pattern: Pattern
+    caplog: pytest.LogCaptureFixture, sending_frame_pattern: re.Pattern
 ):
     caplog.set_level(logging.DEBUG)
 
@@ -531,7 +526,7 @@ def test_should_create_queue_for_virtual_topic_and_compete_for_its_messages(
             publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
             publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
 
-    wait_for_message_in_log(caplog, sending_frame_pattern, message_count_to_wait=3)
+    wait_for_message_in_log(caplog, sending_frame_pattern.pattern, message_count_to_wait=3)
 
     for consumer in consumers:
         consumer.close()
@@ -547,9 +542,7 @@ def test_should_create_queue_for_virtual_topic_and_compete_for_its_messages(
         if re.compile(r"{'send': 2, 'some': 'VirtualTopic'} is the message that I'll process!").match(message)
     ]
 
-    sending_frame_log_messages = [
-        message for message in caplog.messages if re.compile(sending_frame_pattern).match(message)
-    ]
+    sending_frame_log_messages = [message for message in caplog.messages if sending_frame_pattern.match(message)]
 
     assert 1 <= len(callback_logs) <= 2
     assert 1 <= len(another_callback_logs) <= 2
@@ -732,7 +725,7 @@ def test_should_connect_with_a_queue_created_without_the_durable_header(caplog):
         some_destination, callback_with_logging_path, is_testing=True, return_listener=True
     )
 
-    wait_for_message_in_log(caplog, sending_frame_pattern, message_count_to_wait=1)
+    wait_for_message_in_log(caplog, sending_frame_pattern.pattern, message_count_to_wait=1)
     message_consumer.close()
 
     consumer_log_message_regex = re.compile(f"I'll process the message: {some_body}!")
