@@ -703,7 +703,9 @@ def test_shouldnt_create_a_durable_subscriber_when_dealing_with_virtual_topics()
     )
 
 
-def test_should_connect_with_a_queue_created_without_the_durable_header(caplog):
+def test_should_connect_with_a_queue_created_without_the_durable_header(
+    caplog: pytest.LogCaptureFixture, sending_frame_pattern: re.Pattern
+):
     caplog.set_level(logging.DEBUG)
     some_destination = f"/queue/some-queue-without-durable-headers-{uuid.uuid4()}"
 
