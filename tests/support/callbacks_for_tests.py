@@ -8,6 +8,7 @@ import os
 import signal
 import threading
 from time import sleep
+from typing import Callable
 
 from django import db
 
@@ -66,7 +67,7 @@ def callback_with_exception(payload: Payload):
     raise Exception("Lambe Sal")
 
 
-def callback_with_sleep_three_seconds_while_heartbeat_thread_is_alive(payload: Payload):
+def callback_with_sleep_three_seconds_while_heartbeat_thread_is_alive() -> None:
     while True:
         sleep(3)
         heartbeat_threads = filter(lambda thread: "StompHeartbeatThread" in thread.name, threading.enumerate())
@@ -95,7 +96,7 @@ def callback_with_sleep_three_seconds(payload: Payload):
 
 def _callback_with_sleep_n_seconds_with_signal(
     signal: signal.Signals, wait_time: float = 0.5, iterations: int = 5
-) -> None:
+) -> Callable:
     def _fn(payload: Payload) -> None:
         iteration = 1
         while True:
