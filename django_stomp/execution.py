@@ -55,7 +55,7 @@ def _graceful_shutdown(*args: Tuple, **kwargs: Dict) -> None:
                 logger.info("Listener %s was found and will now shutdown", _listener)
                 _listener.close()
 
-            logger.info("Removing request_id from thread and closing old db connections")
+            logger.info("Removing request_id from thread and closing old database connections")
             local_threading.request_id = None
             db.close_old_connections()
 
