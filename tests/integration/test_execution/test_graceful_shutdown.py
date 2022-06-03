@@ -21,6 +21,8 @@ from tests.support.callbacks_for_tests import callback_with_sleep_three_seconds_
 from tests.support.helpers import publish_to_destination
 from tests.support.helpers import wait_for_message_in_log
 
+GRACEFULL_SHUTDOWN_SUCCESS_MESSAGE = "Gracefully shutdown successfully"
+
 
 @pytest.fixture
 def destination() -> str:
@@ -55,9 +57,11 @@ def setup_fixture(destination: str, payload: Tuple[Dict[str, Union[UUID, int]]])
         callback_with_sleep_a_seconds_with_sigterm_path,
     ),
 )
-def test_shouldis_gracefully_shutting_down_pubsub_command_when_signal_is_listened(
-    callback_fn: str, setup_fixture: Generator, destination: str
+def test_should_gracefully_shutting_down_pubsub_command_when_signal_is_listened(
+    callback_fn: str, caplog: pytest.LogCaptureFixture, setup_fixture: Generator, destination: str
 ):
+    caplog.set_level(logging.DEBUG)
+
     start_processing(
         destination,
         callback_fn,
@@ -65,8 +69,9 @@ def test_shouldis_gracefully_shutting_down_pubsub_command_when_signal_is_listene
         return_listener=True,
     )
 
-    sleep(1)  # We need to wait so the graceful shutdown finishes
+    wait_for_message_in_log(caplog, GRACEFULL_SHUTDOWN_SUCCESS_MESSAGE, message_count_to_wait=1)
 
+    assert GRACEFULL_SHUTDOWN_SUCCESS_MESSAGE in caplog.messages
     assert execution.is_gracefully_shutting_down is True
     assert execution._is_processing_message is False
 
@@ -89,16 +94,15 @@ def test_should_wait_for_message_to_process_tois_gracefully_shutting_down(
     _, body = payload
 
     messages_still_being_processed_message = "Messages are still being processing, waiting..."
-    gracefull_shutdown_success_message = "Gracefully shutdown successfully"
     success_message = f"{body} sucessfully processed!"
     wait_for_message_in_log(caplog, messages_still_being_processed_message, message_count_to_wait=1)
-    wait_for_message_in_log(caplog, gracefull_shutdown_success_message, message_count_to_wait=1)
+    wait_for_message_in_log(caplog, GRACEFULL_SHUTDOWN_SUCCESS_MESSAGE, message_count_to_wait=1)
     wait_for_message_in_log(caplog, success_message, message_count_to_wait=1)
     message_consumer.close()
 
     assert caplog.messages.count(messages_still_being_processed_message) >= 3
     assert messages_still_being_processed_message in caplog.messages
-    assert gracefull_shutdown_success_message in caplog.messages
+    assert GRACEFULL_SHUTDOWN_SUCCESS_MESSAGE in caplog.messages
     assert success_message in caplog.messages
 
 
@@ -121,17 +125,16 @@ def test_should_shutdown_when_time_passes(
     _, body = payload
 
     messages_still_being_processed_message = "Messages are still being processing, waiting..."
-    gracefull_shutdown_success_message = "Gracefully shutdown successfully"
     success_message = f"{body} sucessfully processed!"
     reached_time_limit_message = "Reached time limit, forcing shutdown."
     wait_for_message_in_log(caplog, messages_still_being_processed_message, message_count_to_wait=1)
-    wait_for_message_in_log(caplog, gracefull_shutdown_success_message, message_count_to_wait=1)
+    wait_for_message_in_log(caplog, GRACEFULL_SHUTDOWN_SUCCESS_MESSAGE, message_count_to_wait=1)
     wait_for_message_in_log(caplog, success_message, message_count_to_wait=1)
     wait_for_message_in_log(caplog, reached_time_limit_message, message_count_to_wait=1)
     message_consumer.close()
 
     assert caplog.messages.count(messages_still_being_processed_message) >= 2
     assert messages_still_being_processed_message in caplog.messages
-    assert gracefull_shutdown_success_message in caplog.messages
+    assert GRACEFULL_SHUTDOWN_SUCCESS_MESSAGE in caplog.messages
     assert success_message in caplog.messages
     assert reached_time_limit_message in caplog.messages
