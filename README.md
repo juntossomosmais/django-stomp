@@ -154,7 +154,7 @@ defined, this parameter **must** be an integer!
 
 ***STOMP_GRACEFUL_WAIT_SECONDS***
 
-  Optional parameter that controls how many seconds django-stomp will wait for a message to be processed. Defaults to 60 seconds. If defined, this parameter **must** be an integer!
+  Optional parameter that controls how many seconds django-stomp will wait for a message to be processed. Defaults to 30 seconds. If defined, this parameter **must** be an integer!
 
 ## Tests
 
