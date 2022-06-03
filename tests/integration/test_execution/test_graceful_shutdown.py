@@ -34,7 +34,7 @@ def payload() -> Tuple[Dict[str, Union[UUID, int]]]:
 
 @pytest.fixture
 def setup_fixture(destination: str, payload: Tuple[Dict[str, Union[UUID, int]]]) -> Generator:
-    assert execution._gracefully_shutdown is False
+    assert execution.is_gracefully_shutting_down is False
     assert execution._is_processing_message is False
 
     header, body = payload
@@ -44,7 +44,7 @@ def setup_fixture(destination: str, payload: Tuple[Dict[str, Union[UUID, int]]])
     yield
 
     # Since we've modified the state from the module we've need to reset to emulate the command finishing
-    execution._gracefully_shutdown = False
+    execution.is_gracefully_shutting_down = False
 
 
 @pytest.mark.parametrize(
@@ -55,7 +55,7 @@ def setup_fixture(destination: str, payload: Tuple[Dict[str, Union[UUID, int]]])
         callback_with_sleep_a_seconds_with_sigterm_path,
     ),
 )
-def test_should_gracefully_shutdown_pubsub_command_when_signal_is_listened(
+def test_shouldis_gracefully_shutting_down_pubsub_command_when_signal_is_listened(
     callback_fn: str, setup_fixture: Generator, destination: str
 ):
     start_processing(
@@ -67,11 +67,11 @@ def test_should_gracefully_shutdown_pubsub_command_when_signal_is_listened(
 
     sleep(1)  # We need to wait so the graceful shutdown finishes
 
-    assert execution._gracefully_shutdown is True
+    assert execution.is_gracefully_shutting_down is True
     assert execution._is_processing_message is False
 
 
-def test_should_wait_for_message_to_process_to_gracefully_shutdown(
+def test_should_wait_for_message_to_process_tois_gracefully_shutting_down(
     caplog: pytest.LogCaptureFixture,
     setup_fixture: Generator,
     destination: str,

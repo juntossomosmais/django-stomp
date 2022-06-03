@@ -35,12 +35,12 @@ graceful_wait_seconds = getattr(settings, "STOMP_GRACEFUL_WAIT_SECONDS", 60)
 publisher_name = "django-stomp-another-target"
 
 _listener: Optional[Listener] = None
-_gracefully_shutdown: bool = False
+is_gracefully_shutting_down: bool = False
 _is_processing_message: bool = False
 
 
 def _graceful_shutdown(*args: Tuple, **kwargs: Dict) -> None:
-    global _listener, _gracefully_shutdown, _is_processing_message
+    global _listener, is_gracefully_shutting_down, _is_processing_message
 
     logger.info("Received %s signal... Preparing to shutdown!", signal.Signals(args[0]).name)
 
@@ -60,7 +60,7 @@ def _graceful_shutdown(*args: Tuple, **kwargs: Dict) -> None:
             db.close_old_connections()
 
             _listener = None
-            _gracefully_shutdown = True
+            is_gracefully_shutting_down = True
             break
 
         logger.info("Messages are still being processing, waiting...")
@@ -80,7 +80,7 @@ def start_processing(
     broker_host_to_consume_messages: Optional[str] = None,
     broker_port_to_consume_messages: Optional[int] = None,
 ) -> Optional[Listener]:
-    global _listener, _gracefully_shutdown
+    global _listener, is_gracefully_shutting_down
 
     signal.signal(signal.SIGQUIT, _graceful_shutdown)
     signal.signal(signal.SIGTERM, _graceful_shutdown)
@@ -152,13 +152,13 @@ def start_processing(
                 sleep(wait_to_connect)
 
     if is_testing is False:
-        while not _gracefully_shutdown:
+        while not is_gracefully_shutting_down:
             main_logic()
     else:
         max_tries = 3
         tries = 0
         testing_listener = None
-        while not _gracefully_shutdown:
+        while not is_gracefully_shutting_down:
             if tries == 0:
                 testing_listener = main_logic()
                 if return_listener:
