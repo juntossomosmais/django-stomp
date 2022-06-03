@@ -39,7 +39,7 @@ is_gracefully_shutting_down: bool = False
 _is_processing_message: bool = False
 
 
-def _graceful_shutdown(*args: Tuple, **kwargs: Dict) -> None:
+def _shutdown_handler(*args: Tuple, **kwargs: Dict) -> None:
     global _listener, is_gracefully_shutting_down, _is_processing_message
 
     logger.info("Received %s signal... Preparing to shutdown!", signal.Signals(args[0]).name)
@@ -82,9 +82,9 @@ def start_processing(
 ) -> Optional[Listener]:
     global _listener, is_gracefully_shutting_down
 
-    signal.signal(signal.SIGQUIT, _graceful_shutdown)
-    signal.signal(signal.SIGTERM, _graceful_shutdown)
-    signal.signal(signal.SIGINT, _graceful_shutdown)
+    signal.signal(signal.SIGQUIT, _shutdown_handler)
+    signal.signal(signal.SIGTERM, _shutdown_handler)
+    signal.signal(signal.SIGINT, _shutdown_handler)
 
     callback_function = import_string(callback_str)
 
