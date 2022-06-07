@@ -2,8 +2,13 @@
 Module with testing callbacks used for the tests.
 """
 import logging
+from math import ceil
+import multiprocessing as mp
+import os
+import signal
 import threading
 from time import sleep
+from typing import Callable
 
 from django import db
 
@@ -19,6 +24,18 @@ callback_with_sleep_three_seconds_while_heartbeat_thread_is_alive_path = (
 )
 callback_with_logging_path = "tests.support.callbacks_for_tests.callback_with_logging"
 callback_with_sleep_three_seconds_path = "tests.support.callbacks_for_tests.callback_with_sleep_three_seconds"
+callback_with_sleep_three_seconds_with_sigterm_path = (
+    "tests.support.callbacks_for_tests.callback_with_sleep_three_seconds_with_sigterm"
+)
+callback_with_sleep_a_seconds_with_sigterm_path = (
+    "tests.support.callbacks_for_tests.callback_with_sleep_a_seconds_with_sigterm"
+)
+callback_with_sleep_a_seconds_with_sigint_path = (
+    "tests.support.callbacks_for_tests.callback_with_sleep_a_seconds_with_sigint"
+)
+callback_with_sleep_a_seconds_with_sigquit_path = (
+    "tests.support.callbacks_for_tests.callback_with_sleep_a_seconds_with_sigquit"
+)
 callback_with_another_log_message_path = "tests.support.callbacks_for_tests.callback_with_another_log_message"
 callback_with_nack_path = "tests.support.callbacks_for_tests.callback_with_nack"
 callback_with_explicit_db_connection_path = "tests.support.callbacks_for_tests.callback_with_explicit_db_connection"
@@ -50,7 +67,10 @@ def callback_with_exception(payload: Payload):
     raise Exception("Lambe Sal")
 
 
-def callback_with_sleep_three_seconds_while_heartbeat_thread_is_alive(payload: Payload):
+def callback_with_sleep_three_seconds_while_heartbeat_thread_is_alive(payload: Payload) -> None:
+    logger = logging.getLogger(__name__)
+    logger.info("I'll process the message: %s!", payload.body)
+
     while True:
         sleep(3)
         heartbeat_threads = filter(lambda thread: "StompHeartbeatThread" in thread.name, threading.enumerate())
@@ -75,6 +95,49 @@ def callback_with_sleep_three_seconds(payload: Payload):
     payload.ack()
     logger = logging.getLogger(__name__)
     logger.info("%s sucessfully processed!", payload.body)
+
+
+def _callback_with_sleep_n_seconds_with_signal(
+    signal: signal.Signals, wait_time: float = 0.5, iterations: int = 5
+) -> Callable:
+    def _fn(payload: Payload) -> None:
+        iteration = 1
+        while True:
+            if iteration == ceil(iterations / 2):
+                p_kill = mp.Process(target=os.kill, args=(os.getpid(), signal.SIGTERM))
+                p_kill.start()
+
+            if iteration == iterations:
+                break
+
+            iteration += 1
+            sleep(wait_time)
+
+        payload.ack()
+        logger = logging.getLogger(__name__)
+        logger.info("%s sucessfully processed!", payload.body)
+
+    return _fn
+
+
+def callback_with_sleep_a_seconds_with_sigterm(payload: Payload) -> None:
+    fn = _callback_with_sleep_n_seconds_with_signal(signal.SIGTERM, iterations=1)
+    return fn(payload)
+
+
+def callback_with_sleep_a_seconds_with_sigquit(payload: Payload) -> None:
+    fn = _callback_with_sleep_n_seconds_with_signal(signal.SIGQUIT, iterations=1)
+    return fn(payload)
+
+
+def callback_with_sleep_a_seconds_with_sigint(payload: Payload) -> None:
+    fn = _callback_with_sleep_n_seconds_with_signal(signal.SIGINT, iterations=1)
+    return fn(payload)
+
+
+def callback_with_sleep_three_seconds_with_sigterm(payload: Payload) -> None:
+    fn = _callback_with_sleep_n_seconds_with_signal(signal.SIGTERM, 1)
+    return fn(payload)
 
 
 def callback_with_explicit_db_connection(payload: Payload):

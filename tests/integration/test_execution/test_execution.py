@@ -42,6 +42,14 @@ from tests.support.helpers import publish_without_correlation_id_header
 from tests.support.helpers import wait_for_message_in_log
 
 
+NO_ERRORS_DICT = {"please": "no errors"}
+
+
+@pytest.fixture()
+def sending_frame_pattern() -> re.Pattern:
+    return re.compile(r"Sending frame: \[b'ACK'.*")
+
+
 def test_should_consume_message_and_publish_to_another_queue_using_same_correlation_id():
     # Base environment setup
     destination_one = f"/queue/my-test-destination-one-{uuid4()}"
@@ -411,7 +419,9 @@ def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_
     assert any(re.compile("Heartbeat loop ended").match(message) for message in caplog.messages)
 
 
-def test_should_create_queues_for_virtual_topic_listeners_and_consume_its_messages(caplog):
+def test_should_create_queues_for_virtual_topic_listeners_and_consume_its_messages(
+    caplog: pytest.LogCaptureFixture, sending_frame_pattern: re.Pattern
+):
     caplog.set_level(logging.DEBUG)
     number_of_consumers = 2
 
@@ -442,15 +452,15 @@ def test_should_create_queues_for_virtual_topic_listeners_and_consume_its_messag
         if re.compile(r"Received frame: 'MESSAGE'.*body='{\"send\": 2, \"Virtual\": \"Topic\"}.*'").match(message)
     ]
 
-    sending_frame_log_messages = [
-        message for message in caplog.messages if re.compile(r"Sending frame: \[b'ACK'.*").match(message)
-    ]
+    sending_frame_log_messages = [message for message in caplog.messages if sending_frame_pattern.match(message)]
 
     assert len(received_frame_log_messages) == number_of_consumers
     assert len(sending_frame_log_messages) == number_of_consumers
 
 
-def test_should_create_queue_for_virtual_topic_consumer_and_process_messages_sent_when_consumer_is_disconnected(caplog):
+def test_should_create_queue_for_virtual_topic_consumer_and_process_messages_sent_when_consumer_is_disconnected(
+    caplog: pytest.LogCaptureFixture, sending_frame_pattern: re.Pattern
+):
     caplog.set_level(logging.DEBUG)
 
     some_virtual_topic = f"VirtualTopic.{uuid.uuid4()}"
@@ -488,16 +498,16 @@ def test_should_create_queue_for_virtual_topic_consumer_and_process_messages_sen
         if re.compile(r"I'll process the message: {'send': 'anotherMessage', '2': 'VirtualTopic'}!").match(message)
     ]
 
-    sending_frame_log_messages = [
-        message for message in caplog.messages if re.compile(r"Sending frame: \[b'ACK'.*").match(message)
-    ]
+    sending_frame_log_messages = [message for message in caplog.messages if sending_frame_pattern.match(message)]
 
     assert len(received_first_frame_log_messages) == 1
     assert len(received_second_frame_log_messages) == 1
     assert len(sending_frame_log_messages) == 2
 
 
-def test_should_create_queue_for_virtual_topic_and_compete_for_its_messages(caplog):
+def test_should_create_queue_for_virtual_topic_and_compete_for_its_messages(
+    caplog: pytest.LogCaptureFixture, sending_frame_pattern: re.Pattern
+):
     caplog.set_level(logging.DEBUG)
 
     some_virtual_topic = f"VirtualTopic.{uuid.uuid4()}"
@@ -519,7 +529,7 @@ def test_should_create_queue_for_virtual_topic_and_compete_for_its_messages(capl
             publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
             publisher.send(some_body, f"/topic/{some_virtual_topic}", attempt=1)
 
-    wait_for_message_in_log(caplog, r"Sending frame: \[b'ACK'.*", message_count_to_wait=3)
+    wait_for_message_in_log(caplog, sending_frame_pattern.pattern, message_count_to_wait=3)
 
     for consumer in consumers:
         consumer.close()
@@ -535,9 +545,7 @@ def test_should_create_queue_for_virtual_topic_and_compete_for_its_messages(capl
         if re.compile(r"{'send': 2, 'some': 'VirtualTopic'} is the message that I'll process!").match(message)
     ]
 
-    sending_frame_log_messages = [
-        message for message in caplog.messages if re.compile(r"Sending frame: \[b'ACK'.*").match(message)
-    ]
+    sending_frame_log_messages = [message for message in caplog.messages if sending_frame_pattern.match(message)]
 
     assert 1 <= len(callback_logs) <= 2
     assert 1 <= len(another_callback_logs) <= 2
@@ -698,7 +706,9 @@ def test_shouldnt_create_a_durable_subscriber_when_dealing_with_virtual_topics()
     )
 
 
-def test_should_connect_with_a_queue_created_without_the_durable_header(caplog):
+def test_should_connect_with_a_queue_created_without_the_durable_header(
+    caplog: pytest.LogCaptureFixture, sending_frame_pattern: re.Pattern
+):
     caplog.set_level(logging.DEBUG)
     some_destination = f"/queue/some-queue-without-durable-headers-{uuid.uuid4()}"
 
@@ -720,7 +730,7 @@ def test_should_connect_with_a_queue_created_without_the_durable_header(caplog):
         some_destination, callback_with_logging_path, is_testing=True, return_listener=True
     )
 
-    wait_for_message_in_log(caplog, r"Sending frame: \[b'ACK'.*", message_count_to_wait=1)
+    wait_for_message_in_log(caplog, sending_frame_pattern.pattern, message_count_to_wait=1)
     message_consumer.close()
 
     consumer_log_message_regex = re.compile(f"I'll process the message: {some_body}!")
@@ -809,7 +819,7 @@ def test_should_not_publish_any_messages_if_connection_drops_when_using_transact
     *_, queue_name = destination_one.split("/")
     some_correlation_id = uuid.uuid4()
     some_header = {"correlation-id": some_correlation_id}
-    some_body = {"please": "no errors"}
+    some_body = NO_ERRORS_DICT
 
     # creates destination and publishes to it
     start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True).close()
@@ -834,7 +844,7 @@ def test_should_publish_many_messages_if_no_connection_problems_happen_when_usin
     *_, queue_name = destination_one.split("/")
     some_correlation_id = uuid.uuid4()
     some_header = {"correlation-id": some_correlation_id}
-    some_body = {"please": "no errors"}
+    some_body = NO_ERRORS_DICT
 
     # creates destination and publishes to it
     start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True).close()
@@ -858,7 +868,7 @@ def test_should_publish_messages_if_connection_drops_when_not_transactions():
     *_, queue_name = destination_one.split("/")
     some_correlation_id = uuid.uuid4()
     some_header = {"correlation-id": some_correlation_id}
-    some_body = {"please": "no errors"}
+    some_body = NO_ERRORS_DICT
 
     # creates destination and publishes to it
     start_processing(destination_one, callback_standard_path, is_testing=True, return_listener=True).close()

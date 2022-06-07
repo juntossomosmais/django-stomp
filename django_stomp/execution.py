@@ -1,7 +1,11 @@
 import logging
+import signal
 import uuid
+from time import time
 from time import sleep
+from typing import Dict
 from typing import Optional
+from typing import Tuple
 
 from django import db
 from django.conf import settings
@@ -27,7 +31,42 @@ durable_topic_subscription = eval_str_as_boolean(getattr(settings, "STOMP_DURABL
 listener_client_id = getattr(settings, "STOMP_LISTENER_CLIENT_ID", None)
 is_correlation_id_required = eval_str_as_boolean(getattr(settings, "STOMP_CORRELATION_ID_REQUIRED", True))
 should_process_msg_on_background = eval_str_as_boolean(getattr(settings, "STOMP_PROCESS_MSG_ON_BACKGROUND", True))
+graceful_wait_seconds = getattr(settings, "STOMP_GRACEFUL_WAIT_SECONDS", 30)
 publisher_name = "django-stomp-another-target"
+
+_listener: Optional[Listener] = None
+is_gracefully_shutting_down: bool = False
+_is_processing_message: bool = False
+
+
+def _shutdown_handler(*args: Tuple, **kwargs: Dict) -> None:
+    global _listener, is_gracefully_shutting_down, _is_processing_message
+
+    logger.info("Received %s signal... Preparing to shutdown!", signal.Signals(args[0]).name)
+
+    start_time = time()
+    while True:
+        reached_time_limit = time() > start_time + graceful_wait_seconds
+        if not _is_processing_message or reached_time_limit:
+            if reached_time_limit:
+                logger.info("Reached time limit, forcing shutdown.")
+
+            if _listener and _listener.is_open():
+                logger.info("Listener %s was found and will now shutdown", _listener)
+                _listener.close()
+
+            logger.info("Removing request_id from thread and closing old database connections")
+            local_threading.request_id = None
+            db.close_old_connections()
+
+            _listener = None
+            is_gracefully_shutting_down = True
+            break
+
+        logger.info("Messages are still being processing, waiting...")
+        sleep(0.5)
+
+    logger.info("Gracefully shutdown successfully")
 
 
 def start_processing(
@@ -41,6 +80,12 @@ def start_processing(
     broker_host_to_consume_messages: Optional[str] = None,
     broker_port_to_consume_messages: Optional[int] = None,
 ) -> Optional[Listener]:
+    global _listener, is_gracefully_shutting_down
+
+    signal.signal(signal.SIGQUIT, _shutdown_handler)
+    signal.signal(signal.SIGTERM, _shutdown_handler)
+    signal.signal(signal.SIGINT, _shutdown_handler)
+
     callback_function = import_string(callback_str)
 
     if execute_workaround_to_deal_with_rabbit_mq:
@@ -52,7 +97,7 @@ def start_processing(
 
     client_id = get_listener_client_id(durable_topic_subscription, listener_client_id)
 
-    listener = build_listener(
+    _listener = listener = build_listener(
         destination_name,
         durable_topic_subscription,
         client_id=client_id,
@@ -66,14 +111,21 @@ def start_processing(
             logger.info("Starting listener...")
 
             def _callback(payload: Payload) -> None:
+                global _is_processing_message
+
                 try:
                     db.close_old_connections()
                     local_threading.request_id = _get_or_create_correlation_id(payload.headers)
+
+                    _is_processing_message = True
 
                     if param_to_callback:
                         callback_function(payload, param_to_callback)
                     else:
                         callback_function(payload)
+
+                    _is_processing_message = False
+
                 except BaseException as e:
                     logger.exception(f"A exception of type {type(e)} was captured during callback logic")
                     logger.warning("Trying to do NACK explicitly sending the message to DLQ...")
@@ -100,13 +152,13 @@ def start_processing(
                 sleep(wait_to_connect)
 
     if is_testing is False:
-        while True:
+        while not is_gracefully_shutting_down:
             main_logic()
     else:
         max_tries = 3
         tries = 0
         testing_listener = None
-        while True:
+        while not is_gracefully_shutting_down:
             if tries == 0:
                 testing_listener = main_logic()
                 if return_listener:
