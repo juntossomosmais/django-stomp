@@ -108,7 +108,7 @@ def start_processing(
 
     def main_logic() -> Optional[Listener]:
         try:
-            logger.info("Starting listener...")
+            logger.debug("Starting listener...")
 
             def _callback(payload: Payload) -> None:
                 global _is_processing_message
@@ -145,7 +145,7 @@ def start_processing(
             logger.exception(f"A exception of type {type(e)} was captured during listener logic")
         finally:
             if is_testing is False:
-                logger.info(f"Trying to close listener...")
+                logger.debug(f"Trying to close listener...")
                 if listener.is_open():
                     listener.close()
                 logger.info(f"Waiting {wait_to_connect} seconds before trying to connect again...")
