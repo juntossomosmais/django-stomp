@@ -127,8 +127,10 @@ def start_processing(
                     _is_processing_message = False
 
                 except BaseException as e:
-                    logger.exception(f"A exception of type {type(e)} was captured during callback logic")
-                    logger.warning("Trying to do NACK explicitly sending the message to DLQ...")
+                    logger.exception(
+                        f"An exception of type {type(e)} was captured during callback logic. "
+                        "Trying to do NACK explicitly sending the message to DLQ..."
+                    )
                     if listener.is_open():
                         payload.nack()
                         logger.warning("Done!")
@@ -145,7 +147,7 @@ def start_processing(
             logger.exception(f"A exception of type {type(e)} was captured during listener logic")
         finally:
             if is_testing is False:
-                logger.debug(f"Trying to close listener...")
+                logger.debug("Trying to close listener...")
                 if listener.is_open():
                     listener.close()
                 logger.info(f"Waiting {wait_to_connect} seconds before trying to connect again...")

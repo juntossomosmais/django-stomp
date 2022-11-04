@@ -108,7 +108,7 @@ class Listener(stomp.ConnectionListener):
         return self._connection.is_connected()
 
     def start(self, callback: Callable = None, wait_forever=True):
-        logger.info(f"Starting listener with name: {self._listener_id} and auto-generated ID: {self._subscription_id}")
+        logger.debug(f"Starting listener with name: {self._listener_id} and auto-generated ID: {self._subscription_id}")
 
         self._set_listener()
 
