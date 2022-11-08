@@ -77,7 +77,7 @@ class Listener(stomp.ConnectionListener):
         headers, body = frame.headers, frame.body
 
         message_id = headers["message-id"]
-        logger.info(f"Message ID: {message_id}")
+        logger.debug(f"Message ID: {message_id}")
         logger.debug("Received headers: %s", headers)
         logger.debug("Received message: %s", body)
 
@@ -108,8 +108,7 @@ class Listener(stomp.ConnectionListener):
         return self._connection.is_connected()
 
     def start(self, callback: Callable = None, wait_forever=True):
-        logger.info(f"Starting listener with name: {self._listener_id}")
-        logger.info(f"Subscribe/Listener auto-generated ID: {self._subscription_id}")
+        logger.debug(f"Starting listener with name: {self._listener_id} and auto-generated ID: {self._subscription_id}")
 
         self._set_listener()
 
@@ -120,7 +119,7 @@ class Listener(stomp.ConnectionListener):
             headers=self._connection_configuration["headers"],
             **self._subscription_configuration,
         )
-        logger.info("Connected")
+        logger.debug("Connected")
         if wait_forever:
             while True:
                 if not self.is_open():
@@ -137,7 +136,7 @@ class Listener(stomp.ConnectionListener):
     def close(self):
         disconnect_receipt = str(uuid.uuid4())
         self._connection.disconnect(receipt=disconnect_receipt)
-        logger.info("Disconnected")
+        logger.debug("Disconnected")
 
     def shutdown_worker_pool(self):
         self._pool_executor.shutdown()
@@ -156,7 +155,6 @@ def build_listener(
     routing_key=None,
     **connection_params,
 ) -> Listener:
-    logger.info("Building listener...")
     hosts, vhost = [(connection_params.get("host"), connection_params.get("port"))], connection_params.get("vhost")
     if connection_params.get("hostStandby") and connection_params.get("portStandby"):
         hosts.append((connection_params.get("hostStandby"), connection_params.get("portStandby")))
@@ -165,7 +163,7 @@ def build_listener(
     outgoing_heartbeat = int(connection_params.get("outgoingHeartbeat", 0))
     incoming_heartbeat = int(connection_params.get("incomingHeartbeat", 0))
 
-    logger.info(
+    logger.debug(
         f"Use SSL? {use_ssl}. Version: {ssl_version}. Outgoing/Ingoing heartbeat: {outgoing_heartbeat}/{incoming_heartbeat}. Background? {should_process_msg_on_background}"
     )
 
