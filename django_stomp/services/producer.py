@@ -1,6 +1,5 @@
 import json
 import logging
-import ssl
 import uuid
 from contextlib import contextmanager
 from typing import Dict
@@ -154,12 +153,12 @@ class Publisher:
 
     def _send_to_broker_without_retry_attempts(self, send_data: Dict) -> None:
         """
-        Sends the actual data to the broker using the STOMP protocol WITHOUT any retry attempts as reconnecting to the broker
-        while a transaction was previously created will lead to 'bad transaction' errors because STOMP 1.1 protocol closes any
-        transactions if the producer had TCP connection problems or sends a DISCONNECT frame.
+        Sends the actual data to the broker using the STOMP protocol WITHOUT any retry attempts as reconnecting
+        to the broker while a transaction was previously created will lead to 'bad transaction' errors because STOMP 1.1
+        protocol closes any transactions if the producer had TCP connection problems or sends a DISCONNECT frame.
 
-        Hence, when a producer sends a BEGIN frame, all subsequent SEND frames (messages) must always use the SAME connection that
-        was used to start the transaction.
+        Hence, when a producer sends a BEGIN frame, all subsequent SEND frames (messages) must always use the SAME
+        connection that was used to start the transaction.
 
         -> STOMP 1.1 specification: https://stomp.github.io/stomp-specification-1.1.html#BEGIN
         """
@@ -213,9 +212,6 @@ def build_publisher(**connection_params) -> Publisher:
     hosts, vhost = [(connection_params.get("host"), connection_params.get("port"))], connection_params.get("vhost")
     if connection_params.get("hostStandby") and connection_params.get("portStandby"):
         hosts.append((connection_params.get("hostStandby"), connection_params.get("portStandby")))
-    use_ssl = connection_params.get("use_ssl", False)
-    ssl_version = connection_params.get("ssl_version", ssl.PROTOCOL_TLS)
-    logger.debug(f"Use SSL? {use_ssl}. Version: {ssl_version}")
     client_id = connection_params.get("client_id", uuid.uuid4())
     connection_configuration = {
         "username": connection_params.get("username"),
@@ -223,7 +219,7 @@ def build_publisher(**connection_params) -> Publisher:
         "wait": True,
         "headers": {"client-id": f"{client_id}-publisher"},
     }
-    conn = Connection(hosts, ssl_version=ssl_version, use_ssl=use_ssl, vhost=vhost)
+    conn = Connection(hosts, vhost=vhost)
     publisher = Publisher(conn, connection_configuration)
     return publisher
 

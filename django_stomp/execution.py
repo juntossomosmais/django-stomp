@@ -1,8 +1,8 @@
 import logging
 import signal
 import uuid
-from time import time
 from time import sleep
+from time import time
 from typing import Dict
 from typing import Optional
 from typing import Tuple
@@ -230,7 +230,7 @@ def _callback_for_cleaning_queues(payload: Payload):
 
 
 def _callback_send_to_another_destination(payload: Payload, target_destination):
-    logger.info(f"Message received!")
+    logger.info("Message received!")
 
     headers = payload.headers
     body = payload.body

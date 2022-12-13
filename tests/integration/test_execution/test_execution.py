@@ -41,13 +41,12 @@ from tests.support.helpers import publish_to_destination
 from tests.support.helpers import publish_without_correlation_id_header
 from tests.support.helpers import wait_for_message_in_log
 
-
 NO_ERRORS_DICT = {"please": "no errors"}
 
 
 @pytest.fixture()
 def sending_frame_pattern() -> re.Pattern:
-    return re.compile(r"Sending frame: \[b'ACK'.*")
+    return re.compile(r"sending frame: \[b'ACK'.*")
 
 
 def test_should_consume_message_and_publish_to_another_queue_using_same_correlation_id():
@@ -63,8 +62,8 @@ def test_should_consume_message_and_publish_to_another_queue_using_same_correlat
     # publishes to destination one
     publish_to_destination(destination_one, some_body, some_header)
 
-    # return_listener=True is required to avoid testing_listener.close() on the test's main thread which prematurely closes
-    # the connection to the broker which can compromise the callback's ACK (runs on another thread)
+    # return_listener=True is required to avoid testing_listener.close() on the test's main thread which prematurely
+    # closes the connection to the broker which can compromise the callback's ACK (runs on another thread)
     # consumes from destination_one and publishes to destination_two
     start_processing(
         destination_one,
@@ -402,21 +401,21 @@ def test_should_use_heartbeat_and_then_lost_connection_due_message_takes_longer_
         return_listener=True,
     )
 
-    wait_for_message_in_log(caplog, r"Heartbeat loop ended", message_count_to_wait=2)
+    wait_for_message_in_log(caplog, r"heartbeat loop ended", message_count_to_wait=2)
     message_consumer.close()
 
     assert any(
         re.compile(
-            f"Received frame.+eart-beat.+{settings.STOMP_OUTGOING_HEARTBEAT},{settings.STOMP_INCOMING_HEARTBEAT}"
+            f"received frame:.+eart-beat.+{settings.STOMP_OUTGOING_HEARTBEAT},{settings.STOMP_INCOMING_HEARTBEAT}"
         ).match(m)
         for m in caplog.messages
     )
-    assert any(re.compile("Sending a heartbeat message at [0-9.]+").match(message) for message in caplog.messages)
+    assert any(re.compile("sending a heartbeat message at [0-9.]+").match(message) for message in caplog.messages)
     assert any(
-        re.compile("Heartbeat timeout: diff_receive=[0-9.]+, time=[0-9.]+, lastrec=[0-9.]+").match(message)
+        re.compile("heartbeat timeout: diff_receive=[0-9.]+, time=[0-9.]+, lastrec=[0-9.]+").match(message)
         for message in caplog.messages
     )
-    assert any(re.compile("Heartbeat loop ended").match(message) for message in caplog.messages)
+    assert any(re.compile("heartbeat loop ended").match(message) for message in caplog.messages)
 
 
 def test_should_create_queues_for_virtual_topic_listeners_and_consume_its_messages(
@@ -440,7 +439,9 @@ def test_should_create_queues_for_virtual_topic_listeners_and_consume_its_messag
     publish_to_destination(f"/topic/{some_virtual_topic}", some_body)
 
     wait_for_message_in_log(
-        caplog, r"Received frame: 'MESSAGE'.*body='{\"send\": 2, \"Virtual\": \"Topic\"}.*'", message_count_to_wait=2
+        caplog,
+        r"received frame: 'MESSAGE'.*body='{\"send\": 2, \"Virtual\": \"Topic\"}.*'",
+        message_count_to_wait=2,
     )
 
     for consumer in consumers:
@@ -449,7 +450,7 @@ def test_should_create_queues_for_virtual_topic_listeners_and_consume_its_messag
     received_frame_log_messages = [
         message
         for message in caplog.messages
-        if re.compile(r"Received frame: 'MESSAGE'.*body='{\"send\": 2, \"Virtual\": \"Topic\"}.*'").match(message)
+        if re.compile(r"received frame: 'MESSAGE'.*body='{\"send\": 2, \"Virtual\": \"Topic\"}.*'").match(message)
     ]
 
     sending_frame_log_messages = [message for message in caplog.messages if sending_frame_pattern.match(message)]
@@ -676,11 +677,11 @@ def test_should_use_heartbeat_and_dont_lose_connection_when_using_background_pro
     message_consumer.close()
 
     received_heartbeat_frame_regex = re.compile(
-        f"Received frame.+heart-beat.+{settings.STOMP_OUTGOING_HEARTBEAT},{settings.STOMP_INCOMING_HEARTBEAT}"
+        f"received frame:.+heart-beat.+{settings.STOMP_OUTGOING_HEARTBEAT},{settings.STOMP_INCOMING_HEARTBEAT}"
     )
-    sending_heartbeat_message_regex = re.compile("Sending a heartbeat message at [0-9.]+")
-    sending_ack_frame_regex = re.compile(f"Sending frame: .+ACK.+subscription:{message_consumer._subscription_id}.+")
-    heartbeat_timeout_regex = re.compile("Heartbeat timeout: diff_receive=[0-9.]+, time=[0-9.]+, lastrec=[0-9.]+")
+    sending_heartbeat_message_regex = re.compile("sending a heartbeat message at [0-9.]+")
+    sending_ack_frame_regex = re.compile(f"sending frame: .+ACK.+subscription:{message_consumer._subscription_id}.+")
+    heartbeat_timeout_regex = re.compile("heartbeat timeout: diff_receive=[0-9.]+, time=[0-9.]+, lastrec=[0-9.]+")
 
     assert any(received_heartbeat_frame_regex.match(m) for m in caplog.messages)
     assert any(sending_heartbeat_message_regex.match(m) for m in caplog.messages)
@@ -717,7 +718,7 @@ def test_should_connect_with_a_queue_created_without_the_durable_header(
     listener.start(wait_forever=False)
     listener.close()
 
-    send_frames_with_durable_true_regex = re.compile(r"^Sending frame:.*durable:true.*")
+    send_frames_with_durable_true_regex = re.compile(r"^sending frame:.*durable:true.*")
 
     assert all(not send_frames_with_durable_true_regex.match(m) for m in caplog.messages)
 

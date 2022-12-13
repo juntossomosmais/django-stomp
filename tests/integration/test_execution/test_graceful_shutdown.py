@@ -1,5 +1,4 @@
 import logging
-from time import sleep
 from typing import Dict
 from typing import Generator
 from typing import Tuple
@@ -9,11 +8,9 @@ from uuid import UUID
 from uuid import uuid4
 
 import pytest
-from pytest_django.fixtures import SettingsWrapper
 
 from django_stomp import execution
 from django_stomp.execution import start_processing
-from tests.support.callbacks_for_tests import callback_move_and_ack_path
 from tests.support.callbacks_for_tests import callback_with_sleep_a_seconds_with_sigint_path
 from tests.support.callbacks_for_tests import callback_with_sleep_a_seconds_with_sigquit_path
 from tests.support.callbacks_for_tests import callback_with_sleep_a_seconds_with_sigterm_path

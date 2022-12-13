@@ -1,6 +1,5 @@
 import json
 import logging
-import ssl
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -158,13 +157,12 @@ def build_listener(
     hosts, vhost = [(connection_params.get("host"), connection_params.get("port"))], connection_params.get("vhost")
     if connection_params.get("hostStandby") and connection_params.get("portStandby"):
         hosts.append((connection_params.get("hostStandby"), connection_params.get("portStandby")))
-    use_ssl = connection_params.get("use_ssl", False)
-    ssl_version = connection_params.get("ssl_version", ssl.PROTOCOL_TLS)
     outgoing_heartbeat = int(connection_params.get("outgoingHeartbeat", 0))
     incoming_heartbeat = int(connection_params.get("incomingHeartbeat", 0))
 
     logger.debug(
-        f"Use SSL? {use_ssl}. Version: {ssl_version}. Outgoing/Ingoing heartbeat: {outgoing_heartbeat}/{incoming_heartbeat}. Background? {should_process_msg_on_background}"
+        f"Outgoing/Ingoing heartbeat: {outgoing_heartbeat}/{incoming_heartbeat}."
+        f" Background? {should_process_msg_on_background}"
     )
 
     if is_heartbeat_enabled(outgoing_heartbeat, incoming_heartbeat) and not should_process_msg_on_background:
@@ -177,8 +175,6 @@ def build_listener(
     # http://jasonrbriggs.github.io/stomp.py/api.html
     conn = connect.StompConnection11(
         hosts,
-        ssl_version=ssl_version,
-        use_ssl=use_ssl,
         heartbeats=(outgoing_heartbeat, incoming_heartbeat),
         vhost=vhost,
     )

@@ -3,9 +3,9 @@ from typing import Dict
 from typing import Optional
 
 from django.conf import settings
+
 from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
 from django_stomp.helpers import eval_as_int_otherwise_none
-from django_stomp.helpers import eval_str_as_boolean
 from django_stomp.services import consumer
 from django_stomp.services import producer
 from django_stomp.services.consumer import Listener
@@ -66,7 +66,7 @@ def _build_connection_parameter(
         "subscriptionId": subscription_id,
         "vhost": getattr(settings, "STOMP_SERVER_VHOST", None),
     }
-    extra_params = {"use_ssl": eval_str_as_boolean(settings.STOMP_USE_SSL), "client_id": client_id}
+    extra_params = {"client_id": client_id}
 
     logger.info("Server details connection: %s. Extra params: %s", required_params, extra_params)
 
