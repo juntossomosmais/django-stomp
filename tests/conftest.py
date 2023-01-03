@@ -27,6 +27,7 @@ def pytest_configure():
         STOMP_PROCESS_MSG_ON_BACKGROUND=os.getenv("STOMP_PROCESS_MSG_ON_BACKGROUND"),
         STOMP_OUTGOING_HEARTBEAT=os.getenv("STOMP_OUTGOING_HEARTBEAT"),
         STOMP_INCOMING_HEARTBEAT=os.getenv("STOMP_INCOMING_HEARTBEAT"),
+        STOMP_SERVER_VHOST=os.getenv("STOMP_SERVER_VHOST"),
         DATABASES={
             "default": {
                 "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.sqlite3"),

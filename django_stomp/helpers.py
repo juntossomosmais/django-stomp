@@ -6,6 +6,9 @@ from typing import Callable
 from typing import Dict
 
 import tenacity
+from stomp.connect import StompConnection11
+
+from django_stomp.exceptions import DjangoStompImproperlyConfigured
 
 logger = logging.getLogger("django_stomp")
 
@@ -115,3 +118,31 @@ def is_heartbeat_enabled(outgoing_heartbeat: int, incoming_heartbeat: int):
     More on: https://stomp.github.io/stomp-specification-1.1.html#Heart-beating
     """
     return outgoing_heartbeat > 0 and incoming_heartbeat > 0
+
+
+def set_ssl_connection(conn: StompConnection11) -> StompConnection11:
+    """Sets the SSL connection params given some values and return it"""
+
+    from django_stomp import settings
+
+    host_and_ports = settings.STOMP_HOST_AND_PORTS
+    if not host_and_ports:
+        error_message = "The value of the environment variable STOMP_HOST_AND_PORTS are not set"
+        logger.error(error_message)
+        raise DjangoStompImproperlyConfigured(error_message)
+    key_file = settings.DEFAULT_STOMP_KEY_FILE
+    cert_file = settings.DEFAULT_STOMP_CERT_FILE
+    ca_certs = settings.DEFAULT_STOMP_CA_CERTS
+    cert_validator = settings.DEFAULT_STOMP_CERT_VALIDATOR
+    ssl_version = settings.DEFAULT_STOMP_SSL_VERSION
+    password = settings.DEFAULT_STOMP_SSL_PASSWORD
+    conn.set_ssl(
+        for_hosts=host_and_ports,
+        key_file=key_file,
+        cert_file=cert_file,
+        ca_certs=ca_certs,
+        cert_validator=cert_validator,
+        ssl_version=ssl_version,
+        password=password,
+    )
+    return conn

@@ -14,7 +14,9 @@ from stomp.connect import StompConnection11
 from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import retry
+from django_stomp.helpers import set_ssl_connection
 from django_stomp.helpers import slow_down
+from django_stomp.settings import STOMP_USE_SSL
 
 logger = logging.getLogger("django_stomp")
 
@@ -22,7 +24,7 @@ logger = logging.getLogger("django_stomp")
 class Publisher:
     """
     Class used to publish messages to brokers using the STOMP protocol. Some headers are removed
-    if they are in the send() method as they cause unexpected behavior/errors.
+    if they are in send() method as they cause unexpected behavior/errors.
 
     Such headers are defined in the UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL class variable which is used
     for sanitizing the user-supplied headers.
@@ -220,6 +222,11 @@ def build_publisher(**connection_params) -> Publisher:
         "headers": {"client-id": f"{client_id}-publisher"},
     }
     conn = Connection(hosts, vhost=vhost)
+
+    use_ssl = STOMP_USE_SSL
+    if use_ssl:
+        conn = set_ssl_connection(conn)
+
     publisher = Publisher(conn, connection_configuration)
     return publisher
 

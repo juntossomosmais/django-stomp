@@ -16,7 +16,9 @@ from stomp.utils import Frame as StompFrame
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import is_heartbeat_enabled
 from django_stomp.helpers import only_destination_name
+from django_stomp.helpers import set_ssl_connection
 from django_stomp.settings import STOMP_PROCESS_MSG_WORKERS
+from django_stomp.settings import STOMP_USE_SSL
 
 logger = logging.getLogger("django_stomp")
 
@@ -178,6 +180,11 @@ def build_listener(
         heartbeats=(outgoing_heartbeat, incoming_heartbeat),
         vhost=vhost,
     )
+
+    use_ssl = STOMP_USE_SSL
+    if use_ssl:
+        conn = set_ssl_connection(conn)
+
     client_id = connection_params.get("client_id", uuid.uuid4())
     routing_key = routing_key or destination_name
     subscription_configuration = {
@@ -206,12 +213,14 @@ def build_listener(
             "activemq.subcriptionName": header_setup["client-id"],
         }
         header_setup.update(durable_subs_header)
+
     connection_configuration = {
         "username": connection_params.get("username"),
         "passcode": connection_params.get("password"),
         "wait": True,
         "headers": header_setup,
     }
+
     listener = Listener(
         conn,
         callback,
