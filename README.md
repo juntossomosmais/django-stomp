@@ -159,7 +159,7 @@ defined, this parameter **must** be an integer!
 
 ***STOMP_HOST_AND_PORTS***
 
-  Parameter to set the value of the HOST and PORT of your STOMP server. Must be in the following format:
+  Optional parameter to set the value of the HOST and PORT of your STOMP server. Must be in the following format:
 ```python
 STOMP_HOST_AND_PORTS=[("127.0.0.1", 61631)] # your HOST and your PORT respectively
 ```
