@@ -17,6 +17,7 @@ from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import is_heartbeat_enabled
 from django_stomp.helpers import only_destination_name
 from django_stomp.helpers import set_ssl_connection
+from django_stomp.settings import DEFAULT_STOMP_SSL_VERSION
 from django_stomp.settings import STOMP_PROCESS_MSG_WORKERS
 from django_stomp.settings import STOMP_USE_SSL
 
@@ -162,8 +163,11 @@ def build_listener(
     outgoing_heartbeat = int(connection_params.get("outgoingHeartbeat", 0))
     incoming_heartbeat = int(connection_params.get("incomingHeartbeat", 0))
 
+    use_ssl = STOMP_USE_SSL
+
     logger.debug(
-        f"Outgoing/Ingoing heartbeat: {outgoing_heartbeat}/{incoming_heartbeat}."
+        f"Use SSL? {use_ssl}. Version: {DEFAULT_STOMP_SSL_VERSION}."
+        f" Outgoing/Ingoing heartbeat: {outgoing_heartbeat}/{incoming_heartbeat}."
         f" Background? {should_process_msg_on_background}"
     )
 
@@ -181,7 +185,6 @@ def build_listener(
         vhost=vhost,
     )
 
-    use_ssl = STOMP_USE_SSL
     if use_ssl:
         conn = set_ssl_connection(conn)
 
