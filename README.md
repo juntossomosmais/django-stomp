@@ -54,7 +54,6 @@ Now you must provide broker connection details filling out the following paramet
 - STOMP_SERVER_HOST
 - STOMP_SERVER_PORT
 - STOMP_USE_SSL
-- STOMP_HOST_AND_PORTS
 
 And just create the job issuing the following command:
 
@@ -156,13 +155,6 @@ defined, this parameter **must** be an integer!
 ***STOMP_GRACEFUL_WAIT_SECONDS***
 
   Optional parameter that controls how many seconds django-stomp will wait for a message to be processed. Defaults to 30 seconds. If defined, this parameter **must** be an integer!
-
-***STOMP_HOST_AND_PORTS***
-
-  Optional parameter to set the value of the HOST and PORT of your STOMP server. Must be in the following format:
-```python
-STOMP_HOST_AND_PORTS=[("127.0.0.1", 61631)] # your HOST and your PORT respectively
-```
 
 ## Tests
 

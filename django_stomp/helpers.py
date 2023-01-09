@@ -8,8 +8,6 @@ from typing import Dict
 import tenacity
 from stomp.connect import StompConnection11
 
-from django_stomp.exceptions import DjangoStompImproperlyConfigured
-
 logger = logging.getLogger("django_stomp")
 
 
@@ -56,7 +54,7 @@ def eval_as_int_otherwise_none(value):
 def only_destination_name(destination: str) -> str:
     position = destination.rfind("/")
     if position > 0:
-        return destination[position + 1 :]
+        return destination[position + 1 :]  # noqa: E203
     return destination
 
 
@@ -126,10 +124,6 @@ def set_ssl_connection(conn: StompConnection11) -> StompConnection11:
     from django_stomp import settings
 
     host_and_ports = settings.STOMP_HOST_AND_PORTS
-    if not host_and_ports:
-        error_message = "The value of the environment variable STOMP_HOST_AND_PORTS are not set"
-        logger.error(error_message)
-        raise DjangoStompImproperlyConfigured(error_message)
     key_file = settings.DEFAULT_STOMP_KEY_FILE
     cert_file = settings.DEFAULT_STOMP_CERT_FILE
     ca_certs = settings.DEFAULT_STOMP_CA_CERTS
