@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.1.2] - 2022-12-13
 
-### Fixed
+### Changed
 
 - Update `stomp.py` from `7.0.0` to `~=8.1.0`.
+- Adjusts in the log messages. so that all logs coming from `stomp.py` are in lower case.
 
 ## [5.1.0] - 2022-05-31
 
