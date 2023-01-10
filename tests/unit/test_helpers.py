@@ -28,8 +28,10 @@ def test_should_log_retry_attempts_on_warning_level(caplog):
 
 
 def test_should_create_a_connection_with_success_when_and_return_it(mocker: MockerFixture):
-    mocked_settings = mocker.patch("django_stomp.settings")
-    mocked_settings.STOMP_HOST_AND_PORTS = ["127.0.0.1"]
+    mocked_settings = mocker.patch("django_stomp.helpers.django_settings")
+    mocked_settings.STOMP_SERVER_HOST = "127.0.0.1"
+    mocked_settings.STOMP_SERVER_PORT = 61613
+    mocked_settings.STOMP_HOST_AND_PORTS = [(mocked_settings.STOMP_SERVER_HOST, mocked_settings.STOMP_SERVER_PORT)]
     mocked_settings.DEFAULT_SSL_VERSION = ssl_version
     mocked_settings.DEFAULT_STOMP_KEY_FILE = ssl_key_file
     mocked_settings.DEFAULT_STOMP_CERT_FILE = ssl_cert_file

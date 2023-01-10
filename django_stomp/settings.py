@@ -1,4 +1,3 @@
-import os
 import ssl
 from typing import Any
 from typing import Callable
@@ -24,16 +23,5 @@ STOMP_PROCESS_MSG_WORKERS = eval_settings_otherwise_raise_exception(
     "STOMP_PROCESS_MSG_WORKERS", eval_as_int_if_provided_value_is_not_none_otherwise_none
 )
 
-STOMP_SERVER_HOST = getattr(django_settings, "STOMP_SERVER_HOST", "127.0.0.1")
-STOMP_SERVER_PORT = eval_as_int_if_provided_value_is_not_none_otherwise_none(
-    getattr(django_settings, "STOMP_SERVER_PORT", 61613)
-)
-STOMP_USE_SSL = eval_str_as_boolean(os.getenv("STOMP_USE_SSL", False))
-STOMP_HOST_AND_PORTS = [(STOMP_SERVER_HOST, STOMP_SERVER_PORT)]
-DEFAULT_SSL_VERSION = os.getenv("DEFAULT_SSL_VERSION")
-DEFAULT_STOMP_KEY_FILE = os.getenv("DEFAULT_STOMP_KEY_FILE")
-DEFAULT_STOMP_CERT_FILE = os.getenv("DEFAULT_STOMP_CERT_FILE")
-DEFAULT_STOMP_CA_CERTS = os.getenv("DEFAULT_STOMP_CA_CERTS")
-DEFAULT_STOMP_CERT_VALIDATOR = os.getenv("DEFAULT_STOMP_CERT_VALIDATOR")
-DEFAULT_STOMP_SSL_VERSION = os.getenv("DEFAULT_STOMP_SSL_VERSION", ssl.PROTOCOL_TLS_CLIENT)
-DEFAULT_STOMP_SSL_PASSWORD = os.getenv("DEFAULT_STOMP_SSL_PASSWORD")
+STOMP_USE_SSL = eval_str_as_boolean(getattr(django_settings, "STOMP_USE_SSL", "False"))
+DEFAULT_STOMP_SSL_VERSION = getattr(django_settings, "DEFAULT_STOMP_SSL_VERSION", ssl.PROTOCOL_TLS_CLIENT)

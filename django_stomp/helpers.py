@@ -1,11 +1,13 @@
 import functools
 import logging
+import ssl
 import time
 import uuid
 from typing import Callable
 from typing import Dict
 
 import tenacity
+from django.conf import settings as django_settings
 from stomp.connect import StompConnection11
 
 logger = logging.getLogger("django_stomp")
@@ -120,18 +122,20 @@ def is_heartbeat_enabled(outgoing_heartbeat: int, incoming_heartbeat: int):
 
 def set_ssl_connection(conn: StompConnection11) -> StompConnection11:
     """Sets the SSL connection params given some values and return it"""
+    STOMP_SERVER_HOST = getattr(django_settings, "STOMP_SERVER_HOST", "127.0.0.1")
+    STOMP_SERVER_PORT = eval_as_int_if_provided_value_is_not_none_otherwise_none(
+        getattr(django_settings, "STOMP_SERVER_PORT", 61613)
+    )
+    STOMP_HOST_AND_PORTS = [(STOMP_SERVER_HOST, STOMP_SERVER_PORT)]
 
-    from django_stomp import settings
-
-    host_and_ports = settings.STOMP_HOST_AND_PORTS
-    key_file = settings.DEFAULT_STOMP_KEY_FILE
-    cert_file = settings.DEFAULT_STOMP_CERT_FILE
-    ca_certs = settings.DEFAULT_STOMP_CA_CERTS
-    cert_validator = settings.DEFAULT_STOMP_CERT_VALIDATOR
-    ssl_version = settings.DEFAULT_STOMP_SSL_VERSION
-    password = settings.DEFAULT_STOMP_SSL_PASSWORD
+    key_file = getattr(django_settings, "DEFAULT_STOMP_KEY_FILE", None)
+    cert_file = getattr(django_settings, "DEFAULT_STOMP_CERT_FILE", None)
+    ca_certs = getattr(django_settings, "DEFAULT_STOMP_CA_CERTS", None)
+    cert_validator = getattr(django_settings, "DEFAULT_STOMP_CERT_VALIDATOR", None)
+    ssl_version = getattr(django_settings, "DEFAULT_STOMP_SSL_VERSION", ssl.PROTOCOL_TLS_CLIENT)
+    password = getattr(django_settings, "DEFAULT_STOMP_SSL_PASSWORD", None)
     conn.set_ssl(
-        for_hosts=host_and_ports,
+        for_hosts=STOMP_HOST_AND_PORTS,
         key_file=key_file,
         cert_file=cert_file,
         ca_certs=ca_certs,

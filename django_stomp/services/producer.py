@@ -16,7 +16,7 @@ from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import retry
 from django_stomp.helpers import set_ssl_connection
 from django_stomp.helpers import slow_down
-from django_stomp.settings import DEFAULT_SSL_VERSION
+from django_stomp.settings import DEFAULT_STOMP_SSL_VERSION
 from django_stomp.settings import STOMP_USE_SSL
 
 logger = logging.getLogger("django_stomp")
@@ -217,7 +217,7 @@ def build_publisher(**connection_params) -> Publisher:
         hosts.append((connection_params.get("hostStandby"), connection_params.get("portStandby")))
 
     use_ssl = STOMP_USE_SSL
-    logger.debug(f"Use SSL? {use_ssl}. Version: {DEFAULT_SSL_VERSION}")
+    logger.debug(f"Use SSL? {use_ssl}. Version: {DEFAULT_STOMP_SSL_VERSION}")
 
     client_id = connection_params.get("client_id", uuid.uuid4())
     connection_configuration = {
