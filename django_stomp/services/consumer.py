@@ -1,6 +1,5 @@
 import json
 import logging
-import ssl
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -17,7 +16,10 @@ from stomp.utils import Frame as StompFrame
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import is_heartbeat_enabled
 from django_stomp.helpers import only_destination_name
+from django_stomp.helpers import set_ssl_connection
+from django_stomp.settings import DEFAULT_STOMP_SSL_VERSION
 from django_stomp.settings import STOMP_PROCESS_MSG_WORKERS
+from django_stomp.settings import STOMP_USE_SSL
 
 logger = logging.getLogger("django_stomp")
 
@@ -158,13 +160,15 @@ def build_listener(
     hosts, vhost = [(connection_params.get("host"), connection_params.get("port"))], connection_params.get("vhost")
     if connection_params.get("hostStandby") and connection_params.get("portStandby"):
         hosts.append((connection_params.get("hostStandby"), connection_params.get("portStandby")))
-    use_ssl = connection_params.get("use_ssl", False)
-    ssl_version = connection_params.get("ssl_version", ssl.PROTOCOL_TLS)
     outgoing_heartbeat = int(connection_params.get("outgoingHeartbeat", 0))
     incoming_heartbeat = int(connection_params.get("incomingHeartbeat", 0))
 
+    use_ssl = STOMP_USE_SSL
+
     logger.debug(
-        f"Use SSL? {use_ssl}. Version: {ssl_version}. Outgoing/Ingoing heartbeat: {outgoing_heartbeat}/{incoming_heartbeat}. Background? {should_process_msg_on_background}"
+        f"Use SSL? {use_ssl}. Version: {DEFAULT_STOMP_SSL_VERSION}."
+        f" Outgoing/Ingoing heartbeat: {outgoing_heartbeat}/{incoming_heartbeat}."
+        f" Background? {should_process_msg_on_background}"
     )
 
     if is_heartbeat_enabled(outgoing_heartbeat, incoming_heartbeat) and not should_process_msg_on_background:
@@ -177,11 +181,13 @@ def build_listener(
     # http://jasonrbriggs.github.io/stomp.py/api.html
     conn = connect.StompConnection11(
         hosts,
-        ssl_version=ssl_version,
-        use_ssl=use_ssl,
         heartbeats=(outgoing_heartbeat, incoming_heartbeat),
         vhost=vhost,
     )
+
+    if use_ssl:
+        conn = set_ssl_connection(conn)
+
     client_id = connection_params.get("client_id", uuid.uuid4())
     routing_key = routing_key or destination_name
     subscription_configuration = {
@@ -210,12 +216,14 @@ def build_listener(
             "activemq.subcriptionName": header_setup["client-id"],
         }
         header_setup.update(durable_subs_header)
+
     connection_configuration = {
         "username": connection_params.get("username"),
         "passcode": connection_params.get("password"),
         "wait": True,
         "headers": header_setup,
     }
+
     listener = Listener(
         conn,
         callback,

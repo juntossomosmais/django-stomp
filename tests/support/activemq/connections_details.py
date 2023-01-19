@@ -2,9 +2,9 @@ from time import sleep
 from typing import Generator
 
 import requests
+from parsel import Selector
 
 from django_stomp.helpers import eval_str_as_boolean
-from parsel import Selector
 from tests.support.dtos import ConsumerStatus
 
 

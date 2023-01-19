@@ -1,11 +1,14 @@
 import functools
 import logging
+import ssl
 import time
 import uuid
 from typing import Callable
 from typing import Dict
 
 import tenacity
+from django.conf import settings as django_settings
+from stomp.connect import StompConnection11
 
 logger = logging.getLogger("django_stomp")
 
@@ -53,7 +56,7 @@ def eval_as_int_otherwise_none(value):
 def only_destination_name(destination: str) -> str:
     position = destination.rfind("/")
     if position > 0:
-        return destination[position + 1 :]
+        return destination[position + 1 :]  # noqa: E203
     return destination
 
 
@@ -115,3 +118,29 @@ def is_heartbeat_enabled(outgoing_heartbeat: int, incoming_heartbeat: int):
     More on: https://stomp.github.io/stomp-specification-1.1.html#Heart-beating
     """
     return outgoing_heartbeat > 0 and incoming_heartbeat > 0
+
+
+def set_ssl_connection(conn: StompConnection11) -> StompConnection11:
+    """Sets the SSL connection params given some values and return it"""
+    STOMP_SERVER_HOST = getattr(django_settings, "STOMP_SERVER_HOST", "127.0.0.1")
+    STOMP_SERVER_PORT = eval_as_int_if_provided_value_is_not_none_otherwise_none(
+        getattr(django_settings, "STOMP_SERVER_PORT", 61613)
+    )
+    STOMP_HOST_AND_PORTS = [(STOMP_SERVER_HOST, STOMP_SERVER_PORT)]
+
+    key_file = getattr(django_settings, "DEFAULT_STOMP_KEY_FILE", None)
+    cert_file = getattr(django_settings, "DEFAULT_STOMP_CERT_FILE", None)
+    ca_certs = getattr(django_settings, "DEFAULT_STOMP_CA_CERTS", None)
+    cert_validator = getattr(django_settings, "DEFAULT_STOMP_CERT_VALIDATOR", None)
+    ssl_version = getattr(django_settings, "DEFAULT_STOMP_SSL_VERSION", ssl.PROTOCOL_TLS_CLIENT)
+    password = getattr(django_settings, "DEFAULT_STOMP_SSL_PASSWORD", None)
+    conn.set_ssl(
+        for_hosts=STOMP_HOST_AND_PORTS,
+        key_file=key_file,
+        cert_file=cert_file,
+        ca_certs=ca_certs,
+        cert_validator=cert_validator,
+        ssl_version=ssl_version,
+        password=password,
+    )
+    return conn

@@ -1,11 +1,11 @@
 import json
 import uuid
-from datetime import datetime
 
 import pytest
+from stomp.listener import TestListener
+
 from django_stomp.builder import build_publisher
 from django_stomp.services.consumer import Acknowledgements
-from stomp.listener import TestListener
 
 test_destination = "/queue/my-test-destination"
 
@@ -48,9 +48,9 @@ def test_should_publish_message_on_destination(setup_publisher_and_test_listener
     assert received_header["persistent"] == "true"
     received_body = json.loads(received_message[1])
     assert received_body == some_body
-    #### ActiveMQ has it by default
+    # ActiveMQ has it by default
     # assert received_header["priority"] == "4"
-    #### ActiveMQ has it by default
+    # ActiveMQ has it by default
     # timestamp_value = int(received_header["timestamp"])
     # converted_timestamp = datetime.utcfromtimestamp(timestamp_value / 1000.0)
     # assert converted_timestamp.date() == datetime.today().date()

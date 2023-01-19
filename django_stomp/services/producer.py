@@ -1,6 +1,5 @@
 import json
 import logging
-import ssl
 import uuid
 from contextlib import contextmanager
 from typing import Dict
@@ -15,7 +14,10 @@ from stomp.connect import StompConnection11
 from django_stomp.helpers import clean_dict_with_falsy_or_strange_values
 from django_stomp.helpers import create_dlq_destination_from_another_destination
 from django_stomp.helpers import retry
+from django_stomp.helpers import set_ssl_connection
 from django_stomp.helpers import slow_down
+from django_stomp.settings import DEFAULT_STOMP_SSL_VERSION
+from django_stomp.settings import STOMP_USE_SSL
 
 logger = logging.getLogger("django_stomp")
 
@@ -23,7 +25,7 @@ logger = logging.getLogger("django_stomp")
 class Publisher:
     """
     Class used to publish messages to brokers using the STOMP protocol. Some headers are removed
-    if they are in the send() method as they cause unexpected behavior/errors.
+    if they are in send() method as they cause unexpected behavior/errors.
 
     Such headers are defined in the UNSAFE_OR_RESERVED_BROKER_HEADERS_FOR_REMOVAL class variable which is used
     for sanitizing the user-supplied headers.
@@ -154,12 +156,12 @@ class Publisher:
 
     def _send_to_broker_without_retry_attempts(self, send_data: Dict) -> None:
         """
-        Sends the actual data to the broker using the STOMP protocol WITHOUT any retry attempts as reconnecting to the broker
-        while a transaction was previously created will lead to 'bad transaction' errors because STOMP 1.1 protocol closes any
-        transactions if the producer had TCP connection problems or sends a DISCONNECT frame.
+        Sends the actual data to the broker using the STOMP protocol WITHOUT any retry attempts as reconnecting
+        to the broker while a transaction was previously created will lead to 'bad transaction' errors because STOMP 1.1
+        protocol closes any transactions if the producer had TCP connection problems or sends a DISCONNECT frame.
 
-        Hence, when a producer sends a BEGIN frame, all subsequent SEND frames (messages) must always use the SAME connection that
-        was used to start the transaction.
+        Hence, when a producer sends a BEGIN frame, all subsequent SEND frames (messages) must always use the SAME
+        connection that was used to start the transaction.
 
         -> STOMP 1.1 specification: https://stomp.github.io/stomp-specification-1.1.html#BEGIN
         """
@@ -213,9 +215,10 @@ def build_publisher(**connection_params) -> Publisher:
     hosts, vhost = [(connection_params.get("host"), connection_params.get("port"))], connection_params.get("vhost")
     if connection_params.get("hostStandby") and connection_params.get("portStandby"):
         hosts.append((connection_params.get("hostStandby"), connection_params.get("portStandby")))
-    use_ssl = connection_params.get("use_ssl", False)
-    ssl_version = connection_params.get("ssl_version", ssl.PROTOCOL_TLS)
-    logger.debug(f"Use SSL? {use_ssl}. Version: {ssl_version}")
+
+    use_ssl = STOMP_USE_SSL
+    logger.debug(f"Use SSL? {use_ssl}. Version: {DEFAULT_STOMP_SSL_VERSION}")
+
     client_id = connection_params.get("client_id", uuid.uuid4())
     connection_configuration = {
         "username": connection_params.get("username"),
@@ -223,7 +226,11 @@ def build_publisher(**connection_params) -> Publisher:
         "wait": True,
         "headers": {"client-id": f"{client_id}-publisher"},
     }
-    conn = Connection(hosts, ssl_version=ssl_version, use_ssl=use_ssl, vhost=vhost)
+    conn = Connection(hosts, vhost=vhost)
+
+    if use_ssl:
+        conn = set_ssl_connection(conn)
+
     publisher = Publisher(conn, connection_configuration)
     return publisher
 

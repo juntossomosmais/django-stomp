@@ -159,16 +159,19 @@ defined, this parameter **must** be an integer!
 ## Tests
 
 In order to execute tests for ActiveMQ, execute the following:
-
-    docker-compose up -d broker-activemq
+```bash
+docker-compose up -d broker-activemq
+```
 
 Or for RabbitMQ:
-
-    docker-compose up -d broker-rabbitmq
+```bash
+docker-compose up -d broker-rabbitmq
+```
 
 Then at last:
-
-    pipenv run tox
+```bash
+pipenv run tox
+```
 
 ## Database connection management (applies to version >= 5.0.0)
 
