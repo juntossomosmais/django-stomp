@@ -18,9 +18,9 @@ from django_stomp.helpers import is_heartbeat_enabled
 from django_stomp.helpers import only_destination_name
 from django_stomp.helpers import set_ssl_connection
 from django_stomp.settings import DEFAULT_STOMP_SSL_VERSION
+from django_stomp.settings import STOMP_DEFAULT_EXCLUSIVE_QUEUE
 from django_stomp.settings import STOMP_PROCESS_MSG_WORKERS
 from django_stomp.settings import STOMP_USE_SSL
-from django_stomp.settings import STOMP_DEFAULT_EXCLUSIVE_QUEUE
 
 logger = logging.getLogger("django_stomp")
 
