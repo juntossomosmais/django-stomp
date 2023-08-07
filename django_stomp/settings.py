@@ -25,3 +25,4 @@ STOMP_PROCESS_MSG_WORKERS = eval_settings_otherwise_raise_exception(
 
 STOMP_USE_SSL = eval_str_as_boolean(getattr(django_settings, "STOMP_USE_SSL", "False"))
 DEFAULT_STOMP_SSL_VERSION = getattr(django_settings, "DEFAULT_STOMP_SSL_VERSION", ssl.PROTOCOL_TLS_CLIENT)
+STOMP_DEFAULT_EXCLUSIVE_QUEUE = eval_str_as_boolean(getattr(django_settings, "STOMP_DEFAULT_EXCLUSIVE_QUEUE", "False"))
