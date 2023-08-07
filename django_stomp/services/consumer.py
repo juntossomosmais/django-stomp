@@ -208,7 +208,7 @@ def build_listener(
         # These two parameters must be set on producer side as well, otherwise you'll get precondition_failed
         "x-dead-letter-routing-key": create_dlq_destination_from_another_destination(destination_name),
         "x-dead-letter-exchange": "",
-        # This parametes below defines if the queue to be created will be exclusive or not.
+        # This parameter below defines if the queue to be created will be exclusive or not.
         "exclusive": STOMP_DEFAULT_EXCLUSIVE_QUEUE,
     }
 

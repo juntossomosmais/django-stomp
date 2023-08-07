@@ -156,6 +156,10 @@ defined, this parameter **must** be an integer!
 
   Optional parameter that controls how many seconds django-stomp will wait for a message to be processed. Defaults to 30 seconds. If defined, this parameter **must** be an integer!
 
+***STOMP_DEFAULT_EXCLUSIVE_QUEUE***
+
+  Optional parameter that defines if the default value of `exclusive` queue parameter will be True or False in RabbitMQ. The default is `False`.
+
 ## Tests
 
 In order to execute tests for ActiveMQ, execute the following:
