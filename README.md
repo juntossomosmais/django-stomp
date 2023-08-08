@@ -158,7 +158,7 @@ defined, this parameter **must** be an integer!
 
 ***STOMP_DEFAULT_EXCLUSIVE_QUEUE***
 
-  Optional parameter that defines if the default value of `exclusive` queue parameter will be True or False in RabbitMQ. The default is `False`.
+  Optional parameter that defines if the default value of `exclusive` queue parameter will be True or False when creating a queue in RabbitMQ. The default value is `False`.
 
 ## Tests
 
