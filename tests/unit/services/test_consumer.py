@@ -79,3 +79,29 @@ def test_should_have_only_one_django_stomp_listener_even_if_set_listener_is_call
 
     django_stomp_listener_id = django_stomp_listener._listener_id
     assert django_stomp_listener._connection.get_listener(django_stomp_listener_id) is not None
+
+
+def test_listener_connection_configuration_must_have_headers_properly_configured():
+    # Arrange - defines the expected headers setup
+    headers_setup_mapping = {
+        "client-id": str,
+        "activemq.prefetchSize": str,
+        "prefetch-count": str,
+        "x-dead-letter-routing-key": str,
+        "x-dead-letter-exchange": str,
+        "exclusive": bool,
+    }
+
+    # Arrange - build listener to some arbirtrary queue and get its connection configuration headers
+    django_stomp_listener = builder.build_listener(f"some-destination-{uuid4()}")
+    created_header_setup = django_stomp_listener._connection_configuration["headers"]
+
+    # Assert - the created headers setup must have the same mapped headers keys
+    assert headers_setup_mapping.keys() == created_header_setup.keys()
+
+    # Assert - the created headers setup items must have the types porperly configured.
+    for key, value in headers_setup_mapping.items():
+        assert isinstance(created_header_setup[key], value)
+
+    # Assert - it should be possible to parse the value 'prefetch-count' to int
+    assert int(created_header_setup["prefetch-count"])
