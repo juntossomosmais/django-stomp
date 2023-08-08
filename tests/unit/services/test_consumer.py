@@ -96,12 +96,9 @@ def test_listener_connection_configuration_must_have_headers_properly_configured
     django_stomp_listener = builder.build_listener(f"some-destination-{uuid4()}")
     created_header_setup = django_stomp_listener._connection_configuration["headers"]
 
-    # Assert - the created headers setup must have the same mapped headers keys
-    assert headers_setup_mapping.keys() == created_header_setup.keys()
+    assert headers_setup_mapping.keys() == created_header_setup.keys(), "headers do not have all required keys"
 
-    # Assert - the created headers setup items must have the types porperly configured.
     for key, value in headers_setup_mapping.items():
-        assert isinstance(created_header_setup[key], value)
+        assert isinstance(created_header_setup[key], value), "header has wrong type"
 
-    # Assert - it should be possible to parse the value 'prefetch-count' to int
-    assert int(created_header_setup["prefetch-count"])
+    assert int(created_header_setup["prefetch-count"]), "prefetch-count must be a number"
