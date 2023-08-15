@@ -1,6 +1,8 @@
 import json
 from uuid import uuid4
 
+import pytest
+
 from django_stomp import builder
 from django_stomp.services.consumer import StompFrame
 from django_stomp.services.consumer import build_listener
@@ -102,3 +104,19 @@ def test_listener_connection_configuration_must_have_headers_properly_configured
         assert isinstance(created_header_setup[key], value), "header has wrong type"
 
     assert int(created_header_setup["prefetch-count"]), "prefetch-count must be a number"
+
+
+@pytest.mark.parametrize("setting_value,expected", [(True, True), (False, False)])
+def test_should_have_a_listener_with_param_exclusive_in_connection_configuration_headers(
+    mocker, setting_value, expected
+):
+    # Arrange - mock the stomp default exclusive queue setting
+    mocker.patch("django_stomp.services.consumer.STOMP_DEFAULT_EXCLUSIVE_QUEUE", setting_value)
+
+    # Arrange - build listener to some arbirtrary queue
+    django_stomp_listener = builder.build_listener(f"some-destination-{uuid4()}")
+
+    assert (
+        django_stomp_listener._connection_configuration["headers"]["exclusive"] is expected,
+        "The stomp default exclusive queue parameter was not configured correctly.",
+    )
