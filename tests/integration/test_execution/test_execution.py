@@ -981,9 +981,8 @@ def test_should_create_a_exclusive_queue_by_publisher_at_rabbitmq(mocker, settin
         assert queue_status.messages_enqueued == 0
         assert queue_status.messages_dequeued == 0
         assert (
-            queue_status.is_exclusive_destination_queue == None,
-            "Header parameter 'exclusive' cannot change queue behavior in ActiveMQ",
-        )
+            queue_status.is_exclusive_destination_queue == None
+        ), "Header parameter 'exclusive' cannot change queue behavior in ActiveMQ"
     except Exception:
         queue_status = rabbitmq.current_queue_configuration(queue_name)
         assert queue_status.is_exclusive_destination_queue == expected, "The queue must be exclusive or not"

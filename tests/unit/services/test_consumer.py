@@ -117,6 +117,5 @@ def test_should_have_a_listener_with_param_exclusive_in_connection_configuration
     django_stomp_listener = builder.build_listener(f"some-destination-{uuid4()}")
 
     assert (
-        django_stomp_listener._connection_configuration["headers"]["exclusive"] is expected,
-        "The stomp default exclusive queue parameter was not configured correctly.",
-    )
+        django_stomp_listener._connection_configuration["headers"]["exclusive"] is expected
+    ), "The stomp default exclusive queue parameter was not configured correctly."
