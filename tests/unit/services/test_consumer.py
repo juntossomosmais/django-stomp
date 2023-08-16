@@ -1,6 +1,8 @@
 import json
 from uuid import uuid4
 
+import pytest
+
 from django_stomp import builder
 from django_stomp.services.consumer import StompFrame
 from django_stomp.services.consumer import build_listener
@@ -79,3 +81,42 @@ def test_should_have_only_one_django_stomp_listener_even_if_set_listener_is_call
 
     django_stomp_listener_id = django_stomp_listener._listener_id
     assert django_stomp_listener._connection.get_listener(django_stomp_listener_id) is not None
+
+
+def test_listener_connection_configuration_must_have_headers_properly_configured():
+    # Arrange - defines the expected headers setup
+    headers_setup_mapping = {
+        "client-id": str,
+        "activemq.prefetchSize": str,
+        "prefetch-count": str,
+        "x-dead-letter-routing-key": str,
+        "x-dead-letter-exchange": str,
+        "exclusive": bool,
+    }
+
+    # Arrange - build listener to some arbirtrary queue and get its connection configuration headers
+    django_stomp_listener = builder.build_listener(f"some-destination-{uuid4()}")
+    created_header_setup = django_stomp_listener._connection_configuration["headers"]
+
+    assert headers_setup_mapping.keys() == created_header_setup.keys(), "headers do not have all required keys"
+
+    for key, value in headers_setup_mapping.items():
+        assert isinstance(created_header_setup[key], value), "header has wrong type"
+
+    assert int(created_header_setup["prefetch-count"]), "prefetch-count must be a number"
+
+
+@pytest.mark.parametrize("setting_value,expected", [(True, True), (False, False)])
+def test_should_have_a_listener_with_param_exclusive_in_connection_configuration_headers(
+    mocker, setting_value, expected
+):
+    # Arrange - mock the stomp default exclusive queue setting
+    mocker.patch("django_stomp.services.consumer.STOMP_DEFAULT_EXCLUSIVE_QUEUE", setting_value)
+
+    # Arrange - build listener to some arbirtrary queue
+    django_stomp_listener = builder.build_listener(f"some-destination-{uuid4()}")
+
+    assert (
+        django_stomp_listener._connection_configuration["headers"]["exclusive"] is expected,
+        "The stomp default exclusive queue parameter was not configured correctly.",
+    )

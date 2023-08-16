@@ -28,6 +28,7 @@ def pytest_configure():
         STOMP_OUTGOING_HEARTBEAT=os.getenv("STOMP_OUTGOING_HEARTBEAT"),
         STOMP_INCOMING_HEARTBEAT=os.getenv("STOMP_INCOMING_HEARTBEAT"),
         STOMP_SERVER_VHOST=os.getenv("STOMP_SERVER_VHOST"),
+        STOMP_DEFAULT_EXCLUSIVE_QUEUE=os.getenv("STOMP_DEFAULT_EXCLUSIVE_QUEUE"),
         DATABASES={
             "default": {
                 "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.sqlite3"),
