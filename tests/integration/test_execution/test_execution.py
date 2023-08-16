@@ -974,7 +974,6 @@ def test_should_create_a_exclusive_queue_by_publisher_at_rabbitmq(mocker, settin
         return_listener=True,
     )
     try:
-        # The header
         queue_status = current_queue_configuration(queue_name)
         assert queue_status.number_of_pending_messages == 0
         assert queue_status.number_of_consumers == 1
