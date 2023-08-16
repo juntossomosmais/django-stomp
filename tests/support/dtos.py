@@ -9,6 +9,7 @@ class CurrentDestinationStatus:
     number_of_consumers: int
     messages_enqueued: int
     messages_dequeued: int
+    is_exclusive_destination_queue: Optional[bool] = None
 
 
 @dataclass(frozen=True)

@@ -959,3 +959,20 @@ def test_shouldnt_open_a_new_db_connection_when_there_is_one_still_usable(settin
     assert all(t.db.connection is not None for t in threads_with_db_connections)
 
     listener.close()
+
+
+@pytest.mark.parametrize("setting_value,expected", [(True, True), (False, False)])
+def test_should_create_a_exclusive_queue_by_publisher_at_rabbitmq(mocker, setting_value, expected):
+    # Arrange - creates a publisher with the exclusive setting header that should create a new queue exclusive or not
+    mocker.patch("django_stomp.services.consumer.STOMP_DEFAULT_EXCLUSIVE_QUEUE", setting_value)
+    queue_name = f"my-test-exclusive-destination-{uuid.uuid4()}"
+    destination_three = f"/queue/{queue_name}"
+    start_processing(
+        destination_three,
+        callback_move_and_ack_path,
+        is_testing=True,
+        return_listener=True,
+    )
+    queue_status = rabbitmq.current_queue_configuration(queue_name)
+    if queue_status:
+        assert queue_status.is_exclusive_destination_queue == expected, "The queue must be exclusive or not"
