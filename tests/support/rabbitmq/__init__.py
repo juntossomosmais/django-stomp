@@ -40,9 +40,14 @@ def current_queue_configuration(queue_name, host="localhost", port=15672) -> Opt
 
     number_of_pending_messages = result["messages"]
     number_of_consumers = result["consumers"]
+    is_exclusive_destination_queue = result.get("exclusive", False)
 
     return CurrentDestinationStatus(
-        number_of_pending_messages, number_of_consumers, messages_enqueued, messages_dequeued
+        number_of_pending_messages,
+        number_of_consumers,
+        messages_enqueued,
+        messages_dequeued,
+        is_exclusive_destination_queue,
     )
 
 
