@@ -1,0 +1,5 @@
+FROM divio/multi-python:latest
+
+WORKDIR /app
+
+COPY . .

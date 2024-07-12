@@ -1,11 +1,14 @@
 import logging
 import signal
 import uuid
+
 from time import sleep
 from time import time
 from typing import Dict
+from typing import Literal
 from typing import Optional
 from typing import Tuple
+from typing import Union
 
 from django import db
 from django.conf import settings
@@ -27,10 +30,10 @@ from django_stomp.services.consumer import Payload
 logger = logging.getLogger("django_stomp")
 
 wait_to_connect = int(getattr(settings, "STOMP_WAIT_TO_CONNECT", 10))
-durable_topic_subscription = eval_str_as_boolean(getattr(settings, "STOMP_DURABLE_TOPIC_SUBSCRIPTION", False))
-listener_client_id = getattr(settings, "STOMP_LISTENER_CLIENT_ID", None)
-is_correlation_id_required = eval_str_as_boolean(getattr(settings, "STOMP_CORRELATION_ID_REQUIRED", True))
-should_process_msg_on_background = eval_str_as_boolean(getattr(settings, "STOMP_PROCESS_MSG_ON_BACKGROUND", True))
+durable_topic_subscription = eval_str_as_boolean(getattr(settings, "STOMP_DURABLE_TOPIC_SUBSCRIPTION", "False"))
+listener_client_id = getattr(settings, "STOMP_LISTENER_CLIENT_ID", "django-stomp-listener")
+is_correlation_id_required = eval_str_as_boolean(getattr(settings, "STOMP_CORRELATION_ID_REQUIRED", "True"))
+should_process_msg_on_background = eval_str_as_boolean(getattr(settings, "STOMP_PROCESS_MSG_ON_BACKGROUND", "True"))
 graceful_wait_seconds = getattr(settings, "STOMP_GRACEFUL_WAIT_SECONDS", 30)
 publisher_name = "django-stomp-another-target"
 
@@ -42,7 +45,7 @@ _is_processing_message: bool = False
 def _shutdown_handler(*args: Tuple, **kwargs: Dict) -> None:
     global _listener, is_gracefully_shutting_down, _is_processing_message
 
-    logger.info("Received %s signal... Preparing to shutdown!", signal.Signals(args[0]).name)
+    logger.info("Received %s signal... Preparing to shutdown!", signal.Signals(args[0]).name)  # type: ignore
 
     start_time = time()
     while True:
@@ -82,9 +85,9 @@ def start_processing(
 ) -> Optional[Listener]:
     global _listener, is_gracefully_shutting_down
 
-    signal.signal(signal.SIGQUIT, _shutdown_handler)
-    signal.signal(signal.SIGTERM, _shutdown_handler)
-    signal.signal(signal.SIGINT, _shutdown_handler)
+    signal.signal(signal.SIGQUIT, _shutdown_handler)  # type: ignore
+    signal.signal(signal.SIGTERM, _shutdown_handler)  # type: ignore
+    signal.signal(signal.SIGINT, _shutdown_handler)  # type: ignore
 
     callback_function = import_string(callback_str)
 
@@ -143,7 +146,7 @@ def start_processing(
 
             if is_testing is True:
                 return listener
-        except BaseException as e:
+        except Exception as e:
             logger.exception(f"A exception of type {type(e)} was captured during listener logic")
         finally:
             if is_testing is False:
@@ -152,6 +155,7 @@ def start_processing(
                     listener.close()
                 logger.info(f"Waiting {wait_to_connect} seconds before trying to connect again...")
                 sleep(wait_to_connect)
+        # return None
 
     if is_testing is False:
         while not is_gracefully_shutting_down:
@@ -174,6 +178,8 @@ def start_processing(
                 sleep(0.2)
                 tries += 1
 
+    # return None
+
 
 def send_message_from_one_destination_to_another(
     source_destination: str,
@@ -183,7 +189,7 @@ def send_message_from_one_destination_to_another(
     return_listener: bool = False,
     custom_stomp_server_host: Optional[str] = None,
     custom_stomp_server_port: Optional[int] = None,
-) -> Listener:
+) -> Optional[Listener]:
     callback_function = "django_stomp.execution._callback_send_to_another_destination"
 
     return start_processing(
@@ -201,7 +207,7 @@ def send_message_from_one_destination_to_another(
 
 def clean_messages_on_destination_by_acking(
     source_destination: str, is_testing: bool = False, testing_disconnect: bool = True, return_listener: bool = False
-) -> Listener:
+) -> Optional[Listener]:
     """
     Cleans a queue by acking all messages on it (no queue purging or deleting).
     """
@@ -251,7 +257,9 @@ def _callback_send_to_another_destination(payload: Payload, target_destination):
     logger.info("The messages has been moved!")
 
 
-def _create_queue(queue_name: str, durable_topic_subscription: bool = False, routing_key: Optional[str] = None):
+def _create_queue(
+    queue_name: str, durable_topic_subscription: Union[Literal[0, 1], bool] = False, routing_key: Optional[str] = None
+):
     client_id = get_listener_client_id(durable_topic_subscription, listener_client_id)
     listener = build_listener(queue_name, durable_topic_subscription, client_id=client_id, routing_key=routing_key)
     listener.start(lambda payload: None, wait_forever=False)

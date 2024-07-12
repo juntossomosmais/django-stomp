@@ -2,6 +2,7 @@ import json
 import logging
 import time
 import uuid
+
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from enum import Enum
@@ -10,6 +11,7 @@ from typing import Dict
 from typing import Optional
 
 import stomp
+
 from stomp import connect
 from stomp.utils import Frame as StompFrame
 
@@ -110,7 +112,7 @@ class Listener(stomp.ConnectionListener):
     def is_open(self):
         return self._connection.is_connected()
 
-    def start(self, callback: Callable = None, wait_forever=True):
+    def start(self, callback: Optional[Callable] = None, wait_forever=True):
         logger.debug(f"Starting listener with name: {self._listener_id} and auto-generated ID: {self._subscription_id}")
 
         self._set_listener()

@@ -3,10 +3,14 @@ import logging
 import ssl
 import time
 import uuid
+
 from typing import Callable
 from typing import Dict
+from typing import Literal
+from typing import Union
 
 import tenacity
+
 from django.conf import settings as django_settings
 from stomp.connect import StompConnection11
 
@@ -90,7 +94,7 @@ def get_subscription_destination(destination_name: str) -> str:
     return destination_name
 
 
-def get_listener_client_id(durable_topic_subscription: bool, listener_client_id: str) -> str:
+def get_listener_client_id(durable_topic_subscription: Union[Literal[0, 1], bool], listener_client_id: str) -> str:
     if not durable_topic_subscription and listener_client_id:
         return f"{listener_client_id}-{uuid.uuid4().hex}"
     return listener_client_id

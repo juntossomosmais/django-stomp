@@ -1,14 +1,19 @@
 import json
+import os
+
 from time import sleep
 
 import requests
 
 from parsel import Selector
+
 from tests.support.dtos import MessageStatus
 
 
-def retrieve_message_published(destination_name, host="localhost") -> MessageStatus:
+def retrieve_message_published(destination_name, host=None) -> MessageStatus:
     sleep(1)
+    if not host:
+        host = os.getenv("STOMP_SERVER_HOST", "localhost")
     address = f"http://{host}:8161/admin/browse.jsp?JMSDestination={destination_name}"
     result = requests.get(address, auth=("admin", "admin"))
     selector = Selector(text=str(result.content))
@@ -17,7 +22,7 @@ def retrieve_message_published(destination_name, host="localhost") -> MessageSta
 
     assert len(all_messages) > 0
 
-    for index, message_details in enumerate(all_messages):
+    for _, message_details in enumerate(all_messages):
         message_details_as_selector = Selector(text=message_details)
         message_id_request_path = message_details_as_selector.css("td a::attr(href)").get()
         address_to_message = f"http://{host}:8161/admin/{message_id_request_path}"

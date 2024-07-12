@@ -1,6 +1,7 @@
 import re
 
 import pytest
+
 from pytest_mock import MockerFixture
 from stomp.connect import StompConnection11
 

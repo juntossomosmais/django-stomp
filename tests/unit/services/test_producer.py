@@ -1,7 +1,9 @@
 """
 Module with unit tests written to assert producer (publisher) scenarios.
 """
+
 import json
+
 from uuid import uuid4
 
 from django.core.serializers.json import DjangoJSONEncoder

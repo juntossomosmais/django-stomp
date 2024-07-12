@@ -1,16 +1,20 @@
+import os
+
 from time import sleep
 from typing import Generator
 
 import requests
+
 from parsel import Selector
 
 from django_stomp.helpers import eval_str_as_boolean
 from tests.support.dtos import ConsumerStatus
 
 
-def consumers_details(connection_id, host="localhost") -> Generator[ConsumerStatus, None, None]:
+def consumers_details(connection_id, host=None) -> Generator[ConsumerStatus, None, None]:
     sleep(1)
-
+    if not host:
+        host = os.getenv("STOMP_SERVER_HOST", "localhost")
     params = {"connectionID": connection_id}
     result = requests.get(f"http://{host}:8161/admin/connection.jsp", params=params, auth=("admin", "admin"))
     selector = Selector(text=str(result.content))
@@ -18,7 +22,7 @@ def consumers_details(connection_id, host="localhost") -> Generator[ConsumerStat
     consumers_table = selector.xpath('//*[@id="messages"]/tbody/tr').getall()
 
     assert len(consumers_table) > 0
-    for index, consumer_details in enumerate(consumers_table):
+    for _, consumer_details in enumerate(consumers_table):
         consumer_details_as_selector = Selector(text=consumer_details)
         destination_request_path = consumer_details_as_selector.css("td a::attr(href)").get()
 

@@ -2,6 +2,7 @@ import json
 import uuid
 
 import pytest
+
 from stomp.listener import TestListener
 
 from django_stomp.builder import build_publisher

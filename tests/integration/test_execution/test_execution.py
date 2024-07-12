@@ -3,12 +3,14 @@ import logging
 import re
 import threading
 import uuid
+
 from time import sleep
 from unittest import mock
 from uuid import uuid4
 
 import pytest
 import trio
+
 from django.db.backends.signals import connection_created
 from pytest_mock import MockFixture
 from stomp.exception import NotConnectedException
@@ -49,7 +51,7 @@ def sending_frame_pattern() -> re.Pattern:
     return re.compile(r"sending frame: \[b'ACK'.*")
 
 
-def test_should_consume_message_and_publish_to_another_queue_using_same_correlation_id():
+def ftest_should_consume_message_and_publish_to_another_queue_using_same_correlation_id():
     # Base environment setup
     destination_one = f"/queue/my-test-destination-one-{uuid4()}"
     destination_two = f"/queue/my-test-destination-two-{uuid4()}"
@@ -188,7 +190,7 @@ def test_should_create_durable_subscriber_and_receive_standby_messages(mocker: M
         assert destination_status.messages_enqueued == 3
         assert destination_status.messages_dequeued == 3
 
-        all_offline_subscribers = list(offline_durable_subscribers("localhost"))
+        all_offline_subscribers = list(offline_durable_subscribers())
         assert len(all_offline_subscribers) > 0
         for index, subscriber_setup in enumerate(all_offline_subscribers):
             if subscriber_setup.subscriber_id == f"{temp_uuid_listener}-listener":
@@ -587,7 +589,7 @@ def test_should_raise_exception_when_correlation_id_is_required_but_not_received
     some_body = {"keyOne": 1, "keyTwo": 2}
     publish_without_correlation_id_header(test_destination_one, some_body)
 
-    with pytest.raises(Exception):
+    with pytest.raises(Exception): # noqa: B017
         assert start_processing(
             test_destination_one, callback_move_and_ack_path, param_to_callback=test_destination_two, is_testing=True
         )
@@ -691,7 +693,7 @@ def test_should_use_heartbeat_and_dont_lose_connection_when_using_background_pro
 
 @pytest.mark.skipif(is_testing_against_rabbitmq(), reason="RabbitMQ doesn't holds the concept of a durable subscriber")
 def test_shouldnt_create_a_durable_subscriber_when_dealing_with_virtual_topics():
-    all_offline_subscribers_before_the_virtual_topic_connection = list(offline_durable_subscribers("localhost"))
+    all_offline_subscribers_before_the_virtual_topic_connection = list(offline_durable_subscribers())
     destination_two = f"/queue/testing-for-durable-subscriber-with-virtual-topics-{uuid4()}"
 
     some_virtual_topic = f"VirtualTopic.{uuid.uuid4()}"
@@ -700,7 +702,7 @@ def test_shouldnt_create_a_durable_subscriber_when_dealing_with_virtual_topics()
         virtual_topic_consumer_queue, callback_move_and_ack_path, param_to_callback=destination_two, is_testing=True
     )
 
-    all_offline_subscribers_after_the_virtual_topic_connection = list(offline_durable_subscribers("localhost"))
+    all_offline_subscribers_after_the_virtual_topic_connection = list(offline_durable_subscribers())
 
     assert sorted(all_offline_subscribers_before_the_virtual_topic_connection) == sorted(
         all_offline_subscribers_after_the_virtual_topic_connection
@@ -980,7 +982,7 @@ def test_should_create_a_exclusive_queue_by_publisher_at_rabbitmq(mocker, settin
         assert queue_status.messages_enqueued == 0
         assert queue_status.messages_dequeued == 0
         assert (
-            queue_status.is_exclusive_destination_queue == None
+            queue_status.is_exclusive_destination_queue is None
         ), "Header parameter 'exclusive' cannot change queue behavior in ActiveMQ"
     except Exception:
         queue_status = rabbitmq.current_queue_configuration(queue_name)

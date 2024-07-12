@@ -1,13 +1,18 @@
+import os
+
 from time import sleep
 
 import requests
 
 from parsel import Selector
+
 from tests.support.dtos import CurrentDestinationStatus
 
 
-def current_topic_configuration(topic_name, host="localhost") -> CurrentDestinationStatus:
+def current_topic_configuration(topic_name, host=None) -> CurrentDestinationStatus:
     sleep(1)
+    if not host:
+        host = os.getenv("STOMP_SERVER_HOST", "localhost")
     result = requests.get(f"http://{host}:8161/admin/topics.jsp", auth=("admin", "admin"))
     selector = Selector(text=str(result.content))
 

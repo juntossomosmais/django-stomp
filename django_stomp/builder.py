@@ -1,6 +1,9 @@
 import logging
+
 from typing import Dict
+from typing import Literal
 from typing import Optional
+from typing import Union
 
 from django.conf import settings
 
@@ -22,8 +25,8 @@ def build_publisher(client_id: Optional[str] = None) -> Publisher:
 
 def build_listener(
     destination_name: str,
-    durable_topic_subscription: bool = False,
-    should_process_msg_on_background: bool = True,
+    durable_topic_subscription: Union[Literal[0, 1], bool] = False,
+    should_process_msg_on_background: Union[Literal[0, 1], bool] = True,
     is_testing: bool = False,
     client_id: Optional[str] = None,
     routing_key: Optional[str] = None,

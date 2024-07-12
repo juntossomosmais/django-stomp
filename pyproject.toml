@@ -1,6 +1,57 @@
+[tool.poetry]
+name="django-stomp"
+version="5.3.1"
+description="A simple implementation of STOMP with Django"
+authors = ["Juntos Somos Mais <labs@juntossomosmais.com.br>", "Ricardo Baltazar Chaves <ricardobchaves6@gmail.com>", "Willian Antunes <willian.lima.antunes@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/juntossomosmais/django-stomp"
+repository = "https://github.com/juntossomosmais/django-stomp"
+documentation = "https://github.com/juntossomosmais/django-stomp"
+classifiers = [
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
+    'Framework :: Django :: 4.2',
+    'Framework :: Django :: 5',
+    "Environment :: Web Environment",
+    "Development Status :: 5 - Production/Stable",
+    "Natural Language :: Portuguese (Brazilian)",
+    'Intended Audience :: Developers',
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+packages = [{include = "django_stomp"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+request-id-django-log = "*"
+"stomp.py" = "^8"
+tenacity = "^8"
+
+[tool.poetry.group.dev.dependencies]
+django = "^4"
+tox = "*"
+pytest = "*"
+pytest-mock = "*"
+pytest-cov = "*"
+pytest-env = "*"
+pytest-django = "*"
+parsel = "*"
+requests = "*"
+trio = "*"
+pytest-trio = "*"
+pre-commit = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
 [tool.black]
 line-length = 120
-target-version = ['py36', 'py37', 'py38']
+target-version = ['py39']
 include = '\.pyi?$'
 exclude = '''
 /(
