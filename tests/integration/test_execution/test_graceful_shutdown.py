@@ -46,6 +46,7 @@ def setup_fixture(destination: str, payload: Tuple[Dict[str, Union[UUID, int]]])
     execution.is_gracefully_shutting_down = False
 
 
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "callback_fn",
     (
@@ -73,6 +74,7 @@ def test_should_gracefully_shutting_down_pubsub_command_when_signal_is_listened(
     assert execution._is_processing_message is False
 
 
+@pytest.mark.django_db
 def test_should_wait_for_message_to_process_tois_gracefully_shutting_down(
     caplog: pytest.LogCaptureFixture,
     setup_fixture: Generator,
