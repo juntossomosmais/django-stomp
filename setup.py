@@ -19,8 +19,8 @@ setup(
     author_email="Ricardo Baltazar <ricardobchaves6@gmail.com>, Willian Antunes <willian.lima.antunes@gmail.com>",
     license="MIT",
     url="https://github.com/juntossomosmais/django-stomp",
-    packages=find_packages(exclude=("tests","tests.*")),
-    install_requires=["request-id-django-log==0.1.1", "stomp.py~=8.0", "tenacity~=8.0"],
+    packages=find_packages(exclude=("tests", "tests.*")),
+    install_requires=["request-id-django-log==0.2.0", "stomp.py~=8.0", "tenacity~=8.0"],
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.7",
