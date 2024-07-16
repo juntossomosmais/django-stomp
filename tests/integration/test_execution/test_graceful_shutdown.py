@@ -8,6 +8,7 @@ from uuid import UUID
 from uuid import uuid4
 
 import pytest
+from pytest_mock import MockFixture
 
 from django_stomp import execution
 from django_stomp.execution import start_processing
@@ -55,8 +56,9 @@ def setup_fixture(destination: str, payload: Tuple[Dict[str, Union[UUID, int]]])
     ),
 )
 def test_should_gracefully_shutting_down_pubsub_command_when_signal_is_listened(
-    callback_fn: str, caplog: pytest.LogCaptureFixture, setup_fixture: Generator, destination: str
+    callback_fn: str, caplog: pytest.LogCaptureFixture, setup_fixture: Generator, destination: str, mocker: MockFixture
 ):
+    mocker_db = mocker.patch("django_stomp.execution.db.close_old_connections")
     caplog.set_level(logging.DEBUG)
 
     start_processing(
@@ -71,6 +73,7 @@ def test_should_gracefully_shutting_down_pubsub_command_when_signal_is_listened(
     assert GRACEFULL_SHUTDOWN_SUCCESS_MESSAGE in caplog.messages
     assert execution.is_gracefully_shutting_down is True
     assert execution._is_processing_message is False
+    assert mocker_db.called
 
 
 def test_should_wait_for_message_to_process_tois_gracefully_shutting_down(
@@ -78,7 +81,9 @@ def test_should_wait_for_message_to_process_tois_gracefully_shutting_down(
     setup_fixture: Generator,
     destination: str,
     payload: Tuple[Dict[str, Union[UUID, int]]],
+    mocker: MockFixture
 ):
+    mocker_db = mocker.patch("django_stomp.execution.db.close_old_connections")
     caplog.set_level(logging.DEBUG)
 
     message_consumer = start_processing(
@@ -101,6 +106,7 @@ def test_should_wait_for_message_to_process_tois_gracefully_shutting_down(
     assert messages_still_being_processed_message in caplog.messages
     assert GRACEFULL_SHUTDOWN_SUCCESS_MESSAGE in caplog.messages
     assert success_message in caplog.messages
+    assert mocker_db.called
 
 
 @mock.patch("django_stomp.execution.graceful_wait_seconds", 1)
@@ -109,7 +115,9 @@ def test_should_shutdown_when_time_passes(
     setup_fixture: Generator,
     destination: str,
     payload: Tuple[Dict[str, Union[UUID, int]]],
+    mocker: MockFixture
 ):
+    mocker_db = mocker.patch("django_stomp.execution.db.close_old_connections")
     caplog.set_level(logging.DEBUG)
 
     message_consumer = start_processing(
@@ -135,3 +143,4 @@ def test_should_shutdown_when_time_passes(
     assert GRACEFULL_SHUTDOWN_SUCCESS_MESSAGE in caplog.messages
     assert success_message in caplog.messages
     assert reached_time_limit_message in caplog.messages
+    assert mocker_db.called

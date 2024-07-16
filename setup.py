@@ -10,7 +10,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name="django-stomp",
-    version="5.3.1",
+    version="5.4.0",
     description="A simple implementation of STOMP with Django",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -19,8 +19,8 @@ setup(
     author_email="Ricardo Baltazar <ricardobchaves6@gmail.com>, Willian Antunes <willian.lima.antunes@gmail.com>",
     license="MIT",
     url="https://github.com/juntossomosmais/django-stomp",
-    packages=find_packages(exclude=("tests","tests.*")),
-    install_requires=["request-id-django-log==0.1.1", "stomp.py~=8.0", "tenacity~=8.0"],
+    packages=find_packages(exclude=("tests", "tests.*")),
+    install_requires=["request-id-django-log==0.2.0", "stomp.py~=8.0", "tenacity~=8.0"],
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.7",
