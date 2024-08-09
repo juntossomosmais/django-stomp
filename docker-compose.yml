@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   broker-activemq:
     image: rmohr/activemq:latest

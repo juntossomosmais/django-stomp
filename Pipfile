@@ -18,10 +18,10 @@ trio = "*"
 pytest-trio = "*"
 
 [packages]
-django = "~=2.2"
+django = "~=5.1"
 "stomp.py" = "~=8.0"
 request-id-django-log = "==0.2.0"
 tenacity = "~=8.0"
 
 [requires]
-python_version = "3.7"
+python_version = "3.10"
