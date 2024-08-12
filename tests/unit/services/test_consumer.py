@@ -10,7 +10,7 @@ from tests.support.helpers import get_active_threads_name_with_prefix
 
 
 def test_should_create_at_most_the_defined_number_of_workers(mocker):
-    mocker.patch("django_stomp.services.consumer.STOMP_PROCESS_MSG_WORKERS", 3)
+    mocker.patch("django_stomp.services.consumer.STOMP_PROCESS_MSG_WORKERS", 2)
 
     listener = build_listener(f"some-destination-{uuid4()}", should_process_msg_on_background=True)
 
@@ -22,7 +22,7 @@ def test_should_create_at_most_the_defined_number_of_workers(mocker):
     listener.on_message(fake_frame)
 
     workers_threads = get_active_threads_name_with_prefix(listener._subscription_id)
-    assert len(workers_threads) == 3  # 3 workers
+    assert len(workers_threads) == 2  # 2 workers
     listener.shutdown_worker_pool()
 
 
