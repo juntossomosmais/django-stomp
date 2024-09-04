@@ -81,7 +81,7 @@ def test_should_wait_for_message_to_process_tois_gracefully_shutting_down(
     setup_fixture: Generator,
     destination: str,
     payload: Tuple[Dict[str, Union[UUID, int]]],
-    mocker: MockFixture
+    mocker: MockFixture,
 ):
     mocker_db = mocker.patch("django_stomp.execution.db.close_old_connections")
     caplog.set_level(logging.DEBUG)
@@ -115,7 +115,7 @@ def test_should_shutdown_when_time_passes(
     setup_fixture: Generator,
     destination: str,
     payload: Tuple[Dict[str, Union[UUID, int]]],
-    mocker: MockFixture
+    mocker: MockFixture,
 ):
     mocker_db = mocker.patch("django_stomp.execution.db.close_old_connections")
     caplog.set_level(logging.DEBUG)

@@ -2,8 +2,8 @@ from time import sleep
 from typing import Generator
 
 import requests
-
 from parsel import Selector
+
 from tests.support.dtos import SubscriberSetup
 
 
