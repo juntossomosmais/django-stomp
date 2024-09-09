@@ -12,6 +12,11 @@ db.sqlite3
 media
 tests-reports/
 .DS_Store
+Pipfile
+Pipfile.lock
+requirements.txt
+.pypirc
+.python-version
 
 # If your build process includes running collectstatic, then you probably don't need or want to include staticfiles/
 # in your Git repository. Update and uncomment the following line accordingly.

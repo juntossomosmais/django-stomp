@@ -2,8 +2,8 @@ import json
 from time import sleep
 
 import requests
-
 from parsel import Selector
+
 from tests.support.dtos import MessageStatus
 
 
