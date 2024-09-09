@@ -29,7 +29,7 @@ packages = [{include = "django_stomp"}]
 python = "^3.9"
 request-id-django-log = "*"
 "stomp.py" = "^8"
-tenacity = "^8"
+tenacity = ">=8,<10"
 
 [tool.poetry.group.dev.dependencies]
 django = "^4"
