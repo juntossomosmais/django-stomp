@@ -39,7 +39,6 @@ services:
   integration-tests-tox:
     build:
       context: .
-      dockerfile: Dockerfile.tox-tests
     volumes:
       - .:/app
     depends_on:
