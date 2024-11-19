@@ -352,7 +352,6 @@ modules.xml
 app_test
 django_project
 manage.py
-Dockerfile
 start.sh
 wait-for-it.sh
 test*xml
