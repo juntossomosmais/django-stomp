@@ -689,7 +689,6 @@ def test_should_use_heartbeat_and_dont_lose_connection_when_using_background_pro
     assert any(sending_ack_frame_regex.match(m) for m in caplog.messages)
     assert not any(heartbeat_timeout_regex.match(m) for m in caplog.messages)
 
-@pytest.mark.django_db
 @pytest.mark.skipif(is_testing_against_rabbitmq(), reason="RabbitMQ doesn't holds the concept of a durable subscriber")
 def test_shouldnt_create_a_durable_subscriber_when_dealing_with_virtual_topics():
     all_offline_subscribers_before_the_virtual_topic_connection = list(offline_durable_subscribers(django_settings.STOMP_SERVER_HOST))
