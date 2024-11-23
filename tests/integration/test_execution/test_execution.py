@@ -9,6 +9,7 @@ from uuid import uuid4
 
 import pytest
 import trio
+from django.conf import settings as django_settings
 from django.db.backends.signals import connection_created
 from pytest_mock import MockFixture
 from stomp.exception import NotConnectedException
@@ -188,7 +189,7 @@ def test_should_create_durable_subscriber_and_receive_standby_messages(mocker: M
         assert destination_status.messages_enqueued == 3
         assert destination_status.messages_dequeued == 3
 
-        all_offline_subscribers = list(offline_durable_subscribers("localhost"))
+        all_offline_subscribers = list(offline_durable_subscribers(settings.STOMP_SERVER_HOST))
         assert len(all_offline_subscribers) > 0
         for index, subscriber_setup in enumerate(all_offline_subscribers):
             if subscriber_setup.subscriber_id == f"{temp_uuid_listener}-listener":
@@ -688,10 +689,10 @@ def test_should_use_heartbeat_and_dont_lose_connection_when_using_background_pro
     assert any(sending_ack_frame_regex.match(m) for m in caplog.messages)
     assert not any(heartbeat_timeout_regex.match(m) for m in caplog.messages)
 
-
+@pytest.mark.django_db
 @pytest.mark.skipif(is_testing_against_rabbitmq(), reason="RabbitMQ doesn't holds the concept of a durable subscriber")
 def test_shouldnt_create_a_durable_subscriber_when_dealing_with_virtual_topics():
-    all_offline_subscribers_before_the_virtual_topic_connection = list(offline_durable_subscribers("localhost"))
+    all_offline_subscribers_before_the_virtual_topic_connection = list(offline_durable_subscribers(django_settings.STOMP_SERVER_HOST))
     destination_two = f"/queue/testing-for-durable-subscriber-with-virtual-topics-{uuid4()}"
 
     some_virtual_topic = f"VirtualTopic.{uuid.uuid4()}"
@@ -700,7 +701,7 @@ def test_shouldnt_create_a_durable_subscriber_when_dealing_with_virtual_topics()
         virtual_topic_consumer_queue, callback_move_and_ack_path, param_to_callback=destination_two, is_testing=True
     )
 
-    all_offline_subscribers_after_the_virtual_topic_connection = list(offline_durable_subscribers("localhost"))
+    all_offline_subscribers_after_the_virtual_topic_connection = list(offline_durable_subscribers(django_settings.STOMP_SERVER_HOST))
 
     assert sorted(all_offline_subscribers_before_the_virtual_topic_connection) == sorted(
         all_offline_subscribers_after_the_virtual_topic_connection
