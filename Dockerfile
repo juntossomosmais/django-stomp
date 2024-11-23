@@ -1,9 +1,9 @@
-FROM python:3.9-slim-buster
+FROM python:3.10-alpine
 
 ENV PYTHONUNBUFFERED=1
 
-RUN apt-get update && \
-    apt-get install -y git
+RUN  apk -U upgrade && \
+    apk add --no-cache git
 
 WORKDIR /app
 COPY . .
