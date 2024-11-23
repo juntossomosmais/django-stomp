@@ -13,3 +13,7 @@ RUN pip install --upgrade pip && \
     poetry export -f requirements.txt -o requirements.txt --with dev && \
     pip uninstall --yes poetry && \
     pip install --no-cache-dir --upgrade --upgrade-strategy=eager -r requirements.txt
+
+ENV PIPENV_IGNORE_VIRTUALENVS=1
+# keep the container running
+CMD ["tail", "-f", "/dev/null"]
