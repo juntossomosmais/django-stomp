@@ -2,13 +2,14 @@ from time import sleep
 from typing import Generator
 
 import requests
+from django.conf import settings
 from parsel import Selector
 
 from django_stomp.helpers import eval_str_as_boolean
 from tests.support.dtos import ConsumerStatus
 
 
-def consumers_details(connection_id, host="localhost") -> Generator[ConsumerStatus, None, None]:
+def consumers_details(connection_id, host=settings.STOMP_SERVER_HOST) -> Generator[ConsumerStatus, None, None]:
     sleep(1)
 
     params = {"connectionID": connection_id}
