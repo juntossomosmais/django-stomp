@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 # https://www.gnu.org/software/bash/manual/bash.html#The-Set-Builtin
 # -e  Exit immediately if a command exits with a non-zero status.
