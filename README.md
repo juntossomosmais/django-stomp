@@ -162,6 +162,16 @@ defined, this parameter **must** be an integer!
 
 ## Tests
 
+### In a docker container (without installing dependencies locally)
+
+Execute tests for both ActiveMQ and RabbitMQ
+
+```bash
+make test
+```
+
+### With python dependencies installed locally
+
 In order to execute tests for ActiveMQ, execute the following:
 ```bash
 docker-compose up -d broker-activemq

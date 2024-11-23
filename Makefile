@@ -1,9 +1,11 @@
 .PHONY: tests test_activemq test_rabbitmq
 
 test_activemq:
-	docker compose exec integration-tests-active-mq ./scripts/start-tests.sh
+	docker compose up --abort-on-container-exit integration-tests-active-mq
+	docker compose down --remove-orphans
 
 test_rabbitmq:
-	docker compose exec integration-tests ./scripts/start-tests.sh
+	docker compose up --abort-on-container-exit integration-tests
+	docker compose down --remove-orphans
 
 test: test_activemq test_rabbitmq
