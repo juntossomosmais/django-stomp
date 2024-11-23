@@ -71,7 +71,7 @@ services:
   broker-rabbitmq:
     image: rabbitmq:3-management
     ports:
-      - 61615:61613
+      - 61613:61613
       - 15672:15672
     volumes:
       - ./tests/resources/custom-rabbitmq-conf:/etc/rabbitmq/
