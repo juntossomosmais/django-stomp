@@ -2,12 +2,13 @@ import json
 from time import sleep
 
 import requests
+from django.conf import settings
 from parsel import Selector
 
 from tests.support.dtos import MessageStatus
 
 
-def retrieve_message_published(destination_name, host="localhost") -> MessageStatus:
+def retrieve_message_published(destination_name, host=settings.STOMP_SERVER_HOST) -> MessageStatus:
     sleep(1)
     address = f"http://{host}:8161/admin/browse.jsp?JMSDestination={destination_name}"
     result = requests.get(address, auth=("admin", "admin"))

@@ -36,7 +36,7 @@ class MessageStatus:
     properties: Optional[Dict]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, order=True)
 class SubscriberSetup:
     address_to_subscriber_details: str
     subscriber_id: str

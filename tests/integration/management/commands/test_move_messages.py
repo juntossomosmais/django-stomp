@@ -1,6 +1,7 @@
 import uuid
 
 import pytest
+from django.conf import settings
 from django.core.management import call_command
 
 from django_stomp.builder import build_publisher
@@ -20,7 +21,7 @@ def test_should_send_from_one_broker_to_another(settings):
                 publisher.send(sample_body, fake_source, headers)
 
     def _to_move_the_message_and_evaluate_result():
-        fake_custom_broker_host = "localhost"
+        fake_custom_broker_host = settings.STOMP_SERVER_HOST
         fake_custom_broker_port = "61614"
 
         call_command("move_messages", fake_source, fake_target, fake_custom_broker_host, fake_custom_broker_port)
