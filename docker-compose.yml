@@ -7,7 +7,7 @@ services:
     networks:
       - djangostompnetwork
 
-  integration-tests:
+  integration-tests-rabbit-mq:
     build: .
     volumes:
       - .:/app
