@@ -14,7 +14,6 @@ services:
     depends_on:
       broker-rabbitmq:
         condition: service_healthy
-    command: ["./scripts/start-tests.sh"]
     environment:
       STOMP_SERVER_HOST: "broker-rabbitmq"
       STOMP_SERVER_PORT: 61613
@@ -28,7 +27,6 @@ services:
       - .:/app
     depends_on:
       - broker-activemq
-    command: ["./scripts/start-tests.sh"]
     environment:
       STOMP_SERVER_HOST: "broker-activemq"
       STOMP_SERVER_PORT: 61613
