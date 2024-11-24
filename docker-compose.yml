@@ -34,18 +34,6 @@ services:
     networks:
       - djangostompnetwork
 
-  integration-tests-tox:
-    build:
-      context: .
-    volumes:
-      - .:/app
-    depends_on:
-      broker-rabbitmq:
-        condition: service_healthy
-    command: ["./scripts/start-tox-tests.sh"]
-    networks:
-      - djangostompnetwork
-
   broker-activemq:
     image: rmohr/activemq:latest
     ports:
