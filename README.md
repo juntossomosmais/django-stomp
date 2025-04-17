@@ -1,5 +1,6 @@
 # Django Stomp
 
+![Status](https://camo.githubusercontent.com/ee0dfc25808ca34d04adbf32aba056bd3884c4f778657b9698e11db9cbf956a6/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f7374617475732d6d61696e74656e616e63652d6666643730302e737667)
 [![Build Status](https://dev.azure.com/juntos-somos-mais-loyalty/python/_apis/build/status/django-stomp?branchName=master)](https://dev.azure.com/juntos-somos-mais-loyalty/python/_build/latest?definitionId=23&branchName=master)
 [![Maintainability](https://sonarcloud.io/api/project_badges/measure?project=juntossomosmais_django-stomp&metric=sqale_rating)](https://sonarcloud.io/dashboard?id=juntossomosmais_django-stomp)
 [![Test Coverage](https://sonarcloud.io/api/project_badges/measure?project=juntossomosmais_django-stomp&metric=coverage)](https://sonarcloud.io/dashboard?id=juntossomosmais_django-stomp)
@@ -9,6 +10,8 @@
 [![Downloads](https://pepy.tech/badge/django-stomp/week)](https://pepy.tech/project/django-stomp/week)
 [![PyPI version](https://badge.fury.io/py/django-stomp.svg)](https://badge.fury.io/py/django-stomp)
 [![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/juntossomosmais/django-stomp/blob/master/LICENSE)
+
+> This project is in maintenance status, only security items or critical bugs will be developed. We are now maintaining the [django-outbox-pattern](https://github.com/juntossomosmais/django-outbox-pattern) which has the same proposal, but follows the outbox pattern, which is our prefered approach to working with message brokers.
 
 A simple implementation of STOMP with Django.
 
