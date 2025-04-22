@@ -1,6 +1,7 @@
 import logging
 import signal
 import uuid
+import os
 from time import sleep
 from time import time
 from typing import Dict
@@ -82,7 +83,8 @@ def start_processing(
 ) -> Optional[Listener]:
     global _listener, is_gracefully_shutting_down
 
-    signal.signal(signal.SIGQUIT, _shutdown_handler)
+    if os.name == "posix":
+        signal.signal(signal.SIGQUIT, _shutdown_handler)
     signal.signal(signal.SIGTERM, _shutdown_handler)
     signal.signal(signal.SIGINT, _shutdown_handler)
 
